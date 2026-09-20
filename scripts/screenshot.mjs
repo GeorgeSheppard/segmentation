@@ -28,10 +28,9 @@ page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 page.on("pageerror", (e) => errors.push(`PAGEERROR: ${e.message}`));
 
 await page.goto(URL, { waitUntil: "networkidle" });
-await page.waitForFunction(
-  () => document.getElementById("loading").classList.contains("hidden"),
-  { timeout: 60_000 },
-);
+await page.waitForFunction(() => document.getElementById("loading").classList.contains("hidden"), {
+  timeout: 60_000,
+});
 await page.waitForTimeout(1500);
 
 const total = Number(await page.textContent("#step-total"));

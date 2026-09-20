@@ -13,9 +13,7 @@ import {
   Vector3,
 } from "three";
 import type { Vec3 } from "../core/linalg.ts";
-import type { CzmGeometry } from "../patchwork/czm.ts";
-import { ringRadii, sectorAngles } from "../patchwork/czm.ts";
-import type { Params } from "../patchwork/params.ts";
+import { type CzmGeometry, type Params, ringRadii, sectorAngles } from "../patchwork/index.ts";
 import { COLORS, ZONE_COLORS } from "./palette.ts";
 
 /** Points along an annular-sector outline, counter-clockwise and closed. */

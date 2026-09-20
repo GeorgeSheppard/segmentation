@@ -1,7 +1,5 @@
 import { fitPlane, planeDistance, type PlaneFit } from "../core/linalg.ts";
-import type { CzmGeometry } from "../patchwork/czm.ts";
-import { cloneParams, type Params } from "../patchwork/params.ts";
-import type { PointCloud } from "../patchwork/types.ts";
+import { cloneParams, type CzmGeometry, type Params, type PointCloud } from "../patchwork/index.ts";
 
 /**
  * The naive baseline: Zermas' GPF run over the whole cloud as a single segment.
@@ -84,8 +82,7 @@ export function uniformGrid(
 export function orderByRange(xyz: Float32Array, pool: ArrayLike<number>): Int32Array {
   const arr = Array.from({ length: pool.length }, (_, k) => pool[k]);
   arr.sort(
-    (a, b) =>
-      Math.hypot(xyz[a * 3], xyz[a * 3 + 1]) - Math.hypot(xyz[b * 3], xyz[b * 3 + 1]),
+    (a, b) => Math.hypot(xyz[a * 3], xyz[a * 3 + 1]) - Math.hypot(xyz[b * 3], xyz[b * 3 + 1]),
   );
   return Int32Array.from(arr);
 }

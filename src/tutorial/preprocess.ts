@@ -58,7 +58,11 @@ export const stageRnr: Stage = {
     );
     floor.layFlat(-frame.stateBefore.sensorHeight - 0.8);
 
-    const heroLabel = ctx.label("virtual point", heroPos.clone().add(new Vector3(0, 0, -1.3)), "warn");
+    const heroLabel = ctx.label(
+      "virtual point",
+      heroPos.clone().add(new Vector3(0, 0, -1.3)),
+      "warn",
+    );
     const incLabel = ctx.label(
       "reflective surface — bonnet, roof or glass",
       incidence.clone().add(new Vector3(0, 0, 1.8)),
@@ -88,10 +92,14 @@ export const stageRnr: Stage = {
       3.4,
     );
 
-    t.add(3.0, ctx.rig.flyTo({
-      position: heroPos.clone().add(new Vector3(-13, -11, 7)),
-      target: heroPos.clone().add(new Vector3(0, 0, 2.5)),
-    }), Ease.cinematic);
+    t.add(
+      3.0,
+      ctx.rig.flyTo({
+        position: heroPos.clone().add(new Vector3(-13, -11, 7)),
+        target: heroPos.clone().add(new Vector3(0, 0, 2.5)),
+      }),
+      Ease.cinematic,
+    );
     t.add(1.0, { onUpdate: (v) => (heroLabel.opacity = v) });
     t.say(
       `This one sits at <em>z = ${fmt(heroPos.z)} m</em> — more than eight metres under the car. No road does that.`,
@@ -224,8 +232,9 @@ export const stageCzm: Stage = {
       3.0,
     ).with(2.8, ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])), Ease.cinematic);
 
-    t.add(1.4, { onUpdate: (v) => uniGrid.setOpacity(v * 0.5) })
-      .with(1.4, { onUpdate: (v) => cloud.fadeAllTo(0.35, v) });
+    t.add(1.4, { onUpdate: (v) => uniGrid.setOpacity(v * 0.5) }).with(1.4, {
+      onUpdate: (v) => cloud.fadeAllTo(0.35, v),
+    });
     t.say(
       "So an even polar grid gets it wrong twice: cells far out hold three or four points — too few to fit anything — while cells up close are smaller than the road's own texture.",
       5.4,
@@ -261,13 +270,20 @@ export const stageCzm: Stage = {
       3.2,
     );
 
-    t.add(0.8, { onUpdate: (v) => { for (const l of zoneLabels) l.opacity = 1 - v; } });
+    t.add(0.8, {
+      onUpdate: (v) => {
+        for (const l of zoneLabels) l.opacity = 1 - v;
+      },
+    });
     t.add(0.8, {
       onEnter: () =>
         ctx.readout("Grid", [
           { label: "uniform", value: `${uni.czm.numBins.toLocaleString()} bins` },
           { label: "CZM", value: `${czm.numBins} bins`, state: "pass" },
-          { label: "occupied", value: String(frame.bins.filter((b) => b.indices.length > 0).length) },
+          {
+            label: "occupied",
+            value: String(frame.cells.filter((b) => b.indices.length > 0).length),
+          },
         ]),
     });
     t.say(
@@ -277,13 +293,16 @@ export const stageCzm: Stage = {
 
     // Drop into a single cell: this is the unit everything else works on.
     t.add(1.0, { onUpdate: (v) => (focusOutline.opacity = v) });
-    t.add(3.0, ctx.rig.flyTo(ctx.binPose(focus, { distance: 9, height: 4.5 })), Ease.cinematic)
-      .with(1.6, {
-        onUpdate: (v) => {
-          cloud.focusOn(focus.indices, 0.12, v, 1.5);
-          grid.setOpacity(0.75 * (1 - v * 0.75));
-        },
-      });
+    t.add(
+      3.0,
+      ctx.rig.flyTo(ctx.binPose(focus, { distance: 9, height: 4.5 })),
+      Ease.cinematic,
+    ).with(1.6, {
+      onUpdate: (v) => {
+        cloud.focusOn(focus.indices, 0.12, v, 1.5);
+        grid.setOpacity(0.75 * (1 - v * 0.75));
+      },
+    });
     t.say(
       `From here on, everything happens inside one cell like this one — <em>${focus.indices.length.toLocaleString()} points</em>, ${focus.radii[0].toFixed(
         1,

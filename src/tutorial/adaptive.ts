@@ -1,7 +1,12 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { ringFromConcentric, ringRadii } from "../patchwork/czm.ts";
-import { isGroundLabel, type PointLabel } from "../patchwork/types.ts";
+import {
+  isGroundLabel,
+  PIPELINE_STEPS,
+  type PointLabel,
+  ringFromConcentric,
+  ringRadii,
+} from "../patchwork/index.ts";
 import { COLORS } from "../viz/palette.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
@@ -34,16 +39,12 @@ export const stageAgle: Stage = {
       const [r0, r1] = ringRadii(czm, zone, ring);
       const disc = ctx.surface(r0, r1, 0, Math.PI * 2, COLORS.plane, 0, 72, 2);
       disc.layFlat(0);
-      const cells = frame.bins.filter((b) => b.concentricIdx === m && b.gle?.isDefiniteGround);
+      const cells = frame.cells.filter((b) => b.concentricIdx === m && b.gle?.isDefiniteGround);
       // Each ring's label gets its own bearing, or they stack on top of each other.
       const bearing = 1.15 - m * 0.42;
       const label = ctx.label(
         `ring ${m}`,
-        new Vector3(
-          ((r0 + r1) / 2) * Math.cos(bearing),
-          ((r0 + r1) / 2) * Math.sin(bearing),
-          0.5,
-        ),
+        new Vector3(((r0 + r1) / 2) * Math.cos(bearing), ((r0 + r1) / 2) * Math.sin(bearing), 0.5),
         "accent",
       );
       label.text = `ring ${m} · ${fmt(before.elevationThr[m])} m`;
@@ -52,7 +53,7 @@ export const stageAgle: Stage = {
     });
 
     const definiteIdx: number[] = [];
-    for (const r of roi) for (const c of r.cells) definiteIdx.push(...c.binGround);
+    for (const r of roi) for (const c of r.cells) definiteIdx.push(...c.cellGround);
     const definite = Int32Array.from(definiteIdx);
 
     const cellSurfaces = roi.flatMap((r) =>
@@ -86,8 +87,9 @@ export const stageAgle: Stage = {
       },
     });
     t.say(
-      `A-GLE measures them instead. Only the inner <em>${params.numRingsOfInterest} rings</em> take part — out past ${czm
-        .minRanges[1].toFixed(0)} m the tests are off anyway.`,
+      `A-GLE measures them instead. Only the inner <em>${params.numRingsOfInterest} rings</em> take part — out past ${czm.minRanges[1].toFixed(
+        0,
+      )} m the tests are off anyway.`,
       4.6,
     );
 
@@ -115,25 +117,29 @@ export const stageAgle: Stage = {
     );
 
     // Drop the threshold discs from the cold-start zero down to the learned values.
-    t.add(2.6, {
-      onEnter: () => ctx.readout("Elevation threshold", thresholdRows()),
-      onUpdate: (v) => {
-        for (const r of roi) {
-          const z =
-            before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v;
-          r.disc.layFlat(z);
-          r.disc.opacity = 0.14 + 0.1 * v;
-          r.label.text = `ring ${r.m} · ${fmt(z)} m`;
-          r.label.setPosition(
-            new Vector3(
-              ((r.r0 + r.r1) / 2) * Math.cos(r.bearing),
-              ((r.r0 + r.r1) / 2) * Math.sin(r.bearing),
-              z + 0.5,
-            ),
-          );
-        }
+    t.add(
+      2.6,
+      {
+        onEnter: () => ctx.readout("Elevation threshold", thresholdRows()),
+        onUpdate: (v) => {
+          for (const r of roi) {
+            const z =
+              before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v;
+            r.disc.layFlat(z);
+            r.disc.opacity = 0.14 + 0.1 * v;
+            r.label.text = `ring ${r.m} · ${fmt(z)} m`;
+            r.label.setPosition(
+              new Vector3(
+                ((r.r0 + r.r1) / 2) * Math.cos(r.bearing),
+                ((r.r0 + r.r1) / 2) * Math.sin(r.bearing),
+                z + 0.5,
+              ),
+            );
+          }
+        },
       },
-    }, Ease.inOut);
+      Ease.inOut,
+    );
     t.at(t.time - 2.6).say(
       "Watch them fall. They started this scan at <em>zero</em> — the cold-start value — and land on the road.",
       2.8,
@@ -199,7 +205,8 @@ export const stageAgle: Stage = {
 export const stageResult: Stage = {
   id: "result",
   title: "The result",
-  subtitle: "Ground and not-ground, from one CPU core, in a few milliseconds, with nothing learned in advance.",
+  subtitle:
+    "Ground and not-ground, from one CPU core, in a few milliseconds, with nothing learned in advance.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -238,7 +245,7 @@ export const stageResult: Stage = {
           ctx.readout("Patchwork++", [
             { label: "ground", value: g.length.toLocaleString(), state: "pass" },
             { label: "not ground", value: n.length.toLocaleString() },
-            { label: "cells fitted", value: String(frame.bins.filter((b) => b.plane).length) },
+            { label: "cells fitted", value: String(frame.cells.filter((b) => b.plane).length) },
             { label: "this run", value: `${frame.elapsedMs.toFixed(0)} ms (JS)` },
           ]),
         onUpdate: (v) => {
@@ -247,7 +254,12 @@ export const stageResult: Stage = {
         },
       });
 
-    t.add(1.4, { onUpdate: (v) => { cloud.paint(g, COLORS.ground, 1); cloud.fadeTo(n, 0.1, v); } });
+    t.add(1.4, {
+      onUpdate: (v) => {
+        cloud.paint(g, COLORS.ground, 1);
+        cloud.fadeTo(n, 0.1, v);
+      },
+    });
     t.say(
       "Ground alone: kerbs, the crown of the road, the pavement rising onto the verge — it followed all of it, because it never assumed any of it was flat.",
       5.0,
@@ -271,7 +283,16 @@ export const stageResult: Stage = {
       4.8,
     );
 
-    t.add(4.5, ctx.rig.orbit(65), Ease.inOut);
+    t.add(4.5, ctx.rig.orbit(65), Ease.inOut).with(1.0, {
+      onEnter: () =>
+        ctx.readout(
+          "Where the time went",
+          PIPELINE_STEPS.filter((step) => step.timed).map((step) => ({
+            label: step.name,
+            value: `${frame.timings[step.id].toFixed(1)} ms`,
+          })),
+        ),
+    });
     t.say(
       "<em>RNR</em> kills the reflections. <em>CZM</em> sizes the cells to the data. <em>R-VPF</em> peels the walls. <em>R-GPF</em> fits. <em>GLE</em> judges. <em>A-GLE</em> learns the thresholds. <em>TGR</em> gives the close calls a second hearing.",
       6.0,

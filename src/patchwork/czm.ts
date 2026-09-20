@@ -23,9 +23,7 @@ export function buildCzm(p: Params): CzmGeometry {
   const minRanges = [lo, (7 * lo + hi) / 8, (3 * lo + hi) / 4, (lo + hi) / 2];
   const maxRanges = [minRanges[1], minRanges[2], minRanges[3], hi];
 
-  const ringSizes = minRanges.map(
-    (min, z) => (maxRanges[z] - min) / p.numRingsEachZone[z],
-  );
+  const ringSizes = minRanges.map((min, z) => (maxRanges[z] - min) / p.numRingsEachZone[z]);
   const sectorSizes = p.numSectorsEachZone.map((n) => (2 * Math.PI) / n);
 
   const ringOffsets: number[] = [];
@@ -65,21 +63,13 @@ export function ringFromConcentric(
 }
 
 /** Radial extent [inner, outer] of a given ring. */
-export function ringRadii(
-  czm: CzmGeometry,
-  zone: number,
-  ring: number,
-): [number, number] {
+export function ringRadii(czm: CzmGeometry, zone: number, ring: number): [number, number] {
   const inner = czm.minRanges[zone] + ring * czm.ringSizes[zone];
   return [inner, inner + czm.ringSizes[zone]];
 }
 
 /** Angular extent [start, end] of a given sector, in radians on [0, 2pi). */
-export function sectorAngles(
-  czm: CzmGeometry,
-  zone: number,
-  sector: number,
-): [number, number] {
+export function sectorAngles(czm: CzmGeometry, zone: number, sector: number): [number, number] {
   const start = sector * czm.sectorSizes[zone];
   return [start, start + czm.sectorSizes[zone]];
 }

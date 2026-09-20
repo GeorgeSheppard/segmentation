@@ -1,5 +1,5 @@
 import { Color } from "three";
-import { PointLabel } from "../patchwork/types.ts";
+import { PointLabel } from "../patchwork/index.ts";
 
 /**
  * One palette for the whole app. Hues are assigned by meaning, not by module:
@@ -31,7 +31,7 @@ export const LABEL_COLORS: Record<number, Color> = {
   [PointLabel.Unassigned]: new Color("#ff00ff"),
   [PointLabel.Noise]: new Color(COLORS.noise),
   [PointLabel.OutOfRange]: new Color(COLORS.outOfRange),
-  [PointLabel.SparseBin]: new Color(COLORS.sparse),
+  [PointLabel.SparseCell]: new Color(COLORS.sparse),
   [PointLabel.VerticalPlane]: new Color(COLORS.vertical),
   [PointLabel.AbovePlane]: new Color(COLORS.nonGround),
   [PointLabel.RejectedTilted]: new Color(COLORS.rejectedTilted),

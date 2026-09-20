@@ -8,14 +8,22 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
+    "verify": "node --experimental-strip-types scripts/verify-port.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deploy": "npm run build && wrangler deploy",
+    "preview:cf": "npm run build && wrangler dev"
   },
   "dependencies": {
     "three": "^0.186.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@types/three": "^0.186.0",
+    "prettier": "^3.9.8",
     "typescript": "^5.9.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "wrangler": "^4.135.0"
   }
 }

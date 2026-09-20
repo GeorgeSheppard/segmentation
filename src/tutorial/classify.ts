@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { PointLabel, type BinTrace } from "../patchwork/types.ts";
+import { type CellTrace, PointLabel } from "../patchwork/index.ts";
 import { COLORS } from "../viz/palette.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt } from "./helpers.ts";
@@ -40,7 +40,7 @@ export const stageGle: Stage = {
       { color: COLORS.rejectedHeading, label: "above the sensor", note: "roof or bonnet" },
     ]);
 
-    const makeCell = (bin: BinTrace, color: string) => {
+    const makeCell = (bin: CellTrace, color: string) => {
       const outline = ctx.outline(bin, -2.1, 1.2, color);
       outline.opacity = 0;
       const surf = ctx.wedge(bin, color, 0);
@@ -48,7 +48,11 @@ export const stageGle: Stage = {
       const nLine = ctx.segment(COLORS.normal, 0);
       const base = new Vector3(...bin.plane!.mean);
       nLine.set(base, base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.0)));
-      const nLabel = ctx.label("", base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.4)), "accent");
+      const nLabel = ctx.label(
+        "",
+        base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.4)),
+        "accent",
+      );
       nLabel.opacity = 0;
       return { outline, surf, nLine, nLabel, bin };
     };
@@ -93,7 +97,7 @@ export const stageGle: Stage = {
       )}, nowhere near the 0.707 needed for 45°. Rejected.`,
       4.6,
     );
-    t.add(1.0, { onUpdate: (v) => cloud.paint(wall.binGround, COLORS.rejectedTilted, v) });
+    t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, COLORS.rejectedTilted, v) });
     t.wait(0.6);
 
     // ---- Test 2: elevation, shown on the roof cell.
@@ -137,7 +141,7 @@ export const stageGle: Stage = {
       "So the second test asks where the plane <em>sits</em>. A real ground plane passes below the sensor. This one does not — its supporting point is above the origin.",
       5.0,
     );
-    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.binGround, COLORS.rejectedHeading, v) });
+    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, COLORS.rejectedHeading, v) });
     t.say(
       "Near the sensor, elevation is a sharp discriminator. Far away it stops being one — a high patch might just be a hill — so past <em>17 m</em> the test is switched off and uprightness decides alone.",
       5.2,
@@ -157,7 +161,7 @@ export const stageGle: Stage = {
       },
       onUpdate: (v) => {
         reveal(cells.good, v);
-        cloud.paint(good.binGround, COLORS.ground, v);
+        cloud.paint(good.cellGround, COLORS.ground, v);
         sensorDisc.opacity = 0.1 * (1 - v);
         originLabel.opacity = 1 - v;
       },
@@ -215,8 +219,8 @@ export const stageSweep: Stage = {
     grid.setOpacity(0.25);
 
     // Group the bins by concentric ring so the reveal really is the processing order.
-    const byRing = new Map<number, BinTrace[]>();
-    for (const bin of frame.bins) {
+    const byRing = new Map<number, CellTrace[]>();
+    for (const bin of frame.cells) {
       const list = byRing.get(bin.concentricIdx) ?? [];
       list.push(bin);
       byRing.set(bin.concentricIdx, list);
@@ -224,8 +228,8 @@ export const stageSweep: Stage = {
     const ringOrder = [...byRing.keys()].sort((a, b) => a - b);
 
     const candidateIdx: number[] = [];
-    for (const b of frame.bins) {
-      if (b.gle?.decision === "candidate") candidateIdx.push(...b.binGround);
+    for (const b of frame.cells) {
+      if (b.gle?.decision === "candidate") candidateIdx.push(...b.cellGround);
     }
 
     const t = ctx.track();
@@ -255,10 +259,10 @@ export const stageSweep: Stage = {
       const undecided: number[] = [];
       for (const b of ringBins) {
         for (const r of b.rvpf) vertical.push(...r.removed);
-        nonGround.push(...b.binNonGround);
-        if (b.gle?.decision === "candidate") undecided.push(...b.binGround);
-        else if (b.gle?.decision === "ground") ground.push(...b.binGround);
-        else nonGround.push(...b.binGround);
+        nonGround.push(...b.cellNonGround);
+        if (b.gle?.decision === "candidate") undecided.push(...b.cellGround);
+        else if (b.gle?.decision === "ground") ground.push(...b.cellGround);
+        else nonGround.push(...b.cellGround);
         if (b.skipped) nonGround.push(...b.indices);
       }
       const g = Int32Array.from(ground);
@@ -332,10 +336,10 @@ export const stageTgr: Stage = {
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
 
-    const candidates = frame.bins.filter((b) => b.gle?.decision === "candidate");
-    const hero = candidates[0] ?? frame.bins.find((b) => b.gle?.isDefiniteGround)!;
+    const candidates = frame.cells.filter((b) => b.gle?.decision === "candidate");
+    const hero = candidates[0] ?? frame.cells.find((b) => b.gle?.isDefiniteGround)!;
     const ring = frame.rings.find((r) => r.concentricIdx === hero.concentricIdx)!;
-    const peers = frame.bins.filter(
+    const peers = frame.cells.filter(
       (b) => b.concentricIdx === hero.concentricIdx && b.gle?.isDefiniteGround,
     );
 
@@ -388,9 +392,9 @@ export const stageTgr: Stage = {
           heroOutline.opacity = v * 0.9;
           heroCell.opacity = v * 0.22;
           heroLabel.opacity = v;
-          cloud.paint(hero.binGround, COLORS.candidate, v);
-          cloud.fadeTo(hero.binGround, 1, v);
-          cloud.sizeTo(hero.binGround, 5, v);
+          cloud.paint(hero.cellGround, COLORS.candidate, v);
+          cloud.fadeTo(hero.cellGround, 1, v);
+          cloud.sizeTo(hero.cellGround, 5, v);
         },
       });
 
@@ -435,7 +439,7 @@ export const stageTgr: Stage = {
         ]),
       onUpdate: (v) => {
         if (verdict.reverted) {
-          cloud.paint(hero.binGround, COLORS.groundReverted, v);
+          cloud.paint(hero.cellGround, COLORS.groundReverted, v);
           heroCell.color = COLORS.groundReverted;
           heroOutline.color = COLORS.groundReverted;
         }

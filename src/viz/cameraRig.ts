@@ -58,7 +58,7 @@ export class CameraRig {
       },
       onUpdate: (t) => {
         if (!start) return;
-        const angle = (degrees * Math.PI) / 180 * t;
+        const angle = ((degrees * Math.PI) / 180) * t;
         const offset = start.position.clone().sub(start.target);
         offset.applyAxisAngle(new Vector3(0, 0, 1), angle);
         this.viewer.camera.position.copy(start.target).add(offset);

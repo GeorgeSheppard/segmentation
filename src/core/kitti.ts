@@ -1,4 +1,9 @@
-import type { PointCloud } from "../patchwork/types.ts";
+import { type PointCloud } from "../patchwork/index.ts";
+
+/**
+ * KITTI Velodyne scan parsing. Deliberately free of browser APIs so the algorithm and its
+ * verification scripts can run under Node without pulling in the DOM.
+ */
 
 /**
  * Read a KITTI Velodyne scan: raw little-endian float32, four values per point
@@ -18,14 +23,6 @@ export function parseKittiBin(buffer: ArrayBuffer): PointCloud {
     intensity[i] = raw[s + 3];
   }
   return { xyz, intensity, count };
-}
-
-export async function loadKittiFrame(index: number): Promise<PointCloud> {
-  const name = String(index).padStart(6, "0");
-  const url = `${import.meta.env.BASE_URL}data/${name}.bin`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
-  return parseKittiBin(await res.arrayBuffer());
 }
 
 /** Axis-aligned bounds of a cloud, useful for framing the camera. */

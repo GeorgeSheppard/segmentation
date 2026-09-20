@@ -7,7 +7,7 @@ import {
   type Camera,
   type WebGLRenderer,
 } from "three";
-import type { PointCloud } from "../patchwork/types.ts";
+import { type PointCloud } from "../patchwork/index.ts";
 import { heightColor, LABEL_COLORS } from "./palette.ts";
 
 const VERT = /* glsl */ `

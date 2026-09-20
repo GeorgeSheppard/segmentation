@@ -1,9 +1,12 @@
 import { Color, Group, Vector3 } from "three";
 import { Track } from "../anim/timeline.ts";
 import type { Vec3 } from "../core/linalg.ts";
-import type { CzmGeometry } from "../patchwork/czm.ts";
-import type { Params } from "../patchwork/params.ts";
-import type { BinTrace, FrameTrace } from "../patchwork/types.ts";
+import {
+  type CellTrace,
+  type CzmGeometry,
+  type FrameTrace,
+  type Params,
+} from "../patchwork/index.ts";
 import type { Hud, LegendItem, ReadoutRow } from "../ui/hud.ts";
 import { CameraRig } from "../viz/cameraRig.ts";
 import type { CloudView } from "../viz/cloud.ts";
@@ -67,8 +70,8 @@ export class StageContext {
     return new Track((text) => this.hud.setCaption(text));
   }
 
-  bin(key: string): BinTrace {
-    const b = this.frame.binsByKey.get(key);
+  bin(key: string): CellTrace {
+    const b = this.frame.cellsByKey.get(key);
     if (!b) throw new Error(`No such bin: ${key}`);
     return b;
   }
@@ -110,7 +113,7 @@ export class StageContext {
     return w;
   }
 
-  wedge(bin: BinTrace, color: Color | string, opacity = 0.22): WedgeSurface {
+  wedge(bin: CellTrace, color: Color | string, opacity = 0.22): WedgeSurface {
     const { r0, r1, a0, a1 } = cellFromBin(this.czm, bin.zone, bin.ring, bin.sector);
     const w = this.own(new WedgeSurface(r0, r1, a0, a1, color, opacity));
     w.layFlat(this.groundZ);
@@ -119,7 +122,7 @@ export class StageContext {
   }
 
   outline(
-    bin: BinTrace,
+    bin: CellTrace,
     zBottom: number,
     zTop: number | null = null,
     color: Color | string = COLORS.accent,
@@ -144,7 +147,7 @@ export class StageContext {
 
   // ---------------------------------------------------------------- geometry
 
-  centreOf(bin: BinTrace, z = this.groundZ): Vector3 {
+  centreOf(bin: CellTrace, z = this.groundZ): Vector3 {
     return cellCentre(this.czm, bin.zone, bin.ring, bin.sector, z);
   }
 
@@ -165,7 +168,10 @@ export class StageContext {
    * A three-quarter view of one cell: pulled back along the cell's own radial direction,
    * lifted, and swung sideways so the cell reads as a solid shape rather than a sliver.
    */
-  binPose(bin: BinTrace, opts: { distance?: number; height?: number; swing?: number } = {}): CameraPose {
+  binPose(
+    bin: CellTrace,
+    opts: { distance?: number; height?: number; swing?: number } = {},
+  ): CameraPose {
     const { r0, r1, a0, a1 } = cellFromBin(this.czm, bin.zone, bin.ring, bin.sector);
     const span = Math.max(r1 - r0, ((a1 - a0) * (r0 + r1)) / 2);
     const distance = opts.distance ?? span * 2.0;
@@ -187,10 +193,13 @@ export class StageContext {
   }
 
   /** Straight-down view centred on a cell, for showing the CZM footprint. */
-  topPose(bin: BinTrace, distance: number): CameraPose {
+  topPose(bin: CellTrace, distance: number): CameraPose {
     const target = this.centreOf(bin, this.groundZ);
     return {
-      position: target.clone().add(new Vector3(0, 0, distance)).add(new Vector3(-0.01, -0.01, 0)),
+      position: target
+        .clone()
+        .add(new Vector3(0, 0, distance))
+        .add(new Vector3(-0.01, -0.01, 0)),
       target,
     };
   }

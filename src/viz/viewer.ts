@@ -1,11 +1,4 @@
-import {
-  Color,
-  PerspectiveCamera,
-  Scene,
-  Vector3,
-  WebGLRenderer,
-  type Object3D,
-} from "three";
+import { Color, PerspectiveCamera, Scene, Vector3, WebGLRenderer, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 

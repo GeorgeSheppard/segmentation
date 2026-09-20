@@ -31,13 +31,25 @@ export function eigenSym3(m: Sym3): { values: Vec3; vectors: [Vec3, Vec3, Vec3] 
   let maxAbs = 0;
   for (let i = 0; i < 6; i++) maxAbs = Math.max(maxAbs, Math.abs(m[i]));
   if (maxAbs === 0) {
-    return { values: [0, 0, 0], vectors: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] };
+    return {
+      values: [0, 0, 0],
+      vectors: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+    };
   }
 
   const s = 1 / maxAbs;
   const a = new Float64Array(6);
   for (let i = 0; i < 6; i++) a[i] = m[i] * s;
-  const xx = a[0], yy = a[1], zz = a[2], xy = a[3], xz = a[4], yz = a[5];
+  const xx = a[0],
+    yy = a[1],
+    zz = a[2],
+    xy = a[3],
+    xz = a[4],
+    yz = a[5];
 
   // Eigenvalues of the normalised matrix.
   let values: Vec3;
@@ -46,16 +58,20 @@ export function eigenSym3(m: Sym3): { values: Vec3; vectors: [Vec3, Vec3, Vec3] 
     values = [xx, yy, zz].sort((p, q) => p - q) as unknown as Vec3;
   } else {
     const q = (xx + yy + zz) / 3;
-    const dxx = xx - q, dyy = yy - q, dzz = zz - q;
+    const dxx = xx - q,
+      dyy = yy - q,
+      dzz = zz - q;
     const p2 = dxx * dxx + dyy * dyy + dzz * dzz + 2 * offDiag;
     const p = Math.sqrt(p2 / 6);
     const inv = 1 / p;
-    const bxx = dxx * inv, byy = dyy * inv, bzz = dzz * inv;
-    const bxy = xy * inv, bxz = xz * inv, byz = yz * inv;
+    const bxx = dxx * inv,
+      byy = dyy * inv,
+      bzz = dzz * inv;
+    const bxy = xy * inv,
+      bxz = xz * inv,
+      byz = yz * inv;
     const detB =
-      bxx * (byy * bzz - byz * byz) -
-      bxy * (bxy * bzz - byz * bxz) +
-      bxz * (bxy * byz - byy * bxz);
+      bxx * (byy * bzz - byz * byz) - bxy * (bxy * bzz - byz * bxz) + bxz * (bxy * byz - byy * bxz);
     const phi = Math.acos(Math.max(-1, Math.min(1, detB / 2))) / 3;
     const hi = q + 2 * p * Math.cos(phi);
     const lo = q + 2 * p * Math.cos(phi + (2 * Math.PI) / 3);
@@ -98,7 +114,11 @@ function eigenvectorFor(m: Sym3, lambda: number): Vec3 {
 
   let best: Vec3 = [0, 0, 0];
   let bestNorm = 0;
-  for (const [a, b] of [[r0, r1], [r0, r2], [r1, r2]] as const) {
+  for (const [a, b] of [
+    [r0, r1],
+    [r0, r2],
+    [r1, r2],
+  ] as const) {
     const c = cross(a, b);
     const n = dot(c, c);
     if (n > bestNorm) {
@@ -138,11 +158,7 @@ function orthonormalComplement(v: Vec3): [Vec3, Vec3] {
 }
 
 export function cross(a: Vec3, b: Vec3): Vec3 {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ];
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
 export function dot(a: Vec3, b: Vec3): number {
@@ -164,22 +180,39 @@ export function normalize(a: Vec3): Vec3 {
  */
 export function fitPlane(
   xyz: Float32Array,
-  indices: Int32Array | number[],
+  indices: ArrayLike<number>,
   count: number,
 ): PlaneFit | null {
   if (count < 3) return null;
 
-  let sx = 0, sy = 0, sz = 0;
-  let sxx = 0, syy = 0, szz = 0, sxy = 0, sxz = 0, syz = 0;
+  let sx = 0,
+    sy = 0,
+    sz = 0;
+  let sxx = 0,
+    syy = 0,
+    szz = 0,
+    sxy = 0,
+    sxz = 0,
+    syz = 0;
   for (let i = 0; i < count; i++) {
     const o = indices[i] * 3;
-    const x = xyz[o], y = xyz[o + 1], z = xyz[o + 2];
-    sx += x; sy += y; sz += z;
-    sxx += x * x; syy += y * y; szz += z * z;
-    sxy += x * y; sxz += x * z; syz += y * z;
+    const x = xyz[o],
+      y = xyz[o + 1],
+      z = xyz[o + 2];
+    sx += x;
+    sy += y;
+    sz += z;
+    sxx += x * x;
+    syy += y * y;
+    szz += z * z;
+    sxy += x * y;
+    sxz += x * z;
+    syz += y * z;
   }
   const invN = 1 / count;
-  const mx = sx * invN, my = sy * invN, mz = sz * invN;
+  const mx = sx * invN,
+    my = sy * invN,
+    mz = sz * invN;
   const invD = 1 / (count > 1 ? count - 1 : 1);
 
   const cov = new Float64Array(6);
@@ -205,12 +238,7 @@ export function fitPlane(
 }
 
 /** Signed point-to-plane distance: n . p + d. */
-export function planeDistance(
-  xyz: Float32Array,
-  index: number,
-  normal: Vec3,
-  d: number,
-): number {
+export function planeDistance(xyz: Float32Array, index: number, normal: Vec3, d: number): number {
   const o = index * 3;
   return normal[0] * xyz[o] + normal[1] * xyz[o + 1] + normal[2] * xyz[o + 2] + d;
 }

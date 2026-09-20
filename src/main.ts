@@ -1,12 +1,11 @@
 import { Vector3 } from "three";
 import "./style.css";
 import type { Timeline } from "./anim/timeline.ts";
-import { loadKittiFrame } from "./core/kitti.ts";
-import { segmentGround } from "./patchwork/algorithm.ts";
+import { loadKittiFrame } from "./core/loadFrame.ts";
+import { type FrameTrace, initialState, segmentGround } from "./patchwork/index.ts";
 import { DEFAULT_PARAMS } from "./patchwork/params.ts";
-import { initialState, type FrameTrace } from "./patchwork/types.ts";
-import { STAGES } from "./stages/index.ts";
-import { StageContext } from "./stages/context.ts";
+import { STAGES } from "./tutorial/index.ts";
+import { StageContext } from "./tutorial/context.ts";
 import { Hud } from "./ui/hud.ts";
 import { CameraRig } from "./viz/cameraRig.ts";
 import { CloudView } from "./viz/cloud.ts";
@@ -98,14 +97,10 @@ class App {
     this.hud.setReadout(null);
     this.cloud.sizeBoost = 1;
 
-    this.ctx = new StageContext(
-      this.viewer,
-      this.rig,
-      this.cloud,
-      this.hud,
-      this.frame,
-      { position: OVERVIEW.position.clone(), target: OVERVIEW.target.clone() },
-    );
+    this.ctx = new StageContext(this.viewer, this.rig, this.cloud, this.hud, this.frame, {
+      position: OVERVIEW.position.clone(),
+      target: OVERVIEW.target.clone(),
+    });
     this.timeline = stage.build(this.ctx);
     this.wasFinished = false;
     this.hud.setFinished(false);

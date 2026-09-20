@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { isGroundLabel, type BinTrace, type PointLabel } from "../patchwork/types.ts";
+import { type CellTrace, isGroundLabel, type PointLabel } from "../patchwork/index.ts";
 import { COLORS } from "../viz/palette.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
@@ -60,8 +60,9 @@ export const stageScan: Stage = {
       4.2,
     ).with(1.4, { onUpdate: setAxes });
 
-    t.add(3.2, ctx.rig.flyTo(pose([-14, -10, 4.5], [3.5, 1, -1.6])), Ease.cinematic)
-      .with(1.0, { onUpdate: (v) => setAxes(1 - v) });
+    t.add(3.2, ctx.rig.flyTo(pose([-14, -10, 4.5], [3.5, 1, -1.6])), Ease.cinematic).with(1.0, {
+      onUpdate: (v) => setAxes(1 - v),
+    });
     t.say(
       "Up close the beam pattern shows: <em>64 laser rings</em>, dense near the car and spreading fast with distance.",
       4.2,
@@ -112,7 +113,14 @@ export const stageProblem: Stage = {
       { color: "#38bdf8", label: "road, thrown away", note: "under-segmentation" },
     ]);
 
-    const lid = ctx.surface(ctx.params.minRange, ctx.params.maxRange, 0, Math.PI * 2, COLORS.plane, 0);
+    const lid = ctx.surface(
+      ctx.params.minRange,
+      ctx.params.maxRange,
+      0,
+      Math.PI * 2,
+      COLORS.plane,
+      0,
+    );
     lid.layOnPlane(plane.normal, plane.d);
 
     const t = ctx.track();
@@ -177,10 +185,10 @@ export const stageProblem: Stage = {
 };
 
 /** The bin holding the most disagreement — where the single-plane failure is easiest to see. */
-function worstBin(ctx: StageContext, missed: Int32Array): BinTrace {
+function worstBin(ctx: StageContext, missed: Int32Array): CellTrace {
   const inBin = new Map<string, number>();
   const index = new Map<number, string>();
-  for (const bin of ctx.frame.bins) {
+  for (const bin of ctx.frame.cells) {
     for (const i of bin.indices) index.set(i, bin.key);
   }
   for (const i of missed) {
@@ -190,7 +198,7 @@ function worstBin(ctx: StageContext, missed: Int32Array): BinTrace {
   let bestKey = "";
   let best = -1;
   for (const [key, n] of inBin) {
-    const bin = ctx.frame.binsByKey.get(key)!;
+    const bin = ctx.frame.cellsByKey.get(key)!;
     // Prefer the mid/far field: that is where the flat-world assumption actually breaks.
     if (bin.zone < 2) continue;
     if (n > best) {
@@ -198,5 +206,5 @@ function worstBin(ctx: StageContext, missed: Int32Array): BinTrace {
       bestKey = key;
     }
   }
-  return ctx.frame.binsByKey.get(bestKey) ?? ctx.frame.bins.find((b) => b.zone === 2)!;
+  return ctx.frame.cellsByKey.get(bestKey) ?? ctx.frame.cells.find((b) => b.zone === 2)!;
 }

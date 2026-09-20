@@ -5,16 +5,16 @@ written as the reference document for the Three.js/Vite step-by-step tutorial.
 
 Primary sources:
 
-- **Patchwork++** — S. Lee\*, H. Lim\*, H. Myung, *"Patchwork++: Fast and Robust Ground
-  Segmentation Solving Partial Under-Segmentation Using 3D Point Cloud"*, IROS 2022.
+- **Patchwork++** — S. Lee\*, H. Lim\*, H. Myung, _"Patchwork++: Fast and Robust Ground
+  Segmentation Solving Partial Under-Segmentation Using 3D Point Cloud"_, IROS 2022.
   [arXiv:2207.11919](https://arxiv.org/abs/2207.11919)
-- **Patchwork** — H. Lim, M. Oh, H. Myung, *"Patchwork: Concentric Zone-based Region-wise
-  Ground Segmentation with Ground Likelihood Estimation Using a 3D LiDAR Sensor"*, RA-L 2021.
+- **Patchwork** — H. Lim, M. Oh, H. Myung, _"Patchwork: Concentric Zone-based Region-wise
+  Ground Segmentation with Ground Likelihood Estimation Using a 3D LiDAR Sensor"_, RA-L 2021.
   [arXiv:2108.05560](https://arxiv.org/abs/2108.05560)
-- **GPF** — D. Zermas, I. Izzat, N. Papanikolopoulos, *"Fast segmentation of 3D point clouds:
-  A paradigm on LiDAR data for autonomous vehicle applications"*, ICRA 2017.
-- **R-GPF / ERASOR** — H. Lim, S. Hwang, H. Myung, *"ERASOR: Egocentric Ratio of Pseudo
-  Occupancy-based Dynamic Object Removal"*, RA-L 2021.
+- **GPF** — D. Zermas, I. Izzat, N. Papanikolopoulos, _"Fast segmentation of 3D point clouds:
+  A paradigm on LiDAR data for autonomous vehicle applications"_, ICRA 2017.
+- **R-GPF / ERASOR** — H. Lim, S. Hwang, H. Myung, _"ERASOR: Egocentric Ratio of Pseudo
+  Occupancy-based Dynamic Object Removal"_, RA-L 2021.
 - **Reference implementation** — [url-kaist/patchwork-plusplus](https://github.com/url-kaist/patchwork-plusplus)
   (BSD-2-Clause), `cpp/patchworkpp/{include,src}`.
 
@@ -32,21 +32,21 @@ every point as **ground** (road, parking, sidewalk, lane markings, other ground,
 
 The estimate `Ĝ` splits into true/false positives, and `N̂` into true/false negatives:
 
-| | actually ground | actually non-ground |
-|---|---|---|
-| **estimated ground `Ĝ`** | TP | FP |
-| **estimated non-ground `N̂`** | FN | TN |
+|                              | actually ground | actually non-ground |
+| ---------------------------- | --------------- | ------------------- |
+| **estimated ground `Ĝ`**     | TP              | FP                  |
+| **estimated non-ground `N̂`** | FN              | TN                  |
 
-Ground segmentation is almost always a *preprocessing* stage — for clustering, detection,
+Ground segmentation is almost always a _preprocessing_ stage — for clustering, detection,
 traversability, or LiDAR odometry — so it has three hard requirements:
 
 1. **Fast.** It must cost a small fraction of the 100 ms sensor period.
-2. **Balanced.** High precision *and* high recall, with low variance across scenes.
+2. **Balanced.** High precision _and_ high recall, with low variance across scenes.
 3. **Robust to non-flat ground.** Slopes, bumpy terrain, curbs, elevated ground.
 
 The dominant failure mode is **under-segmentation**: real ground points are kept as
 non-ground (false negatives), which downstream clustering then merges into giant phantom
-objects. Patchwork++ exists almost entirely to kill the *partial* form of this failure —
+objects. Patchwork++ exists almost entirely to kill the _partial_ form of this failure —
 where most of the scan segments fine but a handful of bins fail.
 
 ### Why a single plane is not enough
@@ -75,15 +75,15 @@ GPF (Zermas, ICRA'17)              R-GPF (ERASOR, RA-L'21)
 
 **GPF** contributed the core primitive that everything else reuses:
 
-1. Sort points by `z`; take the `N_LPR` lowest and average their height → the *Lowest Point
-   Representative* (LPR).
+1. Sort points by `z`; take the `N_LPR` lowest and average their height → the _Lowest Point
+   Representative_ (LPR).
 2. Seeds = all points with `z < z_LPR + Th_seeds`. (Deterministic — no RANSAC sampling.)
 3. Fit a plane to the seeds by PCA: normal = eigenvector of the smallest eigenvalue of the
    point covariance.
 4. Re-select ground as points within `Th_dist` of the plane; refit. Repeat `N_iter` (=3) times.
 
 This is ~10× cheaper than RANSAC because there is no random sampling loop. Its weakness is
-that it is *only* as good as its seeds: one spurious point below the road and the plane tips.
+that it is _only_ as good as its seeds: one spurious point below the road and the plane tips.
 
 **R-GPF** (from ERASOR) moved GPF from x-strips to polar bins — the right shape for a
 spinning LiDAR, whose point density falls off radially.
@@ -93,7 +93,7 @@ Zone Model** (bin sizes that match the density profile) and **Ground Likelihood 
 (a per-bin sanity test that rejects planes fitted to car roofs and walls).
 
 **Patchwork++** adds four modules — RNR, R-VPF, A-GLE, TGR — that attack the specific
-remaining failure cases, and makes the whole thing *self-tuning*.
+remaining failure cases, and makes the whole thing _self-tuning_.
 
 ---
 
@@ -126,7 +126,7 @@ raw scan (x, y, z, intensity)
  ground / non-ground point sets
 ```
 
-Steps 0–6 run per scan; step 7 feeds the *next* scan. That feedback loop is what makes
+Steps 0–6 run per scan; step 7 feeds the _next_ scan. That feedback loop is what makes
 Patchwork++ "self-adaptive" — and it's the single most visually interesting thing to animate.
 
 ---
@@ -136,8 +136,8 @@ Patchwork++ "self-adaptive" — and it's the single most visually interesting th
 ### The problem
 
 LiDAR beams that hit a mirror-like surface (a car bonnet, a roof, glass) bounce, travel
-further, and return late. The sensor reports the point along the *outgoing* ray direction at
-the *total* path length — producing a **virtual point below the actual road surface**.
+further, and return late. The sensor reports the point along the _outgoing_ ray direction at
+the _total_ path length — producing a **virtual point below the actual road surface**.
 
 That is catastrophic for GPF-style seeding, because seeds are "the lowest points in the bin".
 A single virtual point 3 m under the road drags the seed set down, tips the fitted plane, and
@@ -146,7 +146,7 @@ the entire bin under-segments.
 ### The old fix, and why it's bad
 
 Patchwork just dropped everything with `z < z_min` (a fixed floor). On a downhill this deletes
-*real* ground — the road legitimately goes below the threshold — producing a band of false
+_real_ ground — the road legitimately goes below the threshold — producing a band of false
 negatives exactly where you need the ground most.
 
 ### The Patchwork++ fix
@@ -157,7 +157,7 @@ Two physical observations (following Zhao et al., SSRR 2020):
    lands far below). So only the bottom rings can produce them.
 2. Reflected rays undergo **one extra bounce**, so they return with **lower intensity**.
 
-So RNR rejects a point only if *all three* hold:
+So RNR rejects a point only if _all three_ hold:
 
 ```
 vertical_angle(p) < RNR_ver_angle_thr        (-15°, i.e. bottom rings only)
@@ -203,12 +203,12 @@ so that's where the resolution belongs.
 Split the annulus `[L_min, L_max]` into **four zones**, each with its own ring count, sector
 count, and therefore its own bin shape:
 
-| Zone | Name | Radial range (m) | Rings | Sectors | Ring width (m) | Sector width |
-|---|---|---|---|---|---|---|
-| Z1 | central | 2.7 – 12.3625 | 2 | 16 | 4.831 | 22.5° |
-| Z2 | quarter | 12.3625 – 22.025 | 4 | 32 | 2.416 | 11.25° |
-| Z3 | half | 22.025 – 41.35 | 4 | 54 | 4.831 | 6.67° |
-| Z4 | outer | 41.35 – 80.0 | 4 | 32 | 9.663 | 11.25° |
+| Zone | Name    | Radial range (m) | Rings | Sectors | Ring width (m) | Sector width |
+| ---- | ------- | ---------------- | ----- | ------- | -------------- | ------------ |
+| Z1   | central | 2.7 – 12.3625    | 2     | 16      | 4.831          | 22.5°        |
+| Z2   | quarter | 12.3625 – 22.025 | 4     | 32      | 2.416          | 11.25°       |
+| Z3   | half    | 22.025 – 41.35   | 4     | 54      | 4.831          | 6.67°        |
+| Z4   | outer   | 41.35 – 80.0     | 4     | 32      | 9.663          | 11.25°       |
 
 The zone boundaries are not arbitrary — they are fixed fractions of the range:
 
@@ -284,8 +284,8 @@ Three eigenvalues, three meanings — remember these, the classifier uses all of
 
 - `λ_1` — extent along the plane's longest direction
 - `λ_2` — extent along the plane's second direction
-- `λ_3` — **thickness perpendicular to the plane** → this is *flatness*
-- `λ_1/λ_2` — *line variable*: large means the points form a line, not a surface
+- `λ_3` — **thickness perpendicular to the plane** → this is _flatness_
+- `λ_1/λ_2` — _line variable_: large means the points form a line, not a surface
 
 PCA is chosen over RANSAC because it is 2× faster and, on a small bin where most points
 really are ground, accurate enough. Its known weakness — sensitivity to outliers — is what
@@ -293,8 +293,8 @@ RNR, adaptive seeding and R-VPF exist to neutralise.
 
 ### 6.3 R-VPF: Region-wise Vertical Plane Fitting
 
-**The failure case.** The ground can sit *on top of* a vertical structure: a retaining wall,
-a low fence, a flower bed, a raised sidewalk. The wall's points have *lower* `z` than the
+**The failure case.** The ground can sit _on top of_ a vertical structure: a retaining wall,
+a low fence, a flower bed, a raised sidewalk. The wall's points have _lower_ `z` than the
 elevated ground above it, so they win the seed selection, and the fitted "ground plane" ends
 up as a tilted surface smeared across the wall. The real ground above is then rejected — a
 textbook partial under-segmentation.
@@ -302,12 +302,12 @@ textbook partial under-segmentation.
 You might argue that elevated ground is non-ground. The authors' position: a person can stand
 on it, so it's ground.
 
-**The fix.** Before fitting the ground, *peel the vertical planes off* the bin, up to
+**The fix.** Before fitting the ground, _peel the vertical planes off_ the bin, up to
 `K_v = 3` times:
 
 1. Select seeds from the remaining points `P̂ᵏ` using a looser margin `th_seeds_v = 0.25`.
 2. PCA → mean `mᵏ`, normal `v₃ᵏ`.
-3. Take the points lying *in* that plane:
+3. Take the points lying _in_ that plane:
    `Ŵᵏ = { p : |(p − mᵏ)·v₃ᵏ| < d_v }`, `d_v = th_dist_v = 0.1 m`.
 4. Accept them as vertical only if the plane really is vertical:
    `V̂ᵏ = Ŵᵏ if π/2 − arccos(v₃ᵏ·u_z) < θ_v, else ∅`.
@@ -315,12 +315,12 @@ on it, so it's ground.
    more than 45° from horizontal).
 5. Remove `V̂ᵏ` from the bin (straight to non-ground) and repeat.
 
-`V̂ = ⋃ₖ V̂ᵏ`. As soon as an iteration's plane *is* upright, the loop breaks — the wall is gone
+`V̂ = ⋃ₖ V̂ᵏ`. As soon as an iteration's plane _is_ upright, the loop breaks — the wall is gone
 and what remains is ground. In the reference implementation R-VPF is applied **only in zone
 Z1**, where the geometry actually occurs.
 
 The side effect worth showing in the tutorial: after R-VPF the remaining bin is genuinely
-planar, so its `λ_3` (flatness) collapses — which means the GLE flatness test now *also*
+planar, so its `λ_3` (flatness) collapses — which means the GLE flatness test now _also_
 accepts it. One fix, two benefits.
 
 > **Measured:** R-VPF is bursty — 0 points on frames 0, 1, 3, 4; then 2,465 points on frame 2
@@ -339,8 +339,8 @@ repeat num_iter = 3 times:
 non_ground = bin \ ground
 ```
 
-Note the distance test is **signed**, not absolute: points *below* the plane are kept as
-ground (they're road texture or slight dips), points *above* by more than 12.5 cm are not.
+Note the distance test is **signed**, not absolute: points _below_ the plane are kept as
+ground (they're road texture or slight dips), points _above_ by more than 12.5 cm are not.
 On the final iteration the partition is written out; `Ĝ_n = Ĝ³_n`, as in GPF.
 
 The output per bin is: a ground point set, a non-ground point set, and the plane's
@@ -350,7 +350,7 @@ The output per bin is: a ground point set, a non-ground point set, and the plane
 
 ## 7. Step 5 — GLE → A-GLE: is this plane actually ground?
 
-R-GPF *always* returns a plane, even in a bin that contains nothing but a car roof. GLE is
+R-GPF _always_ returns a plane, even in a bin that contains nothing but a car roof. GLE is
 the per-bin veto, and it's what lifts precision from R-GPF's 74.7% to Patchwork's 94.2%.
 
 Patchwork formulated it as a likelihood, assuming bins are independent:
@@ -399,7 +399,7 @@ In Patchwork++: `is_flat = flatness_n < flatness_thr[concentric_idx]`.
 ### The flatness definition changed
 
 Patchwork used **local surface variation** `σₙ = λ₃/(λ₁+λ₂+λ₃)` (Weinmann et al.). Patchwork++
-points out this is *inconsistent*: because CZM bins have different shapes and sizes, `λ₁` and
+points out this is _inconsistent_: because CZM bins have different shapes and sizes, `λ₁` and
 `λ₂` change with where the bin boundary falls even when the ground itself is identical, so the
 normalised ratio moves for no physical reason. Patchwork++ therefore uses
 
@@ -464,7 +464,7 @@ sensor_height    ← -mean(E_0)                            → feeds RNR's floor
 > tutorial as a "what the shipped code actually does" note.
 
 **The cold-start behaviour is worth animating.** On frame 0, `flatness_thr = 0`, so `is_flat`
-is *never* true, and `elevation_thr = 0`, so `is_not_elevated` just means "the plane's mean is
+is _never_ true, and `elevation_thr = 0`, so `is_not_elevated` just means "the plane's mean is
 below the sensor" — which is true for essentially all real ground. So frame 0 is carried
 almost entirely by uprightness + elevation, and TGR sees zero candidates. By frame 1 the
 thresholds are real numbers and the full machinery engages.
@@ -472,13 +472,13 @@ thresholds are real numbers and the full machinery engages.
 > **Measured across the six sample frames:**
 >
 > | frame | ground | non-ground | definite-ground bins | TGR candidates | reverted | sensor_height |
-> |---|---|---|---|---|---|---|
-> | 0 | 72,665 | 52,003 | 76 | 0 | 0 | 1.723 (init) |
-> | 1 | 71,866 | 52,739 | 74 | 5 | 1 | 1.763 |
-> | 2 | 71,093 | 53,385 | 70 | 3 | 0 | 1.762 |
-> | 3 | 69,964 | 54,203 | 67 | 5 | 0 | 1.756 |
-> | 4 | 68,805 | 55,164 | 67 | 5 | 0 | 1.750 |
-> | 5 | 67,615 | 56,309 | 66 | 3 | 0 | 1.748 |
+> | ----- | ------ | ---------- | -------------------- | -------------- | -------- | ------------- |
+> | 0     | 72,665 | 52,003     | 76                   | 0              | 0        | 1.723 (init)  |
+> | 1     | 71,866 | 52,739     | 74                   | 5              | 1        | 1.763         |
+> | 2     | 71,093 | 53,385     | 70                   | 3              | 0        | 1.762         |
+> | 3     | 69,964 | 54,203     | 67                   | 5              | 0        | 1.756         |
+> | 4     | 68,805 | 55,164     | 67                   | 5              | 0        | 1.750         |
+> | 5     | 67,615 | 56,309     | 66                   | 3              | 0        | 1.748         |
 >
 > The self-estimated sensor height converges to ≈1.75 m against KITTI's nominal 1.723 m,
 > and `elevation_thr` settles around −1.3 to −1.47 m — i.e. the algorithm discovers the road.
@@ -488,10 +488,10 @@ thresholds are real numbers and the full machinery engages.
 ## 9. Step 6 — TGR: Temporal Ground Revert
 
 A-GLE is a low-pass filter over time. That's the point — but it means a bin that is
-*temporarily* rough (grass, gravel, a bumpy verge) has `f_n` above a threshold learned from
+_temporarily_ rough (grass, gravel, a bumpy verge) has `f_n` above a threshold learned from
 hundreds of smooth frames, and gets rejected. Partial under-segmentation, again.
 
-TGR is the coarse-to-fine second opinion: judge the borderline bin not against the *historical*
+TGR is the coarse-to-fine second opinion: judge the borderline bin not against the _historical_
 threshold but against **this frame's own ring statistics**.
 
 For ring `m` at time `t`, using `F^t_m` = flatness of the definite-ground bins in this ring,
@@ -527,32 +527,32 @@ It costs throughput though: 67.84 Hz without TGR, 54.85 Hz with.
 
 ## 10. Parameters — the complete table
 
-| Parameter | Value | Module | Meaning |
-|---|---|---|---|
-| `sensor_height` | 1.723 m | global | LiDAR height; **self-updated** by A-GLE |
-| `min_range` / `max_range` | 2.7 / 80.0 m | CZM | valid annulus |
-| `num_zones` | 4 | CZM | concentric zones |
-| `num_rings_each_zone` | {2, 4, 4, 4} | CZM | radial divisions per zone |
-| `num_sectors_each_zone` | {16, 32, 54, 32} | CZM | azimuthal divisions per zone |
-| `num_rings_of_interest` | 4 | GLE | concentric rings where elevation/flatness apply (≤17.19 m) |
-| `num_min_pts` | 10 | R-GPF | below this, the whole bin is non-ground |
-| `num_lpr` | 20 | seeds | points averaged for the LPR |
-| `th_seeds` | 0.125 m | R-GPF | seed band above the LPR |
-| `th_dist` | 0.125 m | R-GPF | ground plane thickness |
-| `num_iter` | 3 | R-GPF / R-VPF | refinement iterations |
-| `adaptive_seed_selection_margin` | −1.2 | seeds | skip points below −1.2·`sensor_height` (Z1) |
-| `uprightness_thr` | 0.707 | GLE / R-VPF | `n_z` threshold ⇔ 45° |
-| `th_seeds_v` | 0.25 m | R-VPF | seed band for vertical planes |
-| `th_dist_v` | 0.1 m | R-VPF | vertical plane thickness |
-| `RNR_ver_angle_thr` | −15° | RNR | only rays below this can be reflections |
-| `RNR_intensity_thr` | 0.2 | RNR | reflections return dim |
-| `elevation_thr` | {0,0,0,0} → learned | A-GLE | per-ring elevation ceiling |
-| `flatness_thr` | {0,0,0,0} → learned | A-GLE | per-ring λ₃ ceiling |
-| `max_elevation_storage` / `max_flatness_storage` | 1000 | A-GLE | rolling window |
-| gains `a_m` | 3 (m=0), 2 (else) | A-GLE | σ multiplier, elevation |
-| gains `b_m` | 1 (code) / 3,2 (paper) | A-GLE | σ multiplier, flatness |
-| gain `c_m` | 1.5 | TGR | σ multiplier, per-frame flatness |
-| line-variable veto | λ₁/λ₂ > 8 | TGR | reject 1-D patches |
+| Parameter                                        | Value                  | Module        | Meaning                                                    |
+| ------------------------------------------------ | ---------------------- | ------------- | ---------------------------------------------------------- |
+| `sensor_height`                                  | 1.723 m                | global        | LiDAR height; **self-updated** by A-GLE                    |
+| `min_range` / `max_range`                        | 2.7 / 80.0 m           | CZM           | valid annulus                                              |
+| `num_zones`                                      | 4                      | CZM           | concentric zones                                           |
+| `num_rings_each_zone`                            | {2, 4, 4, 4}           | CZM           | radial divisions per zone                                  |
+| `num_sectors_each_zone`                          | {16, 32, 54, 32}       | CZM           | azimuthal divisions per zone                               |
+| `num_rings_of_interest`                          | 4                      | GLE           | concentric rings where elevation/flatness apply (≤17.19 m) |
+| `num_min_pts`                                    | 10                     | R-GPF         | below this, the whole bin is non-ground                    |
+| `num_lpr`                                        | 20                     | seeds         | points averaged for the LPR                                |
+| `th_seeds`                                       | 0.125 m                | R-GPF         | seed band above the LPR                                    |
+| `th_dist`                                        | 0.125 m                | R-GPF         | ground plane thickness                                     |
+| `num_iter`                                       | 3                      | R-GPF / R-VPF | refinement iterations                                      |
+| `adaptive_seed_selection_margin`                 | −1.2                   | seeds         | skip points below −1.2·`sensor_height` (Z1)                |
+| `uprightness_thr`                                | 0.707                  | GLE / R-VPF   | `n_z` threshold ⇔ 45°                                      |
+| `th_seeds_v`                                     | 0.25 m                 | R-VPF         | seed band for vertical planes                              |
+| `th_dist_v`                                      | 0.1 m                  | R-VPF         | vertical plane thickness                                   |
+| `RNR_ver_angle_thr`                              | −15°                   | RNR           | only rays below this can be reflections                    |
+| `RNR_intensity_thr`                              | 0.2                    | RNR           | reflections return dim                                     |
+| `elevation_thr`                                  | {0,0,0,0} → learned    | A-GLE         | per-ring elevation ceiling                                 |
+| `flatness_thr`                                   | {0,0,0,0} → learned    | A-GLE         | per-ring λ₃ ceiling                                        |
+| `max_elevation_storage` / `max_flatness_storage` | 1000                   | A-GLE         | rolling window                                             |
+| gains `a_m`                                      | 3 (m=0), 2 (else)      | A-GLE         | σ multiplier, elevation                                    |
+| gains `b_m`                                      | 1 (code) / 3,2 (paper) | A-GLE         | σ multiplier, flatness                                     |
+| gain `c_m`                                       | 1.5                    | TGR           | σ multiplier, per-frame flatness                           |
+| line-variable veto                               | λ₁/λ₂ > 8              | TGR           | reject 1-D patches                                         |
 
 ---
 
@@ -560,16 +560,16 @@ It costs throughput though: 67.84 Hz without TGR, 54.85 Hz with.
 
 SemanticKITTI, all sequences (Patchwork++ Table I):
 
-| Method | Precision (%) | Recall (%) | F1 (%) |
-|---|---|---|---|
-| LineFit | 98.26 ± 1.35 | 87.88 ± 7.94 | 92.75 |
-| RANSAC | 89.87 ± 14.16 | 93.97 ± 13.16 | 91.83 |
-| CascadedSeg | 95.25 ± 7.88 | 74.53 ± 10.78 | 83.59 |
-| GPF | 95.78 ± 3.76 | 83.89 ± 22.42 | 89.14 |
-| R-GPF | 74.68 ± 15.7 | **98.15 ± 1.47** | 84.52 |
-| Patchwork | 94.23 ± 3.96 | 97.62 ± 3.42 | 95.88 |
-| Patchwork++ w/o TGR | 94.98 ± 3.44 | 97.64 ± 3.58 | 96.28 |
-| **Patchwork++** | 94.92 ± 3.50 | **98.18 ± 2.41** | **96.51** |
+| Method              | Precision (%) | Recall (%)       | F1 (%)    |
+| ------------------- | ------------- | ---------------- | --------- |
+| LineFit             | 98.26 ± 1.35  | 87.88 ± 7.94     | 92.75     |
+| RANSAC              | 89.87 ± 14.16 | 93.97 ± 13.16    | 91.83     |
+| CascadedSeg         | 95.25 ± 7.88  | 74.53 ± 10.78    | 83.59     |
+| GPF                 | 95.78 ± 3.76  | 83.89 ± 22.42    | 89.14     |
+| R-GPF               | 74.68 ± 15.7  | **98.15 ± 1.47** | 84.52     |
+| Patchwork           | 94.23 ± 3.96  | 97.62 ± 3.42     | 95.88     |
+| Patchwork++ w/o TGR | 94.98 ± 3.44  | 97.64 ± 3.58     | 96.28     |
+| **Patchwork++**     | 94.92 ± 3.50  | **98.18 ± 2.41** | **96.51** |
 
 Read the table as a story: R-GPF has great recall and terrible precision (it accepts every
 plane) → GLE fixes precision at a small recall cost → Patchwork++'s four modules recover that
@@ -578,7 +578,7 @@ has the lowest recall variance of the robust methods, which is precisely the "no
 failures" claim.
 
 Speed on an i7-7700K, sequence 05 (Table II): Patchwork++ **54.85 Hz** vs Patchwork 43.97 Hz,
-RANSAC 15.43 Hz. Faster *and* better, mostly from one change: Patchwork sorted the entire
+RANSAC 15.43 Hz. Faster _and_ better, mostly from one change: Patchwork sorted the entire
 cloud by `z` before binning — `O(N log N)` — while Patchwork++ sorts **inside each bin**,
 `O(L·M log M)` for `L` bins of `M` points, saving `L·M·log L`. The current repository reports
 ~110 Hz on KITTI after further optimisation.
@@ -592,10 +592,10 @@ Things that bite when you re-implement it (all learned by doing exactly that):
 1. **`θ` must be in `[0, 2π)`**, not `atan2`'s `[−π, π]`, or sector indices go negative.
 2. **The R-GPF distance test is signed** (`nᵀp + d < th_dist`), but **R-VPF's is absolute**
    (`|nᵀp + d| < th_dist_v`). Easy to copy the wrong one.
-3. **Normal sign convention:** flip `n` so `n_z ≥ 0` *before* using `n_z` as uprightness, or
+3. **Normal sign convention:** flip `n` so `n_z ≥ 0` _before_ using `n_z` as uprightness, or
    half your bins read as vertical.
-4. **Eigenvalue ordering:** `eigh` returns ascending; flatness is the *smallest* eigenvalue and
-   the normal is *its* eigenvector, while `line_variable = λ₁/λ₂` uses the two largest.
+4. **Eigenvalue ordering:** `eigh` returns ascending; flatness is the _smallest_ eigenvalue and
+   the normal is _its_ eigenvector, while `line_variable = λ₁/λ₂` uses the two largest.
 5. **`ringwise_flatness` must be cleared every ring**, not only when candidates exist — this
    was a real bug (issue #69 in the repo): a ring with no candidates leaked its statistics into
    the next ring's TGR.
@@ -619,32 +619,36 @@ and they avoid making users register for the KITTI download.
 A proposed scene-by-scene breakdown. Each step is a camera pose + a colouring + a subset of
 overlay geometry; transitions animate colour and opacity rather than teleporting.
 
-| # | Scene | What's on screen | The transition into it |
-|---|---|---|---|
-| 0 | **The scan** | 124k points, coloured by height; sensor origin + axes | fade in, slow orbit |
-| 1 | **The question** | same points, ground-truth colouring (green/red) | colour lerp |
-| 2 | **Naive: one plane** | a single RANSAC plane + its errors in blue | plane slides into place; FN points flash |
-| 3 | **RNR** | zoom to a reflected point; show the ray, the bonnet, the virtual point | camera dive; the noise point pulses then vanishes |
-| 4 | **CZM** | 504 wireframe bins drawn on the ground plane, zone-coloured | rings grow outward from the origin, one zone at a time |
-| 4b | **Why CZM** | side-by-side ghost of the uniform grid; point-count heat map per bin | cross-fade between grids |
-| 5 | **One bin** | isolate a single bin, points sorted by z, LPR band highlighted | camera flies into the bin; other bins fade to 5% |
-| 6 | **R-GPF** | seed points → plane quad → iterate 3× | plane visibly tilts/settles per iteration; distance band shown as a slab |
-| 7 | **R-VPF** | a bin containing a wall; the wall points peel away in purple | 3 iterations, each peel animated |
-| 8 | **GLE** | the 3 tests as gauges: normal arrow vs cone, z̄ vs threshold line, λ₃ bar | each gauge lights green/red in turn |
-| 9 | **All bins judged** | full scan, per-bin colour = decision (ground/non-ground/candidate) | ripple outward in ring order |
-| 10 | **TGR** | candidate bins vs this ring's flatness histogram; reverted ones flip to cyan | histogram slides up; bar crosses μ |
-| 11 | **A-GLE** | play frames 0→5; watch elevation/flatness thresholds and sensor height converge | live plot alongside the 3D view |
-| 12 | **Result** | final ground/non-ground split; toggle to compare with step 2 | split-screen wipe |
+| #   | Scene                | What's on screen                                                                | The transition into it                                                   |
+| --- | -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 0   | **The scan**         | 124k points, coloured by height; sensor origin + axes                           | fade in, slow orbit                                                      |
+| 1   | **The question**     | same points, ground-truth colouring (green/red)                                 | colour lerp                                                              |
+| 2   | **Naive: one plane** | a single RANSAC plane + its errors in blue                                      | plane slides into place; FN points flash                                 |
+| 3   | **RNR**              | zoom to a reflected point; show the ray, the bonnet, the virtual point          | camera dive; the noise point pulses then vanishes                        |
+| 4   | **CZM**              | 504 wireframe bins drawn on the ground plane, zone-coloured                     | rings grow outward from the origin, one zone at a time                   |
+| 4b  | **Why CZM**          | side-by-side ghost of the uniform grid; point-count heat map per bin            | cross-fade between grids                                                 |
+| 5   | **One bin**          | isolate a single bin, points sorted by z, LPR band highlighted                  | camera flies into the bin; other bins fade to 5%                         |
+| 6   | **R-GPF**            | seed points → plane quad → iterate 3×                                           | plane visibly tilts/settles per iteration; distance band shown as a slab |
+| 7   | **R-VPF**            | a bin containing a wall; the wall points peel away in purple                    | 3 iterations, each peel animated                                         |
+| 8   | **GLE**              | the 3 tests as gauges: normal arrow vs cone, z̄ vs threshold line, λ₃ bar        | each gauge lights green/red in turn                                      |
+| 9   | **All bins judged**  | full scan, per-bin colour = decision (ground/non-ground/candidate)              | ripple outward in ring order                                             |
+| 10  | **TGR**              | candidate bins vs this ring's flatness histogram; reverted ones flip to cyan    | histogram slides up; bar crosses μ                                       |
+| 11  | **A-GLE**            | play frames 0→5; watch elevation/flatness thresholds and sensor height converge | live plot alongside the 3D view                                          |
+| 12  | **Result**           | final ground/non-ground split; toggle to compare with step 2                    | split-screen wipe                                                        |
 
 Interaction worth having: a parameter panel (`th_dist`, `uprightness_thr`, ring/sector counts,
 module on/off toggles) that re-runs the affected step live — Patchwork++'s whole thesis is
 about parameters, so letting people break it is the lesson.
 
-**Implementation note for the app:** the algorithm is ~400 lines of TypeScript and runs in
-well under a second per frame on 124k points in a Web Worker, so it can run live in the
-browser rather than replaying precomputed results. That keeps the parameter panel honest.
-The NumPy prototype used to verify this document (`scratchpad/proto.py`) is a direct
-translation target.
+**Implementation note for the app:** the algorithm is ~1,000 lines of TypeScript across the
+step modules and runs in ~110 ms per frame on 124k points, so it runs live in the browser
+rather than replaying precomputed results. That keeps a parameter panel honest.
+
+Because the algorithm is strictly sequential, the code mirrors it one-to-one — `steps/rnr.ts`,
+`steps/binning.ts`, `steps/seeds.ts`, `steps/rvpf.ts`, `steps/rgpf.ts`, `steps/gle.ts`,
+`steps/tgr.ts`, `steps/agle.ts`, composed by `pipeline.ts` in exactly the order above. Each
+section of this guide corresponds to one of those files. `reference/patchworkpp_prototype.py`
+is the NumPy version used to verify both.
 
 ---
 

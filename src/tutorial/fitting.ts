@@ -198,7 +198,9 @@ export const stageRgpf: Stage = {
       planeSurf.layOnPlane(p.normal, p.d);
       slabSurf.layOnPlane(p.normal, p.d - params.thDist);
       const base = new Vector3(p.mean[0], p.mean[1], p.mean[2]);
-      const tip = base.clone().add(new Vector3(p.normal[0], p.normal[1], p.normal[2]).multiplyScalar(1.8));
+      const tip = base
+        .clone()
+        .add(new Vector3(p.normal[0], p.normal[1], p.normal[2]).multiplyScalar(1.8));
       normalLine.set(base, tip);
       normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.35)));
       normalLabel.text = `n<sub>z</sub> = ${p.normal[2].toFixed(4)}`;
@@ -280,8 +282,8 @@ export const stageRgpf: Stage = {
       t.wait(0.3);
     }
 
-    const finalGround = bin.binGround;
-    const finalNon = bin.binNonGround;
+    const finalGround = bin.cellGround;
+    const finalNon = bin.cellNonGround;
     t.add(1.2, {
       onEnter: () =>
         ctx.readout("Cell result", [
@@ -419,7 +421,11 @@ export const stageRvpf: Stage = {
         onEnter: () => {
           showPlane(pass.plane.normal, pass.plane.d, pass.plane.mean);
           ctx.readout(`R-VPF pass ${i + 1}`, [
-            { label: "normal z", value: pass.plane.normal[2].toFixed(3), state: pass.peeled ? "fail" : "pass" },
+            {
+              label: "normal z",
+              value: pass.plane.normal[2].toFixed(3),
+              state: pass.peeled ? "fail" : "pass",
+            },
             {
               label: pass.peeled ? "peeled" : "verdict",
               value: pass.peeled ? pass.removed.length.toLocaleString() : "upright — stop",
@@ -468,19 +474,19 @@ export const stageRvpf: Stage = {
       onEnter: () =>
         ctx.readout("After R-VPF", [
           { label: "peeled", value: String(idx.length - bin.survivors.length) },
-          { label: "ground", value: bin.binGround.length.toLocaleString(), state: "pass" },
+          { label: "ground", value: bin.cellGround.length.toLocaleString(), state: "pass" },
           { label: "normal z", value: bin.plane!.normal[2].toFixed(3), state: "pass" },
         ]),
       onUpdate: (v) => {
         const plane = bin.plane!;
         showPlane(plane.normal, plane.d, plane.mean);
-        cloud.paint(bin.binGround, COLORS.ground, v);
-        cloud.fadeTo(bin.binGround, 1, v);
-        cloud.sizeTo(bin.binGround, 2.6, v);
+        cloud.paint(bin.cellGround, COLORS.ground, v);
+        cloud.fadeTo(bin.cellGround, 1, v);
+        cloud.sizeTo(bin.cellGround, 2.6, v);
       },
     });
     t.say(
-      `Now R-GPF runs on what survived, and the ground on top of the structure is recovered: <em>${bin.binGround.length} points</em> that Patchwork would have thrown away.`,
+      `Now R-GPF runs on what survived, and the ground on top of the structure is recovered: <em>${bin.cellGround.length} points</em> that Patchwork would have thrown away.`,
       4.8,
     );
 
