@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { COLORS, ZONE_COLORS } from "../viz/palette.ts";
+import { zoneColors } from "../viz/palette.ts";
 import { CzmGrid } from "../viz/gizmos.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
@@ -9,6 +9,7 @@ import { fmt, uniformGrid } from "./helpers.ts";
 /** Step 3 — RNR: the mirror-image points hiding under the road. */
 export const stageRnr: Stage = {
   id: "rnr",
+  steps: ["rnr"],
   title: "RNR — Reflected Noise Removal",
   subtitle:
     "A handful of points arrive from under the road. Each one, left alone, wrecks an entire cell.",
@@ -16,11 +17,11 @@ export const stageRnr: Stage = {
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
     const params = ctx.params;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
 
     ctx.legend([
-      { color: COLORS.noise, label: "reflected noise", note: "removed by RNR" },
-      { color: COLORS.plane, label: "RNR floor", note: "−sensorHeight − 0.8 m" },
+      { color: ctx.color.focus, label: "reflected noise", note: "removed by RNR" },
+      { color: ctx.color.plane, label: "RNR floor", note: "−sensorHeight − 0.8 m" },
     ]);
 
     const noise = frame.noiseIndices;
@@ -35,12 +36,12 @@ export const stageRnr: Stage = {
     const heroAngle = (Math.atan2(heroPos.z, heroRange) * 180) / Math.PI;
 
     // The ray that produced it: straight out from the sensor, through the virtual point.
-    const ray = ctx.segment(COLORS.noise, 0, true);
+    const ray = ctx.segment(ctx.color.focus, 0, true);
     ray.set(new Vector3(0, 0, 0), heroPos);
     // Where that ray crosses the road — roughly where the reflective surface must be.
     const s = Math.abs(ctx.groundZ / heroPos.z);
     const incidence = heroPos.clone().multiplyScalar(s);
-    const incidenceMark = ctx.segment(COLORS.seed, 0);
+    const incidenceMark = ctx.segment(ctx.color.seed, 0);
     incidenceMark.set(
       incidence.clone().add(new Vector3(0, 0, -0.6)),
       incidence.clone().add(new Vector3(0, 0, 1.2)),
@@ -51,7 +52,7 @@ export const stageRnr: Stage = {
       params.maxRange,
       0,
       Math.PI * 2,
-      COLORS.plane,
+      ctx.color.plane,
       0,
       64,
       6,
@@ -81,9 +82,9 @@ export const stageRnr: Stage = {
     // Blow the noise points up so three points among 124,000 are actually findable.
     t.add(1.4, {
       onUpdate: (v) => {
-        cloud.paint(noise, COLORS.noise, v);
+        cloud.paint(noise, ctx.color.focus, v);
         cloud.sizeTo(noise, 7, v);
-        cloud.fadeAllTo(0.25, v * 0.8);
+        cloud.fadeAllTo(Math.max(ctx.dim, 0.12), v);
         cloud.fadeTo(noise, 1, v);
       },
     });
@@ -183,16 +184,17 @@ export const stageRnr: Stage = {
 /** Step 4 — CZM: the polar grid whose cells are sized to the sensor's density falloff. */
 export const stageCzm: Stage = {
   id: "czm",
+  steps: ["czm"],
   title: "CZM — the Concentric Zone Model",
   subtitle:
     "504 polar cells, in four zones, with bin sizes chosen to fight sparsity far away and over-resolution up close.",
 
   build(ctx: StageContext) {
     const { cloud, frame, czm, params } = ctx;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
 
     ctx.legend(
-      ZONE_COLORS.slice(0, 4).map((c, i) => ({
+      zoneColors(ctx.theme).map((c, i) => ({
         color: `#${c.getHexString()}`,
         label: ["Z1 central", "Z2 quarter", "Z3 half", "Z4 outer"][i],
         note: `${czm.minRanges[i].toFixed(1)}–${czm.maxRanges[i].toFixed(1)} m · ${
@@ -206,7 +208,7 @@ export const stageCzm: Stage = {
 
     // A uniform polar grid, for the comparison.
     const uni = uniformGrid(params);
-    const uniGrid = ctx.own(new CzmGrid(uni.czm, uni.params, ctx.groundZ));
+    const uniGrid = ctx.own(new CzmGrid(uni.czm, uni.params, ctx.groundZ, [ctx.color.dim]));
     uniGrid.setOpacity(0);
     ctx.scratch.add(uniGrid.group);
 
@@ -222,7 +224,7 @@ export const stageCzm: Stage = {
     });
 
     const focus = ctx.bin("0/0/12");
-    const focusOutline = ctx.outline(focus, ctx.groundZ, null, COLORS.seed);
+    const focusOutline = ctx.outline(focus, ctx.groundZ, null, ctx.color.seed);
     focusOutline.opacity = 0;
 
     const t = ctx.track();
@@ -299,7 +301,7 @@ export const stageCzm: Stage = {
       Ease.cinematic,
     ).with(1.6, {
       onUpdate: (v) => {
-        cloud.focusOn(focus.indices, 0.12, v, 1.5);
+        cloud.focusOn(focus.indices, ctx.dim, v, 2.4);
         grid.setOpacity(0.75 * (1 - v * 0.75));
       },
     });

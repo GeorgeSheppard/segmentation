@@ -2,6 +2,24 @@ import { Color, PerspectiveCamera, Scene, Vector3, WebGLRenderer, type Object3D 
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
+/** Vertical FOV the stage framing was authored against, at the aspect below. */
+const BASE_FOV = 52;
+const BASE_ASPECT = 1.6;
+const MAX_FOV = 88;
+
+/**
+ * Every camera pose in the tutorial was framed on a wide screen. On a portrait phone the
+ * horizontal field of view would shrink to a slot and crop the subject out, so trade
+ * vertical FOV to hold the horizontal extent roughly constant.
+ */
+function fovForAspect(aspect: number): number {
+  if (aspect >= BASE_ASPECT) return BASE_FOV;
+  const baseHalfV = Math.tan((BASE_FOV * Math.PI) / 360);
+  const targetHalfH = baseHalfV * BASE_ASPECT;
+  const fov = (2 * Math.atan(targetHalfH / aspect) * 180) / Math.PI;
+  return Math.min(MAX_FOV, fov);
+}
+
 export interface CameraPose {
   position: Vector3;
   target: Vector3;
@@ -46,7 +64,7 @@ export class Viewer {
 
     this.labelRenderer = new CSS2DRenderer({ element: labelContainer });
 
-    this.camera = new PerspectiveCamera(52, 1, 0.1, 1200);
+    this.camera = new PerspectiveCamera(BASE_FOV, 1, 0.1, 1200);
     this.camera.up.set(0, 0, 1);
     this.camera.position.set(-38, -30, 26);
 
@@ -59,6 +77,11 @@ export class Viewer {
 
     this.resize();
     window.addEventListener("resize", this.onResize);
+  }
+
+  /** Scene background; kept in sync with the active theme's surface. */
+  setBackground(color: string): void {
+    (this.scene.background as Color).set(color);
   }
 
   add(...objects: Object3D[]): void {
@@ -100,6 +123,7 @@ export class Viewer {
     this.renderer.setSize(w, h, false);
     this.labelRenderer.setSize(w, h);
     this.camera.aspect = w / h;
+    this.camera.fov = fovForAspect(this.camera.aspect);
     this.camera.updateProjectionMatrix();
   }
 

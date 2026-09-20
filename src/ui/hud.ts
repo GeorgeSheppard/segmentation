@@ -1,7 +1,12 @@
-/** All DOM outside the canvas: header, captions, legend, readout, controls, chapters. */
+import { Color } from "three";
+import { PIPELINE_STEPS, type StepId } from "../patchwork/index.ts";
+import { THEME_ORDER, THEMES, type ThemeId } from "../viz/themes.ts";
+
+/** All DOM outside the canvas: titles, step rail, legend, readout, caption, transport. */
 
 export interface LegendItem {
-  color: string;
+  /** A CSS colour, or the scene Color the swatch must match exactly. */
+  color: string | Color;
   label: string;
   note?: string;
 }
@@ -18,6 +23,7 @@ export interface HudCallbacks {
   onReplay: () => void;
   onSpeed: (speed: number) => void;
   onJump: (index: number) => void;
+  onTheme: (id: ThemeId) => void;
 }
 
 const SPEEDS = [0.5, 1, 1.5, 2];
@@ -31,18 +37,28 @@ export class Hud {
   private readonly legend = byId("legend");
   private readonly readout = byId("readout");
   private readonly progressBar = byId("progress-bar");
+  private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
+  private readonly themes = byId("themes");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
+  private readonly themeToggle = byId("theme-toggle") as HTMLButtonElement;
+  private readonly themeName = byId("theme-name");
   private readonly btnContinue = byId("btn-continue") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
   private readonly speedGroup = byId("speed");
   private readonly loading = byId("loading");
   private readonly loadingText = byId("loading-text");
+  private readonly verdict: HTMLElement;
 
   private currentCaption = "";
+  private verdictTimer = 0;
 
   constructor(private readonly cb: HudCallbacks) {
+    this.verdict = document.createElement("div");
+    this.verdict.id = "verdict";
+    byId("app").appendChild(this.verdict);
+
     this.btnContinue.addEventListener("click", () => cb.onContinue());
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
@@ -59,7 +75,20 @@ export class Hud {
     }
     this.setSpeed(1);
 
-    this.chaptersToggle.addEventListener("click", () => this.toggleChapters());
+    this.buildRail();
+    this.buildThemes();
+
+    this.chaptersToggle.addEventListener("click", () => {
+      const open = this.chapters.hidden;
+      this.setPopover(this.chapters, this.chaptersToggle, open);
+      if (open) this.setPopover(this.themes, this.themeToggle, false);
+    });
+    this.themeToggle.addEventListener("click", () => {
+      const open = this.themes.hidden;
+      this.setPopover(this.themes, this.themeToggle, open);
+      if (open) this.setPopover(this.chapters, this.chaptersToggle, false);
+    });
+
     document.addEventListener("keydown", (e) => this.onKey(e));
   }
 
@@ -81,7 +110,8 @@ export class Hud {
         this.cb.onReplay();
         break;
       case "Escape":
-        this.setChaptersOpen(false);
+        this.setPopover(this.chapters, this.chaptersToggle, false);
+        this.setPopover(this.themes, this.themeToggle, false);
         break;
     }
   }
@@ -97,6 +127,35 @@ export class Hud {
     window.setTimeout(() => {
       this.loading.style.display = "none";
     }, 600);
+  }
+
+  // ------------------------------------------------------------------ step rail
+
+  /** The pipeline, always on screen, so "where are we" never needs to be inferred. */
+  private buildRail(): void {
+    this.rail.replaceChildren();
+    for (const step of PIPELINE_STEPS) {
+      const li = document.createElement("li");
+      li.dataset.step = step.id;
+      li.title = `${step.name} — ${step.summary}`;
+      li.innerHTML = `<span class="bar"></span><span class="name">${step.name}</span>`;
+      this.rail.appendChild(li);
+    }
+  }
+
+  /** Light the steps this stage covers and mark everything before them as done. */
+  setRailSteps(steps: StepId[] | undefined): void {
+    const order = PIPELINE_STEPS.map((s) => s.id);
+    const active = new Set(steps ?? []);
+    const firstIdx = steps?.length ? Math.min(...steps.map((s) => order.indexOf(s))) : -1;
+
+    for (const [i, li] of [...this.rail.children].entries()) {
+      const isActive = active.has(order[i]);
+      li.classList.toggle("active", isActive);
+      li.classList.toggle("done", firstIdx >= 0 && i < firstIdx);
+    }
+    const lead = this.rail.children[firstIdx] as HTMLElement | undefined;
+    lead?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }
 
   // ------------------------------------------------------------------ stage
@@ -121,19 +180,44 @@ export class Hud {
       b.innerHTML = `<span class="idx">${String(i + 1).padStart(2, "0")}</span><span>${t}</span>`;
       b.addEventListener("click", () => {
         this.cb.onJump(i);
-        this.setChaptersOpen(false);
+        this.setPopover(this.chapters, this.chaptersToggle, false);
       });
       this.chapters.appendChild(b);
     });
   }
 
-  private toggleChapters(): void {
-    this.setChaptersOpen(this.chapters.hidden);
+  // ------------------------------------------------------------------ themes
+
+  private buildThemes(): void {
+    this.themes.replaceChildren();
+    for (const id of THEME_ORDER) {
+      const theme = THEMES[id];
+      const b = document.createElement("button");
+      b.dataset.theme = id;
+      b.innerHTML =
+        `<span class="dots">` +
+        `<i style="background:${theme.ground}"></i>` +
+        `<i style="background:${theme.nonGround}"></i>` +
+        `<i style="background:${theme.focus}"></i>` +
+        `</span><span>${theme.name}<span class="meta">${theme.note}</span></span>`;
+      b.addEventListener("click", () => {
+        this.cb.onTheme(id);
+        this.setPopover(this.themes, this.themeToggle, false);
+      });
+      this.themes.appendChild(b);
+    }
   }
 
-  private setChaptersOpen(open: boolean): void {
-    this.chapters.hidden = !open;
-    this.chaptersToggle.setAttribute("aria-expanded", String(open));
+  setTheme(id: ThemeId): void {
+    this.themeName.textContent = THEMES[id].name;
+    for (const el of this.themes.children) {
+      el.classList.toggle("active", (el as HTMLElement).dataset.theme === id);
+    }
+  }
+
+  private setPopover(panel: HTMLElement, toggle: HTMLButtonElement, open: boolean): void {
+    panel.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
   }
 
   // ------------------------------------------------------------------ caption
@@ -154,6 +238,26 @@ export class Hud {
     }, 130);
   }
 
+  /**
+   * A loud, short-lived call-out for the moment a step decides something.
+   * Passing null clears it immediately (used when a stage is rebuilt).
+   */
+  showVerdict(text: string | null, tone: "good" | "bad" | "focus" = "focus"): void {
+    window.clearTimeout(this.verdictTimer);
+    if (!text) {
+      this.verdict.classList.remove("visible");
+      return;
+    }
+    this.verdict.className = tone;
+    this.verdict.textContent = text;
+    // Force a reflow so re-showing the same text replays the transition.
+    void this.verdict.offsetWidth;
+    this.verdict.classList.add("visible");
+    this.verdictTimer = window.setTimeout(() => {
+      this.verdict.classList.remove("visible");
+    }, 2600);
+  }
+
   // ------------------------------------------------------------------ panels
 
   setLegend(items: LegendItem[] | null): void {
@@ -166,8 +270,9 @@ export class Hud {
     for (const item of items) {
       const row = document.createElement("div");
       row.className = "row";
+      const css = toCss(item.color);
       row.innerHTML =
-        `<span class="swatch" style="background:${item.color};color:${item.color}"></span>` +
+        `<span class="swatch" style="background:${css};color:${css}"></span>` +
         `<span><strong>${item.label}</strong>${item.note ? ` — ${item.note}` : ""}</span>`;
       this.legend.appendChild(row);
     }
@@ -207,6 +312,10 @@ export class Hud {
       b.classList.toggle("active", (b as HTMLElement).dataset.speed === String(speed));
     }
   }
+}
+
+function toCss(color: string | Color): string {
+  return typeof color === "string" ? color : `#${color.getHexString()}`;
 }
 
 function byId(id: string): HTMLElement {

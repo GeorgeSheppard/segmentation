@@ -14,7 +14,6 @@ import {
 } from "three";
 import type { Vec3 } from "../core/linalg.ts";
 import { type CzmGeometry, type Params, ringRadii, sectorAngles } from "../patchwork/index.ts";
-import { COLORS, ZONE_COLORS } from "./palette.ts";
 
 /** Points along an annular-sector outline, counter-clockwise and closed. */
 function wedgeOutline(
@@ -172,7 +171,7 @@ export class CellOutline {
     a1: number,
     zBottom: number,
     zTop: number | null,
-    color: Color | string = COLORS.accent,
+    color: Color | string,
   ) {
     this.material = new LineBasicMaterial({ color: new Color(color), transparent: true });
 
@@ -232,10 +231,10 @@ export class CzmGrid {
   readonly zones: Group[] = [];
   private readonly materials: LineBasicMaterial[] = [];
 
-  constructor(czm: CzmGeometry, params: Params, z: number) {
+  constructor(czm: CzmGeometry, params: Params, z: number, zoneTints: Color[]) {
     for (let zone = 0; zone < params.numZones; zone++) {
       const material = new LineBasicMaterial({
-        color: ZONE_COLORS[zone % ZONE_COLORS.length],
+        color: zoneTints[zone % zoneTints.length],
         transparent: true,
         opacity: 0,
       });

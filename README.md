@@ -10,8 +10,8 @@ replay those results: the actual seed points, the actual plane from each PCA ite
 actual eigenvalues the classifier tested.
 
 ```
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## What it covers
@@ -32,9 +32,48 @@ npm run dev
 | 12  | The result                  | Ground vs not-ground, against the strawman from step 2                       |
 
 Each stage zooms into a real cell, narrates what happens there, and pulls back to the whole
-scene. **Continue** advances (and skips to the end of a stage still playing), **Replay**
-rebuilds the current stage from scratch, and the speed control scales the whole timeline.
-Keyboard: `→`/`space` continue, `←` back, `R` replay. Drag to orbit at any time.
+scene. A **step rail** across the top stays on screen the whole time with the live pipeline
+step lit, so "where are we" never has to be inferred.
+
+**Continue** advances (and skips to the end of a stage still playing), **Replay** rebuilds the
+current stage from scratch, and the speed control scales the whole timeline. Keyboard:
+`→`/`space` continue, `←` back, `R` replay. Drag to orbit at any time. Every stage is
+linkable — `/#gle` opens Ground Likelihood Estimation directly.
+
+## Colour, and why there are only three of them
+
+Three colours carry meaning, ever: **ground**, **not ground**, and **focus** — whatever the
+current step is singling out (noise, seeds, peeled points, an undecided cell). Everything else
+on screen is scaffolding: planes, seed bands, normals, grid.
+
+That is not a style choice. A point cloud is a scatter form, so any two classes can end up
+side by side, which means the palette has to clear the _all-pairs_ colour-blindness gate. Four
+simultaneous hues cannot — measured, not assumed — and the obvious green/red for
+ground vs not-ground scored ΔE 7.9 under deuteranopia, the classic red/green trap, on the
+single most important distinction in the whole visualisation.
+
+So each theme is three validated hues, checked for OKLCH lightness band, chroma floor, CVD
+separation under simulated protanopia and deuteranopia, normal-vision separation, and contrast
+against its own surface:
+
+| Theme                | Surface     | worst CVD ΔE | worst normal ΔE |
+| -------------------- | ----------- | ------------ | --------------- |
+| **Signal** (default) | near-black  | 9.4          | 24.6            |
+| **Ultraviolet**      | deep violet | 13.2         | 19.3            |
+| **Daylight**         | light       | 9.2          | 27.6 ¹          |
+
+¹ Daylight's aqua sits at 2.74:1 on its surface; the always-visible legend, which names every
+class in text, is the relief channel that permits it. Never colour alone.
+
+The numbers and the reasoning live in `src/viz/themes.ts`. Themes are switched from the top
+bar and remembered per browser.
+
+## On a phone
+
+Yes. The three bands (title + step rail, scene, evidence + narration + transport) reflow:
+the legend and readout become horizontally scrollable strips, the primary action gets its own
+full-width row, and the camera trades vertical field of view for horizontal on portrait
+aspects — without that, poses framed for a wide screen crop the subject off the sides.
 
 ## The algorithm
 
@@ -83,7 +122,7 @@ recomputes anything.
 ### Verification
 
 ```
-npm run verify
+pnpm verify
 ```
 
 Two things at once. It checks the implementation against an independent NumPy port of the
@@ -113,20 +152,36 @@ served from the edge. `wrangler.jsonc` holds the config and `public/_headers` se
 caching for the scans and the fingerprinted bundles.
 
 ```
-npx wrangler login
-npm run deploy        # build, then wrangler deploy
-npm run preview:cf    # build, then serve it locally the way Cloudflare will
+pnpm exec wrangler login
+pnpm deploy        # build, then wrangler deploy
+pnpm preview:cf    # build, then serve it locally the way Cloudflare will
 ```
 
 ## Development
 
 ```
-npm run dev           # dev server
-npm run typecheck     # browser sources, then the Node scripts
-npm run verify        # algorithm cross-check + behaviour digest
-npm run build         # typecheck + production build
-npm run format        # prettier
+pnpm dev           # dev server
+pnpm typecheck     # app, Node scripts, and tests
+pnpm verify        # algorithm cross-check + behaviour digest
+pnpm test          # Playwright, desktop + mobile
+pnpm build         # typecheck + production build
+pnpm format        # prettier
 ```
+
+### Tests
+
+`tests/tutorial.spec.ts` drives the real app in a real browser — it is a WebGL page, so
+there is no useful unit-level substitute. It runs under two projects, desktop and a
+390×844 phone, and covers: the app loading and actually segmenting the scan (asserted via
+the live point count in the readout), walking all twelve stages with zero console errors,
+Continue's finish-then-advance behaviour, Replay, Back, the speed control, deep links, the
+step rail lighting the right steps, theme switching and persistence, every theme keeping its
+three slots distinct, nothing overflowing the viewport, and the transport staying on screen
+with tappable targets.
+
+CI (`.github/workflows/ci.yml`) runs typecheck, format check and the algorithm digest in one
+job, and the two Playwright projects in a matrix. If a sandbox already ships a Chromium, set
+`CHROMIUM_PATH` and Playwright will use it instead of downloading one.
 
 `scripts/screenshot.mjs` walks every stage in headless Chromium and writes a screenshot per
 stage, for checking the visuals without a display. It needs Playwright, which is deliberately

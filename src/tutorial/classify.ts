@@ -1,7 +1,6 @@
-import { Vector3 } from "three";
+import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { type CellTrace, PointLabel } from "../patchwork/index.ts";
-import { COLORS } from "../viz/palette.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt } from "./helpers.ts";
 
@@ -14,6 +13,7 @@ const WALL_CELL = "1/0/6";
 /** Step 8 — GLE: the three tests that decide whether a fitted plane is really ground. */
 export const stageGle: Stage = {
   id: "gle",
+  steps: ["gle"],
   title: "GLE — is that plane really ground?",
   subtitle:
     "R-GPF always returns a plane. Ground Likelihood Estimation is the veto: uprightness, elevation, flatness.",
@@ -24,8 +24,8 @@ export const stageGle: Stage = {
     const roof = ctx.bin(ROOF_CELL);
     const wall = ctx.bin(WALL_CELL);
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.setAlphaAll(0.05);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setAlphaAll(ctx.dim);
     // All three cells stay dim until it is their turn, so it is never ambiguous which
     // one the narration is talking about.
     for (const b of [good, roof, wall]) {
@@ -35,17 +35,17 @@ export const stageGle: Stage = {
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.ground, label: "passes", note: "accepted as ground" },
-      { color: COLORS.rejectedTilted, label: "not upright", note: "normal tilted > 45°" },
-      { color: COLORS.rejectedHeading, label: "above the sensor", note: "roof or bonnet" },
+      { color: ctx.color.ground, label: "passes", note: "accepted as ground" },
+      { color: ctx.color.nonGround, label: "not upright", note: "normal tilted > 45°" },
+      { color: ctx.color.nonGround, label: "above the sensor", note: "roof or bonnet" },
     ]);
 
-    const makeCell = (bin: CellTrace, color: string) => {
+    const makeCell = (bin: CellTrace, color: Color) => {
       const outline = ctx.outline(bin, -2.1, 1.2, color);
       outline.opacity = 0;
       const surf = ctx.wedge(bin, color, 0);
       surf.layOnPlane(bin.plane!.normal, bin.plane!.d, [-2.1, 1.2]);
-      const nLine = ctx.segment(COLORS.normal, 0);
+      const nLine = ctx.segment(ctx.color.normal, 0);
       const base = new Vector3(...bin.plane!.mean);
       nLine.set(base, base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.0)));
       const nLabel = ctx.label(
@@ -58,9 +58,9 @@ export const stageGle: Stage = {
     };
 
     const cells = {
-      good: makeCell(good, COLORS.ground),
-      roof: makeCell(roof, COLORS.rejectedHeading),
-      wall: makeCell(wall, COLORS.rejectedTilted),
+      good: makeCell(good, ctx.color.ground),
+      roof: makeCell(roof, ctx.color.nonGround),
+      wall: makeCell(wall, ctx.color.nonGround),
     };
 
     const reveal = (c: ReturnType<typeof makeCell>, v: number, planeOpacity = 0.3) => {
@@ -88,6 +88,7 @@ export const stageGle: Stage = {
           { label: "threshold", value: `> ${params.uprightnessThr}` },
           { label: "verdict", value: "REJECT", state: "fail" },
         ]);
+        ctx.verdict("Rejected — not upright", "bad");
       },
       onUpdate: (v) => reveal(cells.wall, v),
     });
@@ -97,7 +98,7 @@ export const stageGle: Stage = {
       )}, nowhere near the 0.707 needed for 45°. Rejected.`,
       4.6,
     );
-    t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, COLORS.rejectedTilted, v) });
+    t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, ctx.color.nonGround, v) });
     t.wait(0.6);
 
     // ---- Test 2: elevation, shown on the roof cell.
@@ -120,18 +121,29 @@ export const stageGle: Stage = {
       4.8,
     );
 
-    const sensorDisc = ctx.surface(0.4, roof.radii[1] + 2, 0, Math.PI * 2, COLORS.accent, 0, 48, 3);
+    const sensorDisc = ctx.surface(
+      0.4,
+      roof.radii[1] + 2,
+      0,
+      Math.PI * 2,
+      ctx.color.plane,
+      0,
+      48,
+      3,
+    );
     sensorDisc.layFlat(0);
     const originLabel = ctx.label("sensor height — z = 0", new Vector3(3, 0, 0.35), "accent");
     originLabel.opacity = 0;
 
     t.add(1.2, {
-      onEnter: () =>
+      onEnter: () => {
         ctx.readout("Test 2 · elevation", [
           { label: "plane mean z", value: `${fmt(roof.gle!.elevation)} m` },
           { label: "heading n·p̄", value: fmt(roof.gle!.heading), state: "fail" },
           { label: "verdict", value: "REJECT", state: "fail" },
-        ]),
+        ]);
+        ctx.verdict("Rejected — above the sensor", "bad");
+      },
       onUpdate: (v) => {
         sensorDisc.opacity = v * 0.1;
         originLabel.opacity = v;
@@ -141,7 +153,7 @@ export const stageGle: Stage = {
       "So the second test asks where the plane <em>sits</em>. A real ground plane passes below the sensor. This one does not — its supporting point is above the origin.",
       5.0,
     );
-    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, COLORS.rejectedHeading, v) });
+    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.nonGround, v) });
     t.say(
       "Near the sensor, elevation is a sharp discriminator. Far away it stops being one — a high patch might just be a hill — so past <em>17 m</em> the test is switched off and uprightness decides alone.",
       5.2,
@@ -158,10 +170,11 @@ export const stageGle: Stage = {
           { label: "flatness λ₃", value: good.gle!.flatness.toExponential(2), state: "pass" },
           { label: "verdict", value: "GROUND", state: "pass" },
         ]);
+        ctx.verdict("Accepted — ground", "good");
       },
       onUpdate: (v) => {
         reveal(cells.good, v);
-        cloud.paint(good.cellGround, COLORS.ground, v);
+        cloud.paint(good.cellGround, ctx.color.ground, v);
         sensorDisc.opacity = 0.1 * (1 - v);
         originLabel.opacity = 1 - v;
       },
@@ -198,21 +211,24 @@ export const stageGle: Stage = {
 /** Step 9 — run the whole thing: 504 cells, judged ring by ring. */
 export const stageSweep: Stage = {
   id: "sweep",
+  steps: ["seeds", "rvpf", "rgpf", "gle"],
   title: "504 cells, one scan",
   subtitle: "Everything so far, applied to the whole sweep — ring by ring, outward from the car.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.fadeAllTo(0.32, 1);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.fadeAllTo(Math.max(ctx.dim, 0.32), 1);
     cloud.captureBase();
 
+    // Only three meanings on screen: ground, not-ground, and the one class this step is
+    // about. Peeled vertical points are simply non-ground here — R-VPF's own stage is where
+    // they get singled out.
     ctx.legend([
-      { color: COLORS.ground, label: "ground" },
-      { color: COLORS.nonGround, label: "not ground" },
-      { color: COLORS.vertical, label: "vertical structure" },
-      { color: COLORS.candidate, label: "undecided", note: "goes to TGR" },
+      { color: ctx.color.ground, label: "ground" },
+      { color: ctx.color.nonGround, label: "not ground" },
+      { color: ctx.color.focus, label: "undecided", note: "handed to TGR" },
     ]);
 
     const grid = ctx.grid();
@@ -247,7 +263,7 @@ export const stageSweep: Stage = {
     );
 
     // A bright annulus that flashes over the ring currently being processed.
-    const sweepRing = ctx.surface(0, 1, 0, Math.PI * 2, COLORS.accent, 0, 72, 1);
+    const sweepRing = ctx.surface(0, 1, 0, Math.PI * 2, ctx.color.plane, 0, 72, 1);
 
     const perRing = 0.48;
     for (const ringIdx of ringOrder) {
@@ -267,7 +283,6 @@ export const stageSweep: Stage = {
       }
       const g = Int32Array.from(ground);
       const n = Int32Array.from(nonGround);
-      const v = Int32Array.from(vertical);
       const u = Int32Array.from(undecided);
 
       t.add(perRing, {
@@ -276,16 +291,14 @@ export const stageSweep: Stage = {
           sweepRing.layFlat(ctx.groundZ + 0.02);
         },
         onUpdate: (p) => {
-          sweepRing.opacity = 0.32 * Math.sin(Math.PI * p);
-          cloud.paint(g, COLORS.ground, p);
+          sweepRing.opacity = 0.22 * Math.sin(Math.PI * p);
+          cloud.paint(g, ctx.color.ground, p);
           cloud.fadeTo(g, 1, p);
-          cloud.paint(n, COLORS.nonGround, p * 0.9);
+          cloud.paint(n, ctx.color.nonGround, p * 0.9);
           cloud.fadeTo(n, 0.85, p);
-          cloud.paint(v, COLORS.vertical, p);
-          cloud.fadeTo(v, 0.9, p);
-          cloud.paint(u, COLORS.candidate, p);
+          cloud.paint(u, ctx.color.focus, p);
           cloud.fadeTo(u, 1, p);
-          cloud.sizeTo(u, 4, p);
+          cloud.sizeTo(u, 5.5, p);
         },
       });
     }
@@ -329,6 +342,7 @@ export const stageSweep: Stage = {
 /** Step 10 — TGR: a second opinion, from this frame's own statistics. */
 export const stageTgr: Stage = {
   id: "tgr",
+  steps: ["tgr"],
   title: "TGR — Temporal Ground Revert",
   subtitle:
     "The borderline cells get one more hearing — judged against the other cells in their own ring, right now.",
@@ -343,18 +357,18 @@ export const stageTgr: Stage = {
       (b) => b.concentricIdx === hero.concentricIdx && b.gle?.isDefiniteGround,
     );
 
-    cloud.setBaseLabels(frame.labels);
-    cloud.fadeAllTo(0.22, 1);
+    cloud.setBaseLabels(frame.labels, ctx.color);
+    cloud.fadeAllTo(Math.max(ctx.dim, 0.22), 1);
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.candidate, label: "candidate", note: "GLE could not decide" },
-      { color: COLORS.ground, label: "this ring's definite ground", note: "the reference set" },
-      { color: COLORS.groundReverted, label: "reverted to ground" },
+      { color: ctx.color.focus, label: "candidate", note: "GLE could not decide" },
+      { color: ctx.color.ground, label: "this ring's definite ground", note: "the reference set" },
+      { color: ctx.color.focus, label: "reverted to ground" },
     ]);
 
     const peerCells = peers.map((b) => {
-      const w = ctx.wedge(b, COLORS.ground, 0);
+      const w = ctx.wedge(b, ctx.color.ground, 0);
       w.layFlat(b.plane ? b.plane.mean[2] : ctx.groundZ);
       return w;
     });
@@ -362,10 +376,10 @@ export const stageTgr: Stage = {
       hero,
       hero.gle!.elevation - 2.0,
       hero.gle!.elevation + 2.0,
-      COLORS.candidate,
+      ctx.color.focus,
     );
     heroOutline.opacity = 0;
-    const heroCell = ctx.wedge(hero, COLORS.candidate, 0);
+    const heroCell = ctx.wedge(hero, ctx.color.focus, 0);
     heroCell.layOnPlane(hero.plane!.normal, hero.plane!.d, [
       hero.gle!.elevation - 2.0,
       hero.gle!.elevation + 2.0,
@@ -392,7 +406,7 @@ export const stageTgr: Stage = {
           heroOutline.opacity = v * 0.9;
           heroCell.opacity = v * 0.22;
           heroLabel.opacity = v;
-          cloud.paint(hero.cellGround, COLORS.candidate, v);
+          cloud.paint(hero.cellGround, ctx.color.focus, v);
           cloud.fadeTo(hero.cellGround, 1, v);
           cloud.sizeTo(hero.cellGround, 5, v);
         },
@@ -421,7 +435,7 @@ export const stageTgr: Stage = {
 
     const verdict = hero.tgr!;
     t.add(1.4, {
-      onEnter: () =>
+      onEnter: () => {
         ctx.readout("TGR verdict", [
           { label: "λ₃", value: hero.gle!.flatness.toExponential(2) },
           { label: "µ", value: verdict.mu.toExponential(2) },
@@ -436,12 +450,17 @@ export const stageTgr: Stage = {
             value: verdict.reverted ? "REVERT" : "REJECT",
             state: verdict.reverted ? "pass" : "fail",
           },
-        ]),
+        ]);
+        ctx.verdict(
+          verdict.reverted ? "Reverted to ground" : "Final reject",
+          verdict.reverted ? "good" : "bad",
+        );
+      },
       onUpdate: (v) => {
         if (verdict.reverted) {
-          cloud.paint(hero.cellGround, COLORS.groundReverted, v);
-          heroCell.color = COLORS.groundReverted;
-          heroOutline.color = COLORS.groundReverted;
+          cloud.paint(hero.cellGround, ctx.color.focus, v);
+          heroCell.color = ctx.color.focus;
+          heroOutline.color = ctx.color.focus;
         }
         heroLabel.variant = verdict.reverted ? "good" : "bad";
       },

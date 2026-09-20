@@ -7,6 +7,7 @@ import {
   type FrameTrace,
   type Params,
 } from "../patchwork/index.ts";
+import type { StepId } from "../patchwork/index.ts";
 import type { Hud, LegendItem, ReadoutRow } from "../ui/hud.ts";
 import { CameraRig } from "../viz/cameraRig.ts";
 import type { CloudView } from "../viz/cloud.ts";
@@ -19,7 +20,8 @@ import {
   cellFromBin,
 } from "../viz/gizmos.ts";
 import { SceneLabel } from "../viz/labels.ts";
-import { COLORS } from "../viz/palette.ts";
+import { paletteFor, zoneColors, type Palette } from "../viz/palette.ts";
+import type { Theme } from "../viz/themes.ts";
 import type { CameraPose, Viewer } from "../viz/viewer.ts";
 
 interface Disposable {
@@ -37,6 +39,9 @@ export class StageContext {
   private readonly owned: Disposable[] = [];
   private readonly labels: SceneLabel[] = [];
 
+  /** The three meaning-carrying colours plus scaffolding, for the active theme. */
+  readonly color: Palette;
+
   constructor(
     readonly viewer: Viewer,
     readonly rig: CameraRig,
@@ -44,7 +49,9 @@ export class StageContext {
     readonly hud: Hud,
     readonly frame: FrameTrace,
     readonly overview: CameraPose,
+    readonly theme: Theme,
   ) {
+    this.color = paletteFor(theme);
     this.viewer.add(this.scratch);
   }
 
@@ -59,6 +66,11 @@ export class StageContext {
   /** Nominal road height in the sensor frame — where the CZM grid is drawn. */
   get groundZ(): number {
     return -this.frame.stateBefore.sensorHeight;
+  }
+
+  /** Opacity for out-of-focus points in the active theme. */
+  get dim(): number {
+    return this.theme.contextAlpha;
   }
 
   get xyz(): Float32Array {
@@ -125,7 +137,7 @@ export class StageContext {
     bin: CellTrace,
     zBottom: number,
     zTop: number | null = null,
-    color: Color | string = COLORS.accent,
+    color: Color | string = this.color.plane,
   ): CellOutline {
     const { r0, r1, a0, a1 } = cellFromBin(this.czm, bin.zone, bin.ring, bin.sector);
     const o = this.own(new CellOutline(r0, r1, a0, a1, zBottom, zTop, color));
@@ -140,7 +152,7 @@ export class StageContext {
   }
 
   grid(z = this.groundZ): CzmGrid {
-    const g = this.own(new CzmGrid(this.czm, this.params, z));
+    const g = this.own(new CzmGrid(this.czm, this.params, z, zoneColors(this.theme)));
     this.scratch.add(g.group);
     return g;
   }
@@ -214,6 +226,14 @@ export class StageContext {
     this.hud.setReadout(title, rows);
   }
 
+  /**
+   * The loud call-out for the moment a step decides something. Used sparingly — one per
+   * real verdict — so it keeps its weight.
+   */
+  verdict(text: string, tone: "good" | "bad" | "focus" = "focus"): void {
+    this.hud.showVerdict(text, tone);
+  }
+
   // ---------------------------------------------------------------- teardown
 
   dispose(): void {
@@ -235,6 +255,13 @@ export interface Stage {
   title: string;
   /** One line under the title. May contain inline HTML. */
   subtitle: string;
+  /**
+   * Which pipeline steps this stage covers — drives the step rail, so the reader can always
+   * see where in the algorithm they are. Most stages name one; the full-sweep stage names
+   * the per-cell steps it runs end to end. Stages that frame the problem rather than
+   * explain a step (the raw scan, the strawman, the result) leave it empty.
+   */
+  steps?: StepId[];
   build(ctx: StageContext): import("../anim/timeline.ts").Timeline;
 }
 

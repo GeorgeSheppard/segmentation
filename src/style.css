@@ -1,23 +1,47 @@
+/*
+ * Layout is three bands over a full-bleed canvas: a top band (which step, what it does),
+ * a step rail (where we are in the algorithm), and a bottom band (evidence, narration,
+ * transport). On a phone the bands stay in the same order and only get denser — the canvas
+ * keeps whatever is left, which is most of the screen.
+ *
+ * Every colour comes from a custom property written by themes.ts; nothing here hard-codes
+ * a palette value.
+ */
+
 :root {
-  --bg: #070a0f;
+  --surface: #070a0f;
   --panel: rgba(13, 19, 30, 0.82);
-  --panel-solid: #0d131e;
   --border: rgba(148, 163, 184, 0.18);
-  --border-strong: rgba(148, 163, 184, 0.32);
+  --border-strong: rgba(148, 163, 184, 0.34);
   --text: #e8eef7;
   --text-dim: #94a3b8;
   --text-faint: #64748b;
-  --accent: #60a5fa;
-  --accent-strong: #3b82f6;
-  --ground: #4ade80;
-  --nonground: #f87171;
+  --accent: #7dd3fc;
+  --accent-ink: #06121f;
+  --ground: #199e70;
+  --non-ground: #d95926;
+  --focus: #9085e9;
+  --seed: #fde047;
+
   --radius: 12px;
+  --gutter: 20px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* The mobile rules below set display on #legend/#readout by id, which would otherwise
+   out-specify the [hidden] attribute and leave empty panels on screen. */
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -26,15 +50,35 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  overscroll-behavior: none;
+  background: var(--surface);
   color: var(--text);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
 }
 
 #app {
   position: fixed;
   inset: 0;
+  display: grid;
+  /* top band, step rail, then everything else — the bottom band pins to the bottom of it.
+     The canvas, labels and loading screen are absolutely positioned and out of flow. */
+  grid-template-rows: auto auto 1fr;
+  /* Pin the column to the viewport. Without this the column takes its min-content width
+     from the step rail, which is wider than a phone, and every band overflows. */
+  grid-template-columns: minmax(0, 1fr);
+  pointer-events: none;
+}
+
+#top,
+#rail,
+#bottom {
+  min-width: 0;
+}
+
+#app > * {
+  pointer-events: auto;
 }
 
 #view {
@@ -43,6 +87,9 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  /* The scene is the thing you drag; the bands above it opt back in. */
+  pointer-events: auto;
+  touch-action: none;
 }
 
 #labels {
@@ -61,8 +108,8 @@ body {
   place-content: center;
   justify-items: center;
   gap: 18px;
-  background: var(--bg);
-  z-index: 50;
+  background: var(--surface);
+  z-index: 60;
   transition: opacity 0.5s ease;
 }
 #loading.hidden {
@@ -78,7 +125,7 @@ body {
 .spinner {
   width: 34px;
   height: 34px;
-  border: 2px solid rgba(96, 165, 250, 0.2);
+  border: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
@@ -89,152 +136,188 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------- header */
+/* ---------------------------------------------------------------- top band */
 
-#stage-header {
-  position: absolute;
-  top: 22px;
-  left: 24px;
-  max-width: min(460px, 46vw);
+#top {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + var(--gutter)) 0
+    calc(var(--safe-l) + var(--gutter));
   pointer-events: none;
-  z-index: 10;
 }
+#top > * {
+  pointer-events: auto;
+}
+
+#titles {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: min(520px, 55vw);
+}
+
 .step-badge {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--accent);
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
   border-radius: 999px;
-  padding: 4px 11px;
-  margin-bottom: 12px;
+  padding: 5px 10px;
+  margin-top: 4px;
 }
 .step-badge .sep {
   color: var(--text-faint);
 }
+
 #stage-title {
-  margin: 0 0 6px;
-  font-size: clamp(22px, 2.6vw, 31px);
+  margin: 0 0 5px;
+  font-size: clamp(19px, 2.4vw, 29px);
   font-weight: 620;
   letter-spacing: -0.02em;
-  line-height: 1.12;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+  line-height: 1.14;
+  text-shadow: 0 2px 20px color-mix(in srgb, var(--surface) 80%, transparent);
 }
 #stage-subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-dim);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--surface) 85%, transparent);
 }
 
-/* ---------------------------------------------------------------- chapters */
-
-#chapters-toggle {
-  position: absolute;
-  top: 22px;
-  right: 24px;
-  z-index: 12;
-  display: inline-flex;
-  align-items: center;
+#top-actions {
+  display: flex;
   gap: 8px;
-  padding: 8px 13px;
-  font-size: 13px;
-  font-family: var(--sans);
-  color: var(--text-dim);
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- step rail */
+
+#rail {
+  position: relative;
+  z-index: 15;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0 calc(var(--safe-r) + var(--gutter)) 0 calc(var(--safe-l) + var(--gutter));
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  pointer-events: none;
+}
+#rail::-webkit-scrollbar {
+  display: none;
+}
+
+#rail li {
+  flex: 1 1 0;
+  min-width: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  opacity: 0.4;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+#rail li .bar {
+  height: 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-faint) 45%, transparent);
+  transition: background 0.35s ease;
+}
+#rail li .name {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+  transition: color 0.35s ease;
+}
+#rail li.done {
+  opacity: 0.72;
+}
+#rail li.done .bar {
+  background: color-mix(in srgb, var(--ground) 65%, transparent);
+}
+#rail li.active {
+  opacity: 1;
+}
+#rail li.active .bar {
+  background: var(--accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+#rail li.active {
+  transform: translateY(-1px);
+}
+#rail li.active .name {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- bottom band */
+
+#bottom {
+  grid-row: 3;
+  align-self: end;
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 calc(var(--safe-r) + var(--gutter)) calc(var(--safe-b) + 18px)
+    calc(var(--safe-l) + var(--gutter));
+  pointer-events: none;
+}
+#bottom > * {
+  pointer-events: auto;
+}
+
+#panels {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+#panels > * {
+  pointer-events: auto;
+}
+
+.panel {
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-#chapters-toggle:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-#chapters-toggle svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-}
-
-#chapters {
-  position: absolute;
-  top: 66px;
-  right: 24px;
-  z-index: 12;
-  width: 290px;
-  max-height: calc(100vh - 210px);
-  overflow-y: auto;
-  padding: 7px;
-  background: var(--panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
-}
-#chapters button {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-dim);
-  font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.35;
-  cursor: pointer;
-}
-#chapters button:hover {
-  background: rgba(148, 163, 184, 0.1);
-  color: var(--text);
-}
-#chapters button.active {
-  background: rgba(59, 130, 246, 0.16);
-  color: var(--text);
-}
-#chapters button .idx {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-faint);
-  min-width: 18px;
-  padding-top: 1px;
-}
-#chapters button.active .idx {
-  color: var(--accent);
 }
 
 /* ---------------------------------------------------------------- legend */
 
 #legend {
-  position: absolute;
-  left: 24px;
-  bottom: 168px;
-  z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 12px 14px;
+  padding: 11px 13px;
+  font-size: 12.5px;
+  max-width: 280px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 12.5px;
-  max-width: 260px;
 }
 #legend .row {
   display: flex;
@@ -243,8 +326,8 @@ body {
   color: var(--text-dim);
 }
 #legend .swatch {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 3px;
   flex: none;
   box-shadow: 0 0 10px currentColor;
@@ -257,18 +340,14 @@ body {
 /* ---------------------------------------------------------------- readout */
 
 #readout {
-  position: absolute;
-  right: 24px;
-  bottom: 168px;
-  z-index: 10;
-  padding: 12px 14px;
+  padding: 11px 13px;
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 210px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 12px;
-  min-width: 210px;
 }
 #readout .row {
   display: flex;
@@ -285,7 +364,7 @@ body {
   color: var(--ground);
 }
 #readout .row.fail b {
-  color: var(--nonground);
+  color: var(--non-ground);
 }
 #readout .title {
   font-size: 10px;
@@ -298,26 +377,21 @@ body {
 /* ---------------------------------------------------------------- caption */
 
 #caption {
-  position: absolute;
-  left: 50%;
-  bottom: 118px;
-  transform: translateX(-50%);
-  z-index: 10;
-  width: min(720px, calc(100vw - 48px));
+  width: min(760px, 100%);
   pointer-events: none;
 }
 #caption-text {
   margin: 0;
-  padding: 14px 20px;
+  padding: 13px 18px;
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 15px;
-  line-height: 1.55;
+  line-height: 1.5;
   text-align: center;
   color: var(--text);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
   opacity: 0;
   transform: translateY(6px);
   transition:
@@ -333,44 +407,38 @@ body {
   font-size: 0.87em;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(148, 163, 184, 0.14);
-  color: #cbd5e1;
+  background: color-mix(in srgb, var(--text-dim) 18%, transparent);
 }
 #caption-text em {
   color: var(--accent);
   font-style: normal;
-  font-weight: 560;
+  font-weight: 600;
 }
 
 /* ---------------------------------------------------------------- controls */
 
 #controls {
-  position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  z-index: 11;
-  width: min(720px, calc(100vw - 48px));
-  padding: 12px 14px;
+  width: min(760px, 100%);
+  padding: 11px 13px;
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
 #progress {
   height: 3px;
   border-radius: 2px;
-  background: rgba(148, 163, 184, 0.16);
+  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 11px;
 }
 #progress-bar {
   height: 100%;
   width: 0;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent-strong), #22d3ee);
+  background: var(--accent);
 }
 
 .control-row {
@@ -387,6 +455,8 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  /* Comfortable touch targets without changing the desktop look. */
+  min-height: 38px;
   transition:
     background 0.15s,
     color 0.15s,
@@ -406,30 +476,42 @@ button:disabled {
   opacity: 0.35;
   cursor: default;
 }
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
-button.ghost {
+button.ghost,
+#theme-toggle,
+#chapters-toggle {
   padding: 8px 12px;
   color: var(--text-dim);
-  background: transparent;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
+  border-radius: 999px;
 }
-button.ghost:hover:not(:disabled) {
+button.ghost {
+  background: transparent;
+  border-radius: 9px;
+}
+button.ghost:hover:not(:disabled),
+#theme-toggle:hover,
+#chapters-toggle:hover {
   color: var(--text);
   border-color: var(--border-strong);
-  background: rgba(148, 163, 184, 0.07);
 }
 
 button.primary {
   margin-left: auto;
   padding: 9px 16px;
-  font-weight: 560;
-  color: #06121f;
-  background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
   border: none;
-  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.28);
 }
 button.primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #a5e4ff, #56c9fb);
+  filter: brightness(1.1);
 }
 button.primary.pulse {
   animation: pulse 1.8s ease-in-out infinite;
@@ -437,10 +519,10 @@ button.primary.pulse {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.28);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
   }
   50% {
-    box-shadow: 0 4px 26px rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
@@ -448,23 +530,90 @@ button.primary.pulse {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
-  background: rgba(148, 163, 184, 0.1);
+  background: color-mix(in srgb, var(--text-faint) 20%, transparent);
   border-radius: 9px;
 }
 #speed button {
-  padding: 6px 9px;
+  padding: 5px 9px;
+  min-height: 30px;
   font-family: var(--mono);
   font-size: 11.5px;
   color: var(--text-faint);
   background: none;
   border: none;
 }
-#speed button:hover {
-  color: var(--text-dim);
-}
 #speed button.active {
   color: var(--text);
-  background: rgba(148, 163, 184, 0.18);
+  background: color-mix(in srgb, var(--text-dim) 26%, transparent);
+}
+
+/* ---------------------------------------------------------------- popovers */
+
+#chapters,
+#themes {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: calc(var(--safe-r) + var(--gutter));
+  z-index: 30;
+  width: min(300px, calc(100vw - 2 * var(--gutter)));
+  max-height: min(60vh, 460px);
+  overflow-y: auto;
+  padding: 7px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--surface) 75%, transparent);
+}
+#chapters button,
+#themes button {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.35;
+}
+#chapters button:hover,
+#themes button:hover {
+  background: color-mix(in srgb, var(--text-dim) 14%, transparent);
+  color: var(--text);
+}
+#chapters button.active,
+#themes button.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+#chapters .idx {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  min-width: 18px;
+  padding-top: 1px;
+}
+#chapters button.active .idx {
+  color: var(--accent);
+}
+#themes .dots {
+  display: flex;
+  gap: 3px;
+  flex: none;
+  padding-top: 3px;
+}
+#themes .dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+#themes .meta {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-faint);
 }
 
 /* ---------------------------------------------------------------- 3D labels */
@@ -472,9 +621,8 @@ button.primary.pulse {
 .scene-label {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.01em;
   color: var(--text);
-  background: rgba(7, 12, 20, 0.82);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 4px 8px;
@@ -484,68 +632,257 @@ button.primary.pulse {
   backdrop-filter: blur(6px);
 }
 .scene-label.accent {
-  color: #bfdbfe;
-  border-color: rgba(96, 165, 250, 0.45);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 .scene-label.warn {
-  color: #fde68a;
-  border-color: rgba(251, 191, 36, 0.45);
+  color: var(--seed);
+  border-color: color-mix(in srgb, var(--seed) 50%, transparent);
 }
 .scene-label.good {
-  color: #bbf7d0;
-  border-color: rgba(74, 222, 128, 0.45);
+  color: var(--ground);
+  border-color: color-mix(in srgb, var(--ground) 55%, transparent);
 }
 .scene-label.bad {
-  color: #fecaca;
-  border-color: rgba(248, 113, 113, 0.45);
+  color: var(--non-ground);
+  border-color: color-mix(in srgb, var(--non-ground) 55%, transparent);
 }
 
-/* ---------------------------------------------------------------- responsive */
+/* ---------------------------------------------------------------- verdict */
 
-@media (max-width: 860px) {
-  #stage-header {
-    max-width: calc(100vw - 170px);
-    top: 16px;
-    left: 16px;
+/*
+ * The big call-out that fires when a step reaches a decision. Deliberately loud: on a
+ * visualisation-first page the verdict should be readable from across the room.
+ */
+#verdict {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%) scale(0.92);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: clamp(13px, 1.7vw, 17px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 1.3, 0.5, 1);
+}
+#verdict.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+#verdict.good {
+  color: var(--ground);
+  background: color-mix(in srgb, var(--ground) 18%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--ground) 60%, transparent);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--ground) 30%, transparent);
+}
+#verdict.bad {
+  color: var(--non-ground);
+  background: color-mix(in srgb, var(--non-ground) 18%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--non-ground) 60%, transparent);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--non-ground) 30%, transparent);
+}
+#verdict.focus {
+  color: var(--focus);
+  background: color-mix(in srgb, var(--focus) 18%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--focus) 60%, transparent);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--focus) 30%, transparent);
+}
+
+/* ---------------------------------------------------------------- tablet */
+
+@media (max-width: 1000px) {
+  :root {
+    --gutter: 14px;
   }
-  #chapters-toggle {
-    top: 16px;
-    right: 16px;
+  #titles {
+    max-width: min(420px, 50vw);
   }
+  #readout {
+    min-width: 178px;
+    font-size: 11.5px;
+  }
+  #legend {
+    max-width: 230px;
+    font-size: 11.5px;
+  }
+}
+
+/* ---------------------------------------------------------------- phone */
+
+@media (max-width: 680px) {
+  #top {
+    padding-top: calc(var(--safe-t) + 10px);
+    gap: 10px;
+  }
+  #titles {
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .title-text {
+    min-width: 0;
+  }
+  #stage-title {
+    font-size: 17px;
+    margin-bottom: 2px;
+  }
+  /* The subtitle repeats what the caption will say; the caption is the one that animates. */
+  #stage-subtitle {
+    display: none;
+  }
+  .step-badge {
+    padding: 4px 8px;
+    margin-top: 1px;
+  }
+  #theme-toggle span,
   #chapters-toggle span {
     display: none;
   }
-  #chapters {
-    right: 16px;
-    width: min(300px, calc(100vw - 32px));
+  #theme-toggle,
+  #chapters-toggle {
+    padding: 8px 10px;
+  }
+
+  #rail {
+    margin-top: 10px;
+    gap: 4px;
+  }
+  #rail li {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  /* Only the live step keeps its name; the rest are progress ticks. */
+  #rail li .name {
+    display: none;
+    font-size: 9px;
+  }
+  #rail li.active .name {
+    display: block;
+  }
+
+  #bottom {
+    gap: 8px;
+    padding-bottom: calc(var(--safe-b) + 10px);
+  }
+
+  /* Evidence becomes one horizontally scrollable strip instead of two side panels. */
+  #panels {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
   #legend {
-    left: 16px;
-    bottom: auto;
-    top: 50%;
-    transform: translateY(-50%);
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: none;
+    gap: 14px;
+    padding: 8px 11px;
     font-size: 11.5px;
-    padding: 10px 11px;
   }
-  #readout {
+  #legend::-webkit-scrollbar {
     display: none;
   }
-  #caption {
-    bottom: 112px;
-    width: calc(100vw - 32px);
+  #legend .row {
+    white-space: nowrap;
   }
+  #readout {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 8px 11px;
+  }
+  #readout::-webkit-scrollbar {
+    display: none;
+  }
+  #readout .title {
+    margin: 0;
+    flex: none;
+  }
+  #readout .row {
+    flex-direction: column;
+    gap: 1px;
+    padding: 0;
+    flex: none;
+    align-items: flex-start;
+  }
+
   #caption-text {
     font-size: 13.5px;
-    padding: 11px 14px;
+    padding: 10px 13px;
+    line-height: 1.45;
   }
   #controls {
-    width: calc(100vw - 32px);
-    bottom: 16px;
+    padding: 9px 10px;
+  }
+  .control-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
   button.ghost span {
     display: none;
   }
   button.ghost {
-    padding: 8px 10px;
+    padding: 8px 11px;
+  }
+  #speed {
+    margin-left: auto;
+  }
+  #speed button {
+    padding: 5px 7px;
+  }
+  button.primary {
+    order: 10;
+    flex: 1 0 100%;
+    margin-left: 0;
+    justify-content: center;
+    min-height: 44px;
+  }
+  #verdict {
+    top: 30%;
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
+
+/* Short landscape phones: drop the panels entirely, the canvas needs the room. */
+@media (max-height: 460px) and (max-width: 900px) {
+  #stage-subtitle,
+  #rail,
+  #legend,
+  #readout {
+    display: none;
+  }
+  #caption-text {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #caption-text,
+  #verdict,
+  #rail li,
+  #rail li .bar {
+    transition-duration: 0.01ms;
+  }
+  button.primary.pulse {
+    animation: none;
   }
 }

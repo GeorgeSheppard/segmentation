@@ -1,6 +1,5 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { COLORS } from "../viz/palette.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt } from "./helpers.ts";
 
@@ -12,6 +11,7 @@ const VERTICAL_CELL = "0/1/14";
 /** Step 5 — sorting a cell by height and picking the seed points. */
 export const stageSeeds: Stage = {
   id: "seeds",
+  steps: ["seeds"],
   title: "Seeds — the lowest points win",
   subtitle:
     "Inside a cell, sort by height, average the 20 lowest, and take everything within 12.5 cm of that as the seed set.",
@@ -21,25 +21,25 @@ export const stageSeeds: Stage = {
     const bin = ctx.bin(FIT_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.setAlphaAll(0.05);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
-    cloud.setSize(idx, 1.5);
+    cloud.setSize(idx, 2.1);
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.lpr, label: "LPR", note: `${params.numLPR} lowest points` },
-      { color: COLORS.seed, label: "seeds", note: "z < LPR + 0.125 m" },
+      { color: ctx.color.focus, label: "LPR", note: `${params.numLPR} lowest points` },
+      { color: ctx.color.seed, label: "seeds", note: "z < LPR + 0.125 m" },
       { color: "#64748b", label: "the rest of the cell" },
     ]);
 
-    const prism = ctx.outline(bin, -2.1, 1.0, COLORS.accent);
+    const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
     prism.opacity = 0;
 
-    const sweepPlane = ctx.wedge(bin, COLORS.accent, 0);
-    const lprPlane = ctx.wedge(bin, COLORS.lpr, 0);
+    const sweepPlane = ctx.wedge(bin, ctx.color.plane, 0);
+    const lprPlane = ctx.wedge(bin, ctx.color.focus, 0);
     lprPlane.layFlat(bin.lprHeight);
-    const cutPlane = ctx.wedge(bin, COLORS.seed, 0);
+    const cutPlane = ctx.wedge(bin, ctx.color.seed, 0);
     cutPlane.layFlat(bin.seedCutoff);
 
     const centre = ctx.centreOf(bin, 0);
@@ -84,7 +84,7 @@ export const stageSeeds: Stage = {
         // Points are stored sorted by z, so "below the sweep" is a prefix.
         const k = Math.max(1, Math.round(idx.length * v));
         cloud.restore();
-        cloud.paint(idx.subarray(0, k), COLORS.accent, 0.85);
+        cloud.paint(idx.subarray(0, k), ctx.color.plane, 0.85);
       },
       onExit: () => {
         sweepPlane.opacity = 0;
@@ -98,7 +98,7 @@ export const stageSeeds: Stage = {
 
     t.add(1.2, {
       onUpdate: (v) => {
-        cloud.paint(lpr, COLORS.lpr, v);
+        cloud.paint(lpr, ctx.color.focus, v);
         cloud.sizeTo(lpr, 4.5, v);
         lprPlane.opacity = v * 0.3;
         lprLabel.opacity = v;
@@ -115,7 +115,7 @@ export const stageSeeds: Stage = {
       onUpdate: (v) => {
         cutPlane.opacity = v * 0.24;
         cutLabel.opacity = v;
-        cloud.paint(seeds, COLORS.seed, v);
+        cloud.paint(seeds, ctx.color.seed, v);
       },
     });
     t.say(
@@ -161,6 +161,7 @@ export const stageSeeds: Stage = {
 /** Step 6 — R-GPF: three PCA refinements turn the seed set into a ground plane. */
 export const stageRgpf: Stage = {
   id: "rgpf",
+  steps: ["rgpf"],
   title: "R-GPF — fit, re-select, repeat",
   subtitle:
     "PCA on the seeds gives a plane. Everything within 12.5 cm of it becomes the new seed set. Three times.",
@@ -170,26 +171,26 @@ export const stageRgpf: Stage = {
     const bin = ctx.bin(FIT_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.setAlphaAll(0.05);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
-    cloud.setSize(idx, 1.5);
+    cloud.setSize(idx, 2.1);
     cloud.paint(idx, "#64748b", 0.75);
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.plane, label: "fitted plane" },
-      { color: COLORS.ground, label: "within 12.5 cm", note: "kept as ground" },
-      { color: COLORS.nonGround, label: "above the plane", note: "not ground" },
-      { color: COLORS.normal, label: "surface normal", note: "smallest-eigenvalue direction" },
+      { color: ctx.color.plane, label: "fitted plane" },
+      { color: ctx.color.ground, label: "within 12.5 cm", note: "kept as ground" },
+      { color: ctx.color.nonGround, label: "above the plane", note: "not ground" },
+      { color: ctx.color.normal, label: "surface normal", note: "smallest-eigenvalue direction" },
     ]);
 
-    const prism = ctx.outline(bin, -2.1, 1.0, COLORS.accent);
+    const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
     prism.opacity = 0.55;
 
-    const planeSurf = ctx.wedge(bin, COLORS.plane, 0);
-    const slabSurf = ctx.wedge(bin, COLORS.ground, 0);
-    const normalLine = ctx.segment(COLORS.normal, 0);
+    const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
+    const slabSurf = ctx.wedge(bin, ctx.color.ground, 0);
+    const normalLine = ctx.segment(ctx.color.normal, 0);
     const normalLabel = ctx.label("", new Vector3(), "accent");
     normalLabel.opacity = 0;
 
@@ -216,7 +217,7 @@ export const stageRgpf: Stage = {
       3.2,
     )
       .with(2.4, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 4 })), Ease.cinematic)
-      .with(1.0, { onUpdate: (v) => cloud.paint(seeds, COLORS.seed, v) });
+      .with(1.0, { onUpdate: (v) => cloud.paint(seeds, ctx.color.seed, v) });
 
     t.add(1.2, {
       onUpdate: (v) => {
@@ -260,7 +261,7 @@ export const stageRgpf: Stage = {
           ]),
         onUpdate: (v) => {
           cloud.restore();
-          cloud.paint(accepted, COLORS.ground, v);
+          cloud.paint(accepted, ctx.color.ground, v);
         },
       });
 
@@ -294,8 +295,8 @@ export const stageRgpf: Stage = {
         ]),
       onUpdate: (v) => {
         cloud.restore();
-        cloud.paint(finalGround, COLORS.ground, 1);
-        cloud.paint(finalNon, COLORS.nonGround, v);
+        cloud.paint(finalGround, ctx.color.ground, 1);
+        cloud.paint(finalNon, ctx.color.nonGround, v);
         slabSurf.opacity = 0.14 * (1 - v);
       },
     });
@@ -327,6 +328,7 @@ export const stageRgpf: Stage = {
 /** Step 7 — R-VPF: peel the wall away before fitting the ground on top of it. */
 export const stageRvpf: Stage = {
   id: "rvpf",
+  steps: ["rvpf"],
   title: "R-VPF — peeling off vertical structure",
   subtitle:
     "When ground sits on a kerb, a fence or a retaining wall, the wall's points are lower — so they win the seeding and tip the plane.",
@@ -336,24 +338,24 @@ export const stageRvpf: Stage = {
     const bin = ctx.bin(VERTICAL_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.setAlphaAll(0.05);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
-    cloud.setSize(idx, 2.0);
+    cloud.setSize(idx, 2.6);
     cloud.paint(idx, "#64748b", 0.7);
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.vertical, label: "vertical points", note: "peeled off by R-VPF" },
-      { color: COLORS.plane, label: "the fit", note: "before peeling: tilted" },
-      { color: COLORS.ground, label: "ground recovered" },
+      { color: ctx.color.focus, label: "vertical points", note: "peeled off by R-VPF" },
+      { color: ctx.color.plane, label: "the fit", note: "before peeling: tilted" },
+      { color: ctx.color.ground, label: "ground recovered" },
     ]);
 
-    const prism = ctx.outline(bin, -2.0, 1.1, COLORS.accent);
+    const prism = ctx.outline(bin, -2.0, 1.1, ctx.color.plane);
     prism.opacity = 0.55;
 
-    const planeSurf = ctx.wedge(bin, COLORS.plane, 0);
-    const normalLine = ctx.segment(COLORS.normal, 0);
+    const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
+    const normalLine = ctx.segment(ctx.color.normal, 0);
     const normalLabel = ctx.label("", new Vector3(), "warn");
     normalLabel.opacity = 0;
 
@@ -445,13 +447,13 @@ export const stageRvpf: Stage = {
         t.add(1.2, {
           onUpdate: (v) => {
             cloud.restore();
-            cloud.paint(Int32Array.from(snapshot), COLORS.vertical, 1);
-            cloud.fadeTo(Int32Array.from(snapshot), 0.12, 1);
-            cloud.paint(batch, COLORS.vertical, v);
+            cloud.paint(Int32Array.from(snapshot), ctx.color.focus, 1);
+            cloud.fadeTo(Int32Array.from(snapshot), Math.max(ctx.dim, 0.12), 1);
+            cloud.paint(batch, ctx.color.focus, v);
             cloud.sizeTo(batch, 3.2, v);
           },
           onExit: () => {
-            cloud.fadeTo(batch, 0.12, 1);
+            cloud.fadeTo(batch, Math.max(ctx.dim, 0.12), 1);
           },
         });
         removedSoFar = removedSoFar.concat(Array.from(batch));
@@ -480,7 +482,7 @@ export const stageRvpf: Stage = {
       onUpdate: (v) => {
         const plane = bin.plane!;
         showPlane(plane.normal, plane.d, plane.mean);
-        cloud.paint(bin.cellGround, COLORS.ground, v);
+        cloud.paint(bin.cellGround, ctx.color.ground, v);
         cloud.fadeTo(bin.cellGround, 1, v);
         cloud.sizeTo(bin.cellGround, 2.6, v);
       },

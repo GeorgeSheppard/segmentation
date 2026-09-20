@@ -7,7 +7,6 @@ import {
   ringFromConcentric,
   ringRadii,
 } from "../patchwork/index.ts";
-import { COLORS } from "../viz/palette.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fitGlobalPlane, fmt } from "./helpers.ts";
@@ -15,6 +14,7 @@ import { fitGlobalPlane, fmt } from "./helpers.ts";
 /** Step 11 — A-GLE: the algorithm tunes its own thresholds from what it just saw. */
 export const stageAgle: Stage = {
   id: "agle",
+  steps: ["agle"],
   title: "A-GLE — it tunes itself",
   subtitle:
     "The elevation and flatness thresholds are not set by a human. They are measured, every frame, from the cells the algorithm was most sure about.",
@@ -24,20 +24,20 @@ export const stageAgle: Stage = {
     const before = frame.stateBefore;
     const after = frame.stateAfter;
 
-    cloud.setBaseLabels(frame.labels);
-    cloud.fadeAllTo(0.14, 1);
+    cloud.setBaseLabels(frame.labels, ctx.color);
+    cloud.fadeAllTo(Math.max(ctx.dim, 0.14), 1);
     cloud.captureBase();
 
     ctx.legend([
-      { color: COLORS.ground, label: "definite ground", note: "upright, low, near — set Dₘ" },
-      { color: COLORS.plane, label: "elevation threshold", note: "learned per ring" },
+      { color: ctx.color.ground, label: "definite ground", note: "upright, low, near — set Dₘ" },
+      { color: ctx.color.plane, label: "elevation threshold", note: "learned per ring" },
     ]);
 
     // The four rings of interest, and the definite-ground cells inside them.
     const roi = Array.from({ length: params.numRingsOfInterest }, (_, m) => {
       const { zone, ring } = ringFromConcentric(params, m);
       const [r0, r1] = ringRadii(czm, zone, ring);
-      const disc = ctx.surface(r0, r1, 0, Math.PI * 2, COLORS.plane, 0, 72, 2);
+      const disc = ctx.surface(r0, r1, 0, Math.PI * 2, ctx.color.plane, 0, 72, 2);
       disc.layFlat(0);
       const cells = frame.cells.filter((b) => b.concentricIdx === m && b.gle?.isDefiniteGround);
       // Each ring's label gets its own bearing, or they stack on top of each other.
@@ -58,7 +58,7 @@ export const stageAgle: Stage = {
 
     const cellSurfaces = roi.flatMap((r) =>
       r.cells.map((b) => {
-        const w = ctx.wedge(b, COLORS.ground, 0);
+        const w = ctx.wedge(b, ctx.color.ground, 0);
         w.layFlat(b.gle!.elevation);
         return w;
       }),
@@ -102,7 +102,7 @@ export const stageAgle: Stage = {
         ]),
       onUpdate: (v) => {
         for (const c of cellSurfaces) c.opacity = v * 0.35;
-        cloud.paint(definite, COLORS.ground, v);
+        cloud.paint(definite, ctx.color.ground, v);
         cloud.fadeTo(definite, 1, v);
       },
     });
@@ -228,9 +228,13 @@ export const stageResult: Stage = {
     cloud.setBaseUniform("#475569", 0.9);
 
     ctx.legend([
-      { color: COLORS.ground, label: "ground", note: `${g.length.toLocaleString()} points` },
-      { color: COLORS.nonGround, label: "not ground", note: `${n.length.toLocaleString()} points` },
-      { color: COLORS.groundReverted, label: "the single plane missed these" },
+      { color: ctx.color.ground, label: "ground", note: `${g.length.toLocaleString()} points` },
+      {
+        color: ctx.color.nonGround,
+        label: "not ground",
+        note: `${n.length.toLocaleString()} points`,
+      },
+      { color: ctx.color.focus, label: "the single plane missed these" },
     ]);
 
     const t = ctx.track();
@@ -249,15 +253,15 @@ export const stageResult: Stage = {
             { label: "this run", value: `${frame.elapsedMs.toFixed(0)} ms (JS)` },
           ]),
         onUpdate: (v) => {
-          cloud.paint(g, COLORS.ground, v);
-          cloud.paint(n, COLORS.nonGround, v);
+          cloud.paint(g, ctx.color.ground, v);
+          cloud.paint(n, ctx.color.nonGround, v);
         },
       });
 
     t.add(1.4, {
       onUpdate: (v) => {
-        cloud.paint(g, COLORS.ground, 1);
-        cloud.fadeTo(n, 0.1, v);
+        cloud.paint(g, ctx.color.ground, 1);
+        cloud.fadeTo(n, Math.max(ctx.dim, 0.1), v);
       },
     });
     t.say(
@@ -267,8 +271,8 @@ export const stageResult: Stage = {
 
     t.add(1.4, {
       onUpdate: (v) => {
-        cloud.fadeTo(n, 0.1, 1);
-        cloud.paint(rescued, COLORS.groundReverted, v);
+        cloud.fadeTo(n, Math.max(ctx.dim, 0.1), 1);
+        cloud.paint(rescued, ctx.color.focus, v);
         cloud.sizeTo(rescued, 2.2, v);
       },
       onEnter: () =>

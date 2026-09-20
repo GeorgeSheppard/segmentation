@@ -8,7 +8,8 @@ import {
   type WebGLRenderer,
 } from "three";
 import { type PointCloud } from "../patchwork/index.ts";
-import { heightColor, LABEL_COLORS } from "./palette.ts";
+import { heightColor, labelColor, type Palette } from "./palette.ts";
+import type { Theme } from "./themes.ts";
 
 const VERT = /* glsl */ `
   attribute vec3 aColor;
@@ -123,10 +124,10 @@ export class CloudView {
   // ---------------------------------------------------------------- base appearance
 
   /** Colour by height over [zMin, zMax]. The "raw sensor data" look. */
-  setBaseHeightRamp(xyz: Float32Array, zMin: number, zMax: number): void {
+  setBaseHeightRamp(xyz: Float32Array, zMin: number, zMax: number, theme: Theme): void {
     const span = Math.max(1e-6, zMax - zMin);
     for (let i = 0; i < this.count; i++) {
-      const c = heightColor((xyz[i * 3 + 2] - zMin) / span, scratch);
+      const c = heightColor((xyz[i * 3 + 2] - zMin) / span, theme, scratch);
       this.baseColor[i * 3] = c.r;
       this.baseColor[i * 3 + 1] = c.g;
       this.baseColor[i * 3 + 2] = c.b;
@@ -136,10 +137,10 @@ export class CloudView {
     this.restore();
   }
 
-  /** Colour by the algorithm's per-point label. */
-  setBaseLabels(labels: Uint8Array): void {
+  /** Colour by the algorithm's verdict — ground or not. */
+  setBaseLabels(labels: Uint8Array, palette: Palette): void {
     for (let i = 0; i < this.count; i++) {
-      const c = LABEL_COLORS[labels[i]] ?? LABEL_COLORS[0];
+      const c = labelColor(labels[i] as never, palette);
       this.baseColor[i * 3] = c.r;
       this.baseColor[i * 3 + 1] = c.g;
       this.baseColor[i * 3 + 2] = c.b;
@@ -243,8 +244,13 @@ export class CloudView {
     this.sizeDirty = true;
   }
 
-  /** Dim everything, then bring `focus` back to full opacity and size. */
-  focusOn(focus: ArrayLike<number>, dimAlpha: number, amount: number, focusSize = 1.6): void {
+  /**
+   * Dim everything, then bring `focus` back to full opacity and size.
+   *
+   * The contrast is deliberately extreme: on a visualisation-first page the subject has to
+   * be unmistakable, and a barely-dimmed background reads as clutter rather than context.
+   */
+  focusOn(focus: ArrayLike<number>, dimAlpha: number, amount: number, focusSize = 2.2): void {
     this.fadeAllTo(dimAlpha, amount);
     this.fadeTo(focus, 1, amount);
     this.sizeTo(focus, focusSize, amount);

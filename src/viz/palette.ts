@@ -1,84 +1,80 @@
 import { Color } from "three";
-import { PointLabel } from "../patchwork/index.ts";
+import { isGroundLabel, PointLabel } from "../patchwork/index.ts";
+import type { Theme } from "./themes.ts";
 
 /**
- * One palette for the whole app. Hues are assigned by meaning, not by module:
- * green = accepted ground, warm = rejected, violet = removed by a preprocessing step,
- * cyan = rescued by a second-chance rule, amber = undecided.
+ * The semantic colours a stage may use.
+ *
+ * Only `ground`, `nonGround` and `focus` carry meaning about a point's class — see
+ * `themes.ts` for why there are exactly three. Everything else is scaffolding: planes,
+ * seed bands, normals, grid lines, and the dimmed context behind whatever is in focus.
  */
-export const COLORS = {
-  ground: "#4ade80",
-  groundFar: "#86efac",
-  groundReverted: "#22d3ee",
-  nonGround: "#f87171",
-  rejectedTilted: "#fb923c",
-  rejectedHeading: "#f472b6",
-  rejectedCandidate: "#ef4444",
-  candidate: "#fbbf24",
-  noise: "#e879f9",
-  vertical: "#a78bfa",
-  sparse: "#64748b",
-  outOfRange: "#334155",
-  seed: "#fde047",
-  lpr: "#fb7185",
-  plane: "#38bdf8",
-  normal: "#f0f9ff",
-  accent: "#60a5fa",
-  dim: "#1e293b",
-} as const;
+export interface Palette {
+  ground: Color;
+  nonGround: Color;
+  /** Whatever the current step is singling out. Only one such class per stage. */
+  focus: Color;
 
-export const LABEL_COLORS: Record<number, Color> = {
-  [PointLabel.Unassigned]: new Color("#ff00ff"),
-  [PointLabel.Noise]: new Color(COLORS.noise),
-  [PointLabel.OutOfRange]: new Color(COLORS.outOfRange),
-  [PointLabel.SparseCell]: new Color(COLORS.sparse),
-  [PointLabel.VerticalPlane]: new Color(COLORS.vertical),
-  [PointLabel.AbovePlane]: new Color(COLORS.nonGround),
-  [PointLabel.RejectedTilted]: new Color(COLORS.rejectedTilted),
-  [PointLabel.RejectedHeading]: new Color(COLORS.rejectedHeading),
-  [PointLabel.RejectedCandidate]: new Color(COLORS.rejectedCandidate),
-  [PointLabel.Ground]: new Color(COLORS.ground),
-  [PointLabel.GroundFar]: new Color(COLORS.groundFar),
-  [PointLabel.GroundReverted]: new Color(COLORS.groundReverted),
-};
-
-/** Binary view: is this point in the final ground set? */
-export const BINARY_COLORS = {
-  ground: new Color(COLORS.ground),
-  nonGround: new Color(COLORS.nonGround),
-};
-
-/**
- * Height ramp for the "raw scan" look — deep blue through teal to warm sand.
- * Perceptually ordered and readable on a dark background.
- */
-const HEIGHT_STOPS: Array<[number, Color]> = [
-  [0.0, new Color("#1e3a8a")],
-  [0.25, new Color("#0ea5e9")],
-  [0.5, new Color("#22d3ee")],
-  [0.7, new Color("#a3e635")],
-  [0.85, new Color("#fcd34d")],
-  [1.0, new Color("#fb923c")],
-];
-
-const tmp = new Color();
-
-export function heightColor(t: number, out: Color = tmp): Color {
-  const c = Math.max(0, Math.min(1, t));
-  for (let i = 1; i < HEIGHT_STOPS.length; i++) {
-    const [p1, c1] = HEIGHT_STOPS[i];
-    if (c <= p1) {
-      const [p0, c0] = HEIGHT_STOPS[i - 1];
-      const f = (c - p0) / (p1 - p0);
-      return out.copy(c0).lerp(c1, f);
-    }
-  }
-  return out.copy(HEIGHT_STOPS[HEIGHT_STOPS.length - 1][1]);
+  plane: Color;
+  seed: Color;
+  normal: Color;
+  grid: Color;
+  /** Points that are present but not part of the current story. */
+  dim: Color;
+  /** Unassigned points — a bug if you ever see it. */
+  debug: Color;
 }
 
-export const ZONE_COLORS = [
-  new Color("#38bdf8"),
-  new Color("#818cf8"),
-  new Color("#c084fc"),
-  new Color("#f472b6"),
-];
+export function paletteFor(theme: Theme): Palette {
+  return {
+    ground: new Color(theme.ground),
+    nonGround: new Color(theme.nonGround),
+    focus: new Color(theme.focus),
+    plane: new Color(theme.plane),
+    seed: new Color(theme.seed),
+    normal: new Color(theme.normal),
+    grid: new Color(theme.grid),
+    dim: new Color(theme.ui.textFaint),
+    debug: new Color("#ff00ff"),
+  };
+}
+
+/**
+ * The classified view is deliberately BINARY: ground or not.
+ *
+ * Every rejection reason (tilted plane, plane above the sensor, too sparse, above the
+ * fitted plane, rejected by TGR) lands on the same colour. The reason is carried by the
+ * narration and the readout at the moment it matters, not by a hue the reader has to hold
+ * in their head for twelve stages.
+ */
+export function labelColor(label: PointLabel, palette: Palette): Color {
+  if (label === PointLabel.Unassigned) return palette.debug;
+  if (label === PointLabel.OutOfRange) return palette.dim;
+  return isGroundLabel(label) ? palette.ground : palette.nonGround;
+}
+
+const scratch = new Color();
+const rampCache = new WeakMap<Theme, Color[]>();
+
+/** Height ramp for the raw, unclassified scan — magnitude, so a single ordered ramp. */
+export function heightColor(t: number, theme: Theme, out: Color = scratch): Color {
+  let stops = rampCache.get(theme);
+  if (!stops) {
+    stops = theme.ramp.map((hex) => new Color(hex));
+    rampCache.set(theme, stops);
+  }
+  const c = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(c));
+  return out.copy(stops[i]).lerp(stops[i + 1], c - i);
+}
+
+/**
+ * Zone tints for the CZM grid.
+ *
+ * Scaffolding, not identity: four quiet steps of the same hue, so the zones are
+ * distinguishable without competing with the three meaning-carrying colours.
+ */
+export function zoneColors(theme: Theme): Color[] {
+  const base = new Color(theme.grid);
+  return [0, 1, 2, 3].map((i) => base.clone().offsetHSL(0, -0.05 * i, 0.055 * i));
+}

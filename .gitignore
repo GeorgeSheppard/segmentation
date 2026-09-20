@@ -4,3 +4,6 @@ dist
 *.local
 
 .wrangler
+test-results
+playwright-report
+blob-report

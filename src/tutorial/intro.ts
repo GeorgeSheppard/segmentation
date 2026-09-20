@@ -1,7 +1,6 @@
-import { Vector3 } from "three";
+import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { type CellTrace, isGroundLabel, type PointLabel } from "../patchwork/index.ts";
-import { COLORS } from "../viz/palette.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fitGlobalPlane } from "./helpers.ts";
@@ -15,7 +14,7 @@ export const stageScan: Stage = {
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
 
     ctx.legend([
       { color: "#1e3a8a", label: "low", note: "road level and below" },
@@ -29,10 +28,10 @@ export const stageScan: Stage = {
     ]);
 
     // Sensor frame gizmo: x forward, y left, z up.
-    const axisSpec: Array<[Vector3, string, string, "" | "accent"]> = [
-      [new Vector3(7, 0, 0), COLORS.nonGround, "x — forward", ""],
-      [new Vector3(0, 7, 0), COLORS.ground, "y — left", ""],
-      [new Vector3(0, 0, 4.5), COLORS.accent, "z — up", "accent"],
+    const axisSpec: Array<[Vector3, Color, string, "" | "accent"]> = [
+      [new Vector3(7, 0, 0), ctx.color.nonGround, "x — forward", ""],
+      [new Vector3(0, 7, 0), ctx.color.ground, "y — left", ""],
+      [new Vector3(0, 0, 4.5), ctx.color.plane, "z — up", "accent"],
     ];
     const axisLines = axisSpec.map(([v, c]) => {
       const s = ctx.segment(c, 0);
@@ -104,12 +103,12 @@ export const stageProblem: Stage = {
     // Zoom to wherever the disagreement is worst, rather than a hard-coded cell.
     const worst = worstBin(ctx, missedArr);
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
+    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
 
     ctx.legend([
-      { color: COLORS.plane, label: "the one plane" },
-      { color: COLORS.ground, label: "kept as ground" },
-      { color: COLORS.nonGround, label: "called an obstacle" },
+      { color: ctx.color.plane, label: "the one plane" },
+      { color: ctx.color.ground, label: "kept as ground" },
+      { color: ctx.color.nonGround, label: "called an obstacle" },
       { color: "#38bdf8", label: "road, thrown away", note: "under-segmentation" },
     ]);
 
@@ -118,7 +117,7 @@ export const stageProblem: Stage = {
       ctx.params.maxRange,
       0,
       Math.PI * 2,
-      COLORS.plane,
+      ctx.color.plane,
       0,
     );
     lid.layOnPlane(plane.normal, plane.d);
@@ -139,8 +138,8 @@ export const stageProblem: Stage = {
         ]),
       onUpdate: (v) => {
         lid.opacity = v * 0.16;
-        cloud.paint(ground, COLORS.ground, v);
-        cloud.paint(nonGround, COLORS.nonGround, v * 0.85);
+        cloud.paint(ground, ctx.color.ground, v);
+        cloud.paint(nonGround, ctx.color.nonGround, v * 0.85);
       },
     });
     t.say("Near the car it works. The plane is fitted there, so the road lands on it.", 3.4);
