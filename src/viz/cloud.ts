@@ -1,0 +1,261 @@
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  Points,
+  ShaderMaterial,
+  type Camera,
+  type WebGLRenderer,
+} from "three";
+import type { PointCloud } from "../patchwork/types.ts";
+import { heightColor, LABEL_COLORS } from "./palette.ts";
+
+const VERT = /* glsl */ `
+  attribute vec3 aColor;
+  attribute float aAlpha;
+  attribute float aSize;
+  uniform float uScale;      // pixels per world unit at one unit of depth
+  uniform float uSizeBoost;
+  uniform float uWorldSize;  // nominal point radius, in metres
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vColor = aColor;
+    vAlpha = aAlpha;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    // Size in world units, projected to pixels, then clamped so distant points stay
+    // visible and close-ups do not turn into saucers.
+    float px = aSize * uSizeBoost * uWorldSize * uScale / max(0.05, -mv.z);
+    gl_PointSize = clamp(px, 1.0, 16.0);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const FRAG = /* glsl */ `
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    if (vAlpha < 0.015) discard;
+    vec2 d = gl_PointCoord - vec2(0.5);
+    float r2 = dot(d, d);
+    if (r2 > 0.25) discard;
+    float edge = smoothstep(0.25, 0.10, r2);
+    gl_FragColor = vec4(vColor, vAlpha * edge);
+  }
+`;
+
+const scratch = new Color();
+
+/**
+ * The scan on screen. Colour, opacity and size are per-point attributes so that any subset
+ * of points can be highlighted, dimmed or hidden without rebuilding geometry.
+ *
+ * Every stage works the same way: set a *base* appearance, then paint deltas on top of it.
+ * `restore()` returns to the base, which is what replaying a stage relies on.
+ */
+export class CloudView {
+  readonly points: Points;
+  readonly count: number;
+
+  private readonly geometry: BufferGeometry;
+  private readonly material: ShaderMaterial;
+
+  private readonly color: Float32Array;
+  private readonly alpha: Float32Array;
+  private readonly size: Float32Array;
+
+  private readonly baseColor: Float32Array;
+  private readonly baseAlpha: Float32Array;
+  private readonly baseSize: Float32Array;
+
+  private dirty = true;
+
+  constructor(cloud: PointCloud) {
+    this.count = cloud.count;
+    this.color = new Float32Array(cloud.count * 3);
+    this.alpha = new Float32Array(cloud.count).fill(1);
+    this.size = new Float32Array(cloud.count).fill(1);
+    this.baseColor = new Float32Array(cloud.count * 3);
+    this.baseAlpha = new Float32Array(cloud.count).fill(1);
+    this.baseSize = new Float32Array(cloud.count).fill(1);
+
+    this.geometry = new BufferGeometry();
+    this.geometry.setAttribute("position", new BufferAttribute(cloud.xyz, 3));
+    this.geometry.setAttribute("aColor", new BufferAttribute(this.color, 3));
+    this.geometry.setAttribute("aAlpha", new BufferAttribute(this.alpha, 1));
+    this.geometry.setAttribute("aSize", new BufferAttribute(this.size, 1));
+    this.geometry.computeBoundingSphere();
+
+    this.material = new ShaderMaterial({
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      uniforms: {
+        uScale: { value: 400 },
+        uSizeBoost: { value: 1 },
+        uWorldSize: { value: 0.055 },
+      },
+      transparent: true,
+      depthWrite: false,
+    });
+
+    this.points = new Points(this.geometry, this.material);
+    this.points.frustumCulled = false;
+  }
+
+  /** gl_PointSize is in device pixels, so the scale depends on the drawing buffer. */
+  syncProjection(renderer: WebGLRenderer, camera: Camera & { fov?: number }): void {
+    const h = renderer.getContext().drawingBufferHeight;
+    const fov = ((camera.fov ?? 50) * Math.PI) / 180;
+    this.material.uniforms.uScale.value = h / (2 * Math.tan(fov / 2));
+  }
+
+  set sizeBoost(v: number) {
+    this.material.uniforms.uSizeBoost.value = v;
+  }
+
+  /** Nominal point radius in metres. */
+  set worldSize(v: number) {
+    this.material.uniforms.uWorldSize.value = v;
+  }
+
+  // ---------------------------------------------------------------- base appearance
+
+  /** Colour by height over [zMin, zMax]. The "raw sensor data" look. */
+  setBaseHeightRamp(xyz: Float32Array, zMin: number, zMax: number): void {
+    const span = Math.max(1e-6, zMax - zMin);
+    for (let i = 0; i < this.count; i++) {
+      const c = heightColor((xyz[i * 3 + 2] - zMin) / span, scratch);
+      this.baseColor[i * 3] = c.r;
+      this.baseColor[i * 3 + 1] = c.g;
+      this.baseColor[i * 3 + 2] = c.b;
+    }
+    this.baseAlpha.fill(1);
+    this.baseSize.fill(1);
+    this.restore();
+  }
+
+  /** Colour by the algorithm's per-point label. */
+  setBaseLabels(labels: Uint8Array): void {
+    for (let i = 0; i < this.count; i++) {
+      const c = LABEL_COLORS[labels[i]] ?? LABEL_COLORS[0];
+      this.baseColor[i * 3] = c.r;
+      this.baseColor[i * 3 + 1] = c.g;
+      this.baseColor[i * 3 + 2] = c.b;
+    }
+    this.baseAlpha.fill(1);
+    this.baseSize.fill(1);
+    this.restore();
+  }
+
+  /** Uniform colour for every point. */
+  setBaseUniform(color: Color | string, alpha = 1): void {
+    const c = color instanceof Color ? color : new Color(color);
+    for (let i = 0; i < this.count; i++) {
+      this.baseColor[i * 3] = c.r;
+      this.baseColor[i * 3 + 1] = c.g;
+      this.baseColor[i * 3 + 2] = c.b;
+    }
+    this.baseAlpha.fill(alpha);
+    this.baseSize.fill(1);
+    this.restore();
+  }
+
+  /** Freeze the current appearance as the new base. */
+  captureBase(): void {
+    this.baseColor.set(this.color);
+    this.baseAlpha.set(this.alpha);
+    this.baseSize.set(this.size);
+  }
+
+  /** Reset the working appearance to the base. */
+  restore(): void {
+    this.color.set(this.baseColor);
+    this.alpha.set(this.baseAlpha);
+    this.size.set(this.baseSize);
+    this.dirty = true;
+  }
+
+  // ---------------------------------------------------------------- deltas
+
+  /** Blend a subset toward `color` by `amount` (0 = base colour, 1 = fully `color`). */
+  paint(indices: ArrayLike<number>, color: Color | string, amount = 1): void {
+    const c = color instanceof Color ? color : new Color(color);
+    for (let k = 0; k < indices.length; k++) {
+      const i = indices[k] * 3;
+      this.color[i] = this.baseColor[i] + (c.r - this.baseColor[i]) * amount;
+      this.color[i + 1] = this.baseColor[i + 1] + (c.g - this.baseColor[i + 1]) * amount;
+      this.color[i + 2] = this.baseColor[i + 2] + (c.b - this.baseColor[i + 2]) * amount;
+    }
+    this.dirty = true;
+  }
+
+  /** Blend every point toward `color`. */
+  paintAll(color: Color | string, amount = 1): void {
+    const c = color instanceof Color ? color : new Color(color);
+    for (let i = 0; i < this.count * 3; i += 3) {
+      this.color[i] = this.baseColor[i] + (c.r - this.baseColor[i]) * amount;
+      this.color[i + 1] = this.baseColor[i + 1] + (c.g - this.baseColor[i + 1]) * amount;
+      this.color[i + 2] = this.baseColor[i + 2] + (c.b - this.baseColor[i + 2]) * amount;
+    }
+    this.dirty = true;
+  }
+
+  setAlpha(indices: ArrayLike<number>, alpha: number): void {
+    for (let k = 0; k < indices.length; k++) this.alpha[indices[k]] = alpha;
+    this.dirty = true;
+  }
+
+  /** Interpolate a subset's opacity from its base value toward `alpha`. */
+  fadeTo(indices: ArrayLike<number>, alpha: number, amount: number): void {
+    for (let k = 0; k < indices.length; k++) {
+      const i = indices[k];
+      this.alpha[i] = this.baseAlpha[i] + (alpha - this.baseAlpha[i]) * amount;
+    }
+    this.dirty = true;
+  }
+
+  setAlphaAll(alpha: number): void {
+    this.alpha.fill(alpha);
+    this.dirty = true;
+  }
+
+  fadeAllTo(alpha: number, amount: number): void {
+    for (let i = 0; i < this.count; i++) {
+      this.alpha[i] = this.baseAlpha[i] + (alpha - this.baseAlpha[i]) * amount;
+    }
+    this.dirty = true;
+  }
+
+  setSize(indices: ArrayLike<number>, size: number): void {
+    for (let k = 0; k < indices.length; k++) this.size[indices[k]] = size;
+    this.dirty = true;
+  }
+
+  sizeTo(indices: ArrayLike<number>, size: number, amount: number): void {
+    for (let k = 0; k < indices.length; k++) {
+      const i = indices[k];
+      this.size[i] = this.baseSize[i] + (size - this.baseSize[i]) * amount;
+    }
+    this.dirty = true;
+  }
+
+  /** Dim everything, then bring `focus` back to full opacity and size. */
+  focusOn(focus: ArrayLike<number>, dimAlpha: number, amount: number, focusSize = 1.6): void {
+    this.fadeAllTo(dimAlpha, amount);
+    this.fadeTo(focus, 1, amount);
+    this.sizeTo(focus, focusSize, amount);
+  }
+
+  commit(): void {
+    if (!this.dirty) return;
+    (this.geometry.getAttribute("aColor") as BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute("aAlpha") as BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute("aSize") as BufferAttribute).needsUpdate = true;
+    this.dirty = false;
+  }
+
+  dispose(): void {
+    this.geometry.dispose();
+    this.material.dispose();
+  }
+}
