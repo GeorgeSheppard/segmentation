@@ -63,7 +63,7 @@ export const stageSeeds: Stage = {
 
     t.say(
       `One cell, <em>${idx.length.toLocaleString()} points</em>. Part road, part parked car. Patchwork++ has to find the road part without being told which is which.`,
-      4.6,
+      3.4,
     )
       .with(2.6, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8.5, height: 4.2 })), Ease.cinematic)
       .with(1.2, { onUpdate: (v) => (prism.opacity = v * 0.8) });
@@ -211,7 +211,7 @@ export const stageRgpf: Stage = {
 
     t.say(
       "Start from the seeds. Take their covariance, and eigen-decompose it — a <em>PCA</em>, not a RANSAC.",
-      4.2,
+      3.2,
     )
       .with(2.4, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 4 })), Ease.cinematic)
       .with(1.0, { onUpdate: (v) => cloud.paint(seeds, COLORS.seed, v) });
@@ -283,6 +283,13 @@ export const stageRgpf: Stage = {
     const finalGround = bin.binGround;
     const finalNon = bin.binNonGround;
     t.add(1.2, {
+      onEnter: () =>
+        ctx.readout("Cell result", [
+          { label: "ground", value: finalGround.length.toLocaleString(), state: "pass" },
+          { label: "not ground", value: finalNon.length.toLocaleString(), state: "fail" },
+          { label: "normal z", value: bin.plane!.normal[2].toFixed(4) },
+          { label: "λ₃", value: bin.plane!.eigenvalues[2].toExponential(2) },
+        ]),
       onUpdate: (v) => {
         cloud.restore();
         cloud.paint(finalGround, COLORS.ground, 1);
@@ -349,7 +356,7 @@ export const stageRvpf: Stage = {
     normalLabel.opacity = 0;
 
     const showPlane = (normal: readonly number[], d: number, mean: readonly number[]) => {
-      planeSurf.layOnPlane(normal as [number, number, number], d);
+      planeSurf.layOnPlane(normal as [number, number, number], d, [-2.0, 1.1]);
       const base = new Vector3(mean[0], mean[1], mean[2]);
       const tip = base
         .clone()
@@ -365,7 +372,7 @@ export const stageRvpf: Stage = {
       `A different cell, ${bin.radii[0].toFixed(1)}–${bin.radii[1].toFixed(
         1,
       )} m out. There is a low structure in it, and there is ground <em>on top of</em> that structure.`,
-      4.6,
+      3.4,
     ).with(
       2.6,
       ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 3.8, swing: 0.7 })),

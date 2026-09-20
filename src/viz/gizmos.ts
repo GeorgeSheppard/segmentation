@@ -52,6 +52,11 @@ export class WedgeSurface {
   private readonly material: MeshBasicMaterial;
   private readonly xy: Float32Array;
 
+  private readonly a0: number;
+  private readonly a1: number;
+  private readonly angularSegments: number;
+  private readonly radialSegments: number;
+
   constructor(
     r0: number,
     r1: number,
@@ -62,6 +67,11 @@ export class WedgeSurface {
     angularSegments = 14,
     radialSegments = 4,
   ) {
+    this.a0 = a0;
+    this.a1 = a1;
+    this.angularSegments = angularSegments;
+    this.radialSegments = radialSegments;
+
     const cols = angularSegments + 1;
     const rows = radialSegments + 1;
     const positions = new Float32Array(cols * rows * 3);
@@ -100,16 +110,38 @@ export class WedgeSurface {
     this.mesh.renderOrder = 2;
   }
 
+  /** Move the surface to a different radial band, keeping its angular span. */
+  setRadii(r0: number, r1: number): void {
+    const cols = this.angularSegments + 1;
+    for (let ri = 0; ri <= this.radialSegments; ri++) {
+      const r = r0 + ((r1 - r0) * ri) / this.radialSegments;
+      for (let ai = 0; ai < cols; ai++) {
+        const a = this.a0 + ((this.a1 - this.a0) * ai) / this.angularSegments;
+        const o = (ri * cols + ai) * 3;
+        this.xy[o] = Math.cos(a) * r;
+        this.xy[o + 1] = Math.sin(a) * r;
+      }
+    }
+    this.geometry.getAttribute("position").needsUpdate = true;
+  }
+
   layFlat(z: number): void {
     for (let i = 2; i < this.xy.length; i += 3) this.xy[i] = z;
     this.geometry.getAttribute("position").needsUpdate = true;
   }
 
-  /** Drape the surface onto the plane n.p + d = 0. */
-  layOnPlane(normal: Vec3, d: number): void {
+  /**
+   * Drape the surface onto the plane n.p + d = 0.
+   *
+   * `clamp` bounds the resulting heights, which matters for a near-vertical fit: without it
+   * the draped wedge becomes a sheet hundreds of metres tall.
+   */
+  layOnPlane(normal: Vec3, d: number, clamp?: [number, number]): void {
     const nz = Math.abs(normal[2]) < 1e-4 ? 1e-4 : normal[2];
     for (let i = 0; i < this.xy.length; i += 3) {
-      this.xy[i + 2] = -(normal[0] * this.xy[i] + normal[1] * this.xy[i + 1] + d) / nz;
+      let z = -(normal[0] * this.xy[i] + normal[1] * this.xy[i + 1] + d) / nz;
+      if (clamp) z = Math.max(clamp[0], Math.min(clamp[1], z));
+      this.xy[i + 2] = z;
     }
     this.geometry.getAttribute("position").needsUpdate = true;
   }

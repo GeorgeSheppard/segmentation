@@ -9,6 +9,9 @@ import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 
 const OUT = process.argv[2] ?? "./shots";
+// Software rendering runs at ~10 fps, so a stage takes roughly twice its wall-clock
+// duration to play here. Wait long enough that the "mid" shot is actually mid-stage.
+const MID_WAIT = Number(process.env.MID_WAIT ?? 8000);
 const URL = process.env.URL ?? "http://localhost:5173/";
 const EXECUTABLE = process.env.CHROMIUM_PATH; // set when Playwright's own download is skipped
 
@@ -34,7 +37,7 @@ await page.waitForTimeout(1500);
 const total = Number(await page.textContent("#step-total"));
 for (let i = 0; i < total; i++) {
   const n = String(i).padStart(2, "0");
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(MID_WAIT);
   await page.screenshot({ path: `${OUT}/${n}-mid.png` });
   await page.click("#btn-continue"); // skip to the end of this stage
   await page.waitForTimeout(1200);

@@ -35,13 +35,20 @@ export const stageAgle: Stage = {
       const disc = ctx.surface(r0, r1, 0, Math.PI * 2, COLORS.plane, 0, 72, 2);
       disc.layFlat(0);
       const cells = frame.bins.filter((b) => b.concentricIdx === m && b.gle?.isDefiniteGround);
+      // Each ring's label gets its own bearing, or they stack on top of each other.
+      const bearing = 1.15 - m * 0.42;
       const label = ctx.label(
         `ring ${m}`,
-        new Vector3(((r0 + r1) / 2) * Math.cos(1.05), ((r0 + r1) / 2) * Math.sin(1.05), 0.5),
+        new Vector3(
+          ((r0 + r1) / 2) * Math.cos(bearing),
+          ((r0 + r1) / 2) * Math.sin(bearing),
+          0.5,
+        ),
         "accent",
       );
+      label.text = `ring ${m} · ${fmt(before.elevationThr[m])} m`;
       label.opacity = 0;
-      return { m, r0, r1, disc, cells, label };
+      return { m, r0, r1, disc, cells, label, bearing };
     });
 
     const definiteIdx: number[] = [];
@@ -67,13 +74,13 @@ export const stageAgle: Stage = {
 
     t.say(
       "Two of those three tests needed a threshold. In Patchwork, a human picked them — and the right value is different on a motorway, in a suburb, and on a country lane.",
-      5.2,
+      3.2,
     ).with(2.8, ctx.rig.flyTo(pose([-26, -30, 26], [4, 0, -1.6])), Ease.cinematic);
 
     t.add(1.4, {
       onUpdate: (v) => {
         for (const r of roi) {
-          r.disc.opacity = v * 0.08;
+          r.disc.opacity = v * 0.14;
           r.label.opacity = v;
         }
       },
@@ -112,13 +119,16 @@ export const stageAgle: Stage = {
       onEnter: () => ctx.readout("Elevation threshold", thresholdRows()),
       onUpdate: (v) => {
         for (const r of roi) {
-          r.disc.layFlat(before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v);
-          r.disc.opacity = 0.08 + 0.07 * v;
+          const z =
+            before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v;
+          r.disc.layFlat(z);
+          r.disc.opacity = 0.14 + 0.1 * v;
+          r.label.text = `ring ${r.m} · ${fmt(z)} m`;
           r.label.setPosition(
             new Vector3(
-              ((r.r0 + r.r1) / 2) * Math.cos(1.05),
-              ((r.r0 + r.r1) / 2) * Math.sin(1.05),
-              before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v + 0.5,
+              ((r.r0 + r.r1) / 2) * Math.cos(r.bearing),
+              ((r.r0 + r.r1) / 2) * Math.sin(r.bearing),
+              z + 0.5,
             ),
           );
         }
@@ -173,7 +183,7 @@ export const stageAgle: Stage = {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         for (const r of roi) {
-          r.disc.opacity = 0.15 * (1 - v);
+          r.disc.opacity = 0.24 * (1 - v);
           r.label.opacity = 1 - v;
         }
         for (const c of cellSurfaces) c.opacity = 0.35 * (1 - v);
@@ -220,7 +230,7 @@ export const stageResult: Stage = {
 
     t.say(
       `Every point placed: <em>${g.length.toLocaleString()} ground</em>, <em>${n.length.toLocaleString()} not</em>. The road is continuous, the cars are solid, the walls stand.`,
-      4.8,
+      3.4,
     )
       .with(2.4, ctx.rig.flyTo(pose([-46, -38, 20], [6, 0, -1.6])), Ease.cinematic)
       .with(1.6, {

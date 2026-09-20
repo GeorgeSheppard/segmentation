@@ -26,9 +26,11 @@ export const stageGle: Stage = {
 
     cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
     cloud.setAlphaAll(0.05);
+    // All three cells stay dim until it is their turn, so it is never ambiguous which
+    // one the narration is talking about.
     for (const b of [good, roof, wall]) {
-      cloud.setAlpha(b.indices, 0.85);
-      cloud.setSize(b.indices, 1.7);
+      cloud.setAlpha(b.indices, 0.3);
+      cloud.setSize(b.indices, 1.4);
     }
     cloud.captureBase();
 
@@ -42,7 +44,7 @@ export const stageGle: Stage = {
       const outline = ctx.outline(bin, -2.1, 1.2, color);
       outline.opacity = 0;
       const surf = ctx.wedge(bin, color, 0);
-      surf.layOnPlane(bin.plane!.normal, bin.plane!.d);
+      surf.layOnPlane(bin.plane!.normal, bin.plane!.d, [-2.1, 1.2]);
       const nLine = ctx.segment(COLORS.normal, 0);
       const base = new Vector3(...bin.plane!.mean);
       nLine.set(base, base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.0)));
@@ -58,10 +60,12 @@ export const stageGle: Stage = {
     };
 
     const reveal = (c: ReturnType<typeof makeCell>, v: number, planeOpacity = 0.3) => {
-      c.outline.opacity = v * 0.75;
+      c.outline.opacity = v * 0.85;
       c.surf.opacity = v * planeOpacity;
       c.nLine.opacity = v;
       c.nLabel.opacity = v;
+      cloud.fadeTo(c.bin.indices, 0.3 + 0.7 * v, 1);
+      cloud.sizeTo(c.bin.indices, 1.4 + 1.0 * v, 1);
     };
 
     const t = ctx.track();
@@ -69,7 +73,7 @@ export const stageGle: Stage = {
     // ---- Test 1: uprightness, shown on the wall cell.
     t.say(
       "R-GPF is not allowed to have an opinion — it fits a plane to whatever is in the cell. This cell contains a wall.",
-      4.4,
+      3.0,
     ).with(2.6, ctx.rig.flyTo(ctx.binPose(wall, { distance: 9, height: 4.5 })), Ease.cinematic);
 
     t.add(1.0, {
@@ -197,7 +201,7 @@ export const stageSweep: Stage = {
     const { cloud, frame } = ctx;
 
     cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2);
-    cloud.fadeAllTo(0.28, 1);
+    cloud.fadeAllTo(0.32, 1);
     cloud.captureBase();
 
     ctx.legend([
@@ -228,19 +232,23 @@ export const stageSweep: Stage = {
 
     t.say(
       "That whole procedure — seed, peel, fit, judge — now runs in every cell, ring by ring, working outward.",
-      4.0,
+      3.0,
     ).with(
       2.6,
       ctx.rig.flyTo({
-        position: new Vector3(-8, -14, 104),
+        position: new Vector3(-14, -24, 86),
         target: new Vector3(0, 0, -1.7),
       }),
       Ease.cinematic,
     );
 
-    const perRing = 0.34;
+    // A bright annulus that flashes over the ring currently being processed.
+    const sweepRing = ctx.surface(0, 1, 0, Math.PI * 2, COLORS.accent, 0, 72, 1);
+
+    const perRing = 0.48;
     for (const ringIdx of ringOrder) {
       const ringBins = byRing.get(ringIdx)!;
+      const [rIn, rOut] = ringBins[0].radii;
       const ground: number[] = [];
       const nonGround: number[] = [];
       const vertical: number[] = [];
@@ -259,7 +267,12 @@ export const stageSweep: Stage = {
       const u = Int32Array.from(undecided);
 
       t.add(perRing, {
+        onEnter: () => {
+          sweepRing.setRadii(rIn, rOut);
+          sweepRing.layFlat(ctx.groundZ + 0.02);
+        },
         onUpdate: (p) => {
+          sweepRing.opacity = 0.32 * Math.sin(Math.PI * p);
           cloud.paint(g, COLORS.ground, p);
           cloud.fadeTo(g, 1, p);
           cloud.paint(n, COLORS.nonGround, p * 0.9);
@@ -298,7 +311,10 @@ export const stageSweep: Stage = {
     );
 
     t.add(3.0, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
-      onUpdate: (v) => grid.setOpacity(0.25 * (1 - v)),
+      onUpdate: (v) => {
+        grid.setOpacity(0.25 * (1 - v));
+        sweepRing.opacity = 0;
+      },
     });
     t.wait(0.3);
 
@@ -338,10 +354,18 @@ export const stageTgr: Stage = {
       w.layFlat(b.plane ? b.plane.mean[2] : ctx.groundZ);
       return w;
     });
-    const heroOutline = ctx.outline(hero, -1.2, 1.4, COLORS.candidate);
+    const heroOutline = ctx.outline(
+      hero,
+      hero.gle!.elevation - 2.0,
+      hero.gle!.elevation + 2.0,
+      COLORS.candidate,
+    );
     heroOutline.opacity = 0;
     const heroCell = ctx.wedge(hero, COLORS.candidate, 0);
-    heroCell.layOnPlane(hero.plane!.normal, hero.plane!.d);
+    heroCell.layOnPlane(hero.plane!.normal, hero.plane!.d, [
+      hero.gle!.elevation - 2.0,
+      hero.gle!.elevation + 2.0,
+    ]);
 
     const heroLabel = ctx.label(
       `λ₃ = ${hero.gle!.flatness.toExponential(2)}`,
@@ -356,13 +380,13 @@ export const stageTgr: Stage = {
       `Here is one of them: a small patch ${hero.radii[0].toFixed(
         1,
       )} m out, sitting <em>above</em> the elevation threshold and not flat enough to be rescued.`,
-      4.8,
+      3.4,
     )
       .with(2.8, ctx.rig.flyTo(ctx.binPose(hero, { distance: 10, height: 5 })), Ease.cinematic)
       .with(1.2, {
         onUpdate: (v) => {
           heroOutline.opacity = v * 0.9;
-          heroCell.opacity = v * 0.3;
+          heroCell.opacity = v * 0.22;
           heroLabel.opacity = v;
           cloud.paint(hero.binGround, COLORS.candidate, v);
           cloud.fadeTo(hero.binGround, 1, v);

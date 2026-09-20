@@ -71,7 +71,7 @@ export const stageRnr: Stage = {
 
     t.say(
       "Before anything else, Patchwork++ throws away a few points. Only a few — but they are the dangerous ones.",
-      4.0,
+      3.0,
     ).with(2.6, ctx.rig.flyTo(pose([-52, -40, 8], [10, 2, -5])), Ease.cinematic);
 
     // Blow the noise points up so three points among 124,000 are actually findable.
@@ -221,7 +221,7 @@ export const stageCzm: Stage = {
 
     t.say(
       "Looking straight down. Point density is not uniform — it falls off roughly as <em>1/r²</em>.",
-      4.0,
+      3.0,
     ).with(2.8, ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])), Ease.cinematic);
 
     t.add(1.4, { onUpdate: (v) => uniGrid.setOpacity(v * 0.5) })

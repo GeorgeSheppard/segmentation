@@ -68,7 +68,9 @@ export class CloudView {
   private readonly baseAlpha: Float32Array;
   private readonly baseSize: Float32Array;
 
-  private dirty = true;
+  private colorDirty = true;
+  private alphaDirty = true;
+  private sizeDirty = true;
 
   constructor(cloud: PointCloud) {
     this.count = cloud.count;
@@ -172,7 +174,9 @@ export class CloudView {
     this.color.set(this.baseColor);
     this.alpha.set(this.baseAlpha);
     this.size.set(this.baseSize);
-    this.dirty = true;
+    this.colorDirty = true;
+    this.alphaDirty = true;
+    this.sizeDirty = true;
   }
 
   // ---------------------------------------------------------------- deltas
@@ -186,7 +190,7 @@ export class CloudView {
       this.color[i + 1] = this.baseColor[i + 1] + (c.g - this.baseColor[i + 1]) * amount;
       this.color[i + 2] = this.baseColor[i + 2] + (c.b - this.baseColor[i + 2]) * amount;
     }
-    this.dirty = true;
+    this.colorDirty = true;
   }
 
   /** Blend every point toward `color`. */
@@ -197,12 +201,12 @@ export class CloudView {
       this.color[i + 1] = this.baseColor[i + 1] + (c.g - this.baseColor[i + 1]) * amount;
       this.color[i + 2] = this.baseColor[i + 2] + (c.b - this.baseColor[i + 2]) * amount;
     }
-    this.dirty = true;
+    this.colorDirty = true;
   }
 
   setAlpha(indices: ArrayLike<number>, alpha: number): void {
     for (let k = 0; k < indices.length; k++) this.alpha[indices[k]] = alpha;
-    this.dirty = true;
+    this.alphaDirty = true;
   }
 
   /** Interpolate a subset's opacity from its base value toward `alpha`. */
@@ -211,24 +215,24 @@ export class CloudView {
       const i = indices[k];
       this.alpha[i] = this.baseAlpha[i] + (alpha - this.baseAlpha[i]) * amount;
     }
-    this.dirty = true;
+    this.alphaDirty = true;
   }
 
   setAlphaAll(alpha: number): void {
     this.alpha.fill(alpha);
-    this.dirty = true;
+    this.alphaDirty = true;
   }
 
   fadeAllTo(alpha: number, amount: number): void {
     for (let i = 0; i < this.count; i++) {
       this.alpha[i] = this.baseAlpha[i] + (alpha - this.baseAlpha[i]) * amount;
     }
-    this.dirty = true;
+    this.alphaDirty = true;
   }
 
   setSize(indices: ArrayLike<number>, size: number): void {
     for (let k = 0; k < indices.length; k++) this.size[indices[k]] = size;
-    this.dirty = true;
+    this.sizeDirty = true;
   }
 
   sizeTo(indices: ArrayLike<number>, size: number, amount: number): void {
@@ -236,7 +240,7 @@ export class CloudView {
       const i = indices[k];
       this.size[i] = this.baseSize[i] + (size - this.baseSize[i]) * amount;
     }
-    this.dirty = true;
+    this.sizeDirty = true;
   }
 
   /** Dim everything, then bring `focus` back to full opacity and size. */
@@ -247,11 +251,18 @@ export class CloudView {
   }
 
   commit(): void {
-    if (!this.dirty) return;
-    (this.geometry.getAttribute("aColor") as BufferAttribute).needsUpdate = true;
-    (this.geometry.getAttribute("aAlpha") as BufferAttribute).needsUpdate = true;
-    (this.geometry.getAttribute("aSize") as BufferAttribute).needsUpdate = true;
-    this.dirty = false;
+    if (this.colorDirty) {
+      (this.geometry.getAttribute("aColor") as BufferAttribute).needsUpdate = true;
+      this.colorDirty = false;
+    }
+    if (this.alphaDirty) {
+      (this.geometry.getAttribute("aAlpha") as BufferAttribute).needsUpdate = true;
+      this.alphaDirty = false;
+    }
+    if (this.sizeDirty) {
+      (this.geometry.getAttribute("aSize") as BufferAttribute).needsUpdate = true;
+      this.sizeDirty = false;
+    }
   }
 
   dispose(): void {

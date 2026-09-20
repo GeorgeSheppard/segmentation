@@ -52,7 +52,7 @@ export const stageScan: Stage = {
 
     t.say(
       `This is what a self-driving car sees: <em>${frame.cloud.count.toLocaleString()} points</em>, ten times a second, with no labels at all.`,
-      4.2,
+      3.4,
     ).with(2.8, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
 
     t.say(
@@ -119,7 +119,7 @@ export const stageProblem: Stage = {
 
     t.say(
       "The classic approach: assume the world is flat, fit <em>one</em> plane to the lowest points, call everything near it ground.",
-      4.2,
+      3.2,
     ).with(2.4, ctx.rig.flyTo(pose([-66, -48, 24], [6, 0, -1.6])), Ease.cinematic);
 
     t.add(1.6, {

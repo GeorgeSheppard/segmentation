@@ -89,8 +89,10 @@ export class Viewer {
 
   private tick(): void {
     const now = performance.now();
-    // Clamp dt so that a backgrounded tab does not fast-forward a whole stage.
-    const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+    // Clamp dt so that a backgrounded tab does not fast-forward a whole stage. The cap has
+    // to stay above a plausible slow frame (~10 fps on software rendering) or the whole
+    // tutorial plays in slow motion on weak hardware.
+    const dt = Math.min(0.1, (now - this.lastTime) / 1000);
     this.lastTime = now;
 
     for (const cb of this.frameCallbacks) cb(dt);
