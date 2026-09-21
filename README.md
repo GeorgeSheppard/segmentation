@@ -159,9 +159,30 @@ caching for the scans and the fingerprinted bundles.
 
 ```
 pnpm exec wrangler login
-pnpm deploy        # build, then wrangler deploy
-pnpm preview:cf    # build, then serve it locally the way Cloudflare will
+pnpm deploy          # build, then wrangler deploy (production)
+pnpm preview:cf      # build, then serve it locally the way Cloudflare will
+pnpm preview:upload  # build, then upload a version — preview URL, production untouched
 ```
+
+### Per-PR previews
+
+`.github/workflows/preview.yml` uploads a Worker _version_ for each pull request and comments
+the URL on it. A version is uploaded, not promoted, so production keeps serving whatever it
+was serving. The alias is the PR number, so the URL is stable across pushes and the comment
+is edited in place rather than piling up dead links.
+
+It needs two things set on the repository, and **skips itself when they are absent** (and on
+fork PRs, which get no secrets) so the check never sits red on a PR nobody can fix:
+
+| Where                          | Name                    | What                                 |
+| ------------------------------ | ----------------------- | ------------------------------------ |
+| Settings → Secrets → Actions   | `CLOUDFLARE_API_TOKEN`  | a token with _Workers Scripts: Edit_ |
+| Settings → Variables → Actions | `CLOUDFLARE_ACCOUNT_ID` | your account id                      |
+
+The alternative, if you would rather Cloudflare drive it: connect the repo under **Workers &
+Pages → Builds** in the Cloudflare dashboard. That builds every push on Cloudflare's side and
+comments previews without any workflow in the repo — `wrangler.jsonc` alone does not do this,
+the connection is made in the dashboard.
 
 ## Development
 
