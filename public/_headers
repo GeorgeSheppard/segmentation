@@ -1,0 +1,13 @@
+# Cloudflare static-asset headers.
+
+# The quantized scans never change; let the browser and the edge keep them.
+/data/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Vite fingerprints everything under /assets, so these are immutable too.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

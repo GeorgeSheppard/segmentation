@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <title>How Patchwork++ Works</title>
+    <meta
+      name="description"
+      content="An interactive, step-by-step Three.js walkthrough of the Patchwork++ LiDAR ground-segmentation algorithm, run live on a KITTI scan."
+    />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view"></canvas>
+      <div id="labels"></div>
+
+      <!-- Status for the scan download. A chip, not a curtain: the rest of the page is
+           usable while the points stream in. -->
+      <div id="loading">
+        <div class="spinner"></div>
+        <p id="loading-text">Fetching the scan…</p>
+        <div id="loading-bar"><i></i></div>
+      </div>
+
+      <!-- Top band: which step of the algorithm we are in, and what it is doing. -->
+      <header id="top">
+        <div id="titles">
+          <div class="step-badge">
+            <span id="step-num">1</span><span class="sep">/</span><span id="step-total">1</span>
+          </div>
+          <div class="title-text">
+            <h1 id="stage-title"></h1>
+            <p id="stage-subtitle"></p>
+          </div>
+        </div>
+
+        <div id="top-actions">
+          <button id="theme-toggle" title="Change colour theme" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 4v16" />
+            </svg>
+            <span id="theme-name">Signal</span>
+          </button>
+          <button id="chapters-toggle" title="Chapters" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span>Chapters</span>
+          </button>
+        </div>
+
+        <nav id="themes" hidden></nav>
+        <nav id="chapters" hidden></nav>
+      </header>
+
+      <!-- The algorithm, always on screen, with the live step lit. -->
+      <ol id="rail" aria-label="Pipeline steps"></ol>
+
+      <!-- What the colours mean, next to the step they belong to. -->
+      <aside id="legend" hidden></aside>
+
+      <!-- Bottom band -->
+      <div id="bottom">
+        <p id="gesture-hint" hidden>
+          <b>One finger</b> turns the scene · <b>two fingers</b> zoom and slide it
+        </p>
+
+        <div id="caption"><p id="caption-text"></p></div>
+
+        <footer id="controls">
+          <div id="progress"><div id="progress-bar"></div></div>
+          <div class="control-row">
+            <button id="btn-prev" class="ghost" title="Previous step (←)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+              <span>Back</span>
+            </button>
+            <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+              </svg>
+              <span>Recentre</span>
+            </button>
+            <button id="btn-replay" class="ghost" title="Replay this step (R)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
+              </svg>
+              <span>Replay</span>
+            </button>
+            <div id="speed" role="group" aria-label="Playback speed"></div>
+            <button id="btn-continue" class="primary" title="Continue (→ or space)">
+              <span>Continue</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
