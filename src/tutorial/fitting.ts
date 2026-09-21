@@ -18,11 +18,11 @@ export const stageSeeds: Stage = {
     "Sort the cell by height, average the 20 lowest, and seed from everything within 12.5 cm.",
 
   build(ctx: StageContext) {
-    const { cloud, frame, params } = ctx;
+    const { cloud, params } = ctx;
     const bin = ctx.bin(FIT_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
     cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
     cloud.setSize(idx, 2.1);
@@ -155,11 +155,11 @@ export const stageRgpf: Stage = {
     "PCA on the seeds gives a plane. Points within 12.5 cm become the next seed set. Three times.",
 
   build(ctx: StageContext) {
-    const { cloud, frame, params } = ctx;
+    const { cloud, params } = ctx;
     const bin = ctx.bin(FIT_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
     cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
     cloud.setSize(idx, 2.1);
@@ -309,11 +309,11 @@ export const stageRvpf: Stage = {
     "When ground sits on a kerb or a wall, the wall's points are lower, so they win the seeding.",
 
   build(ctx: StageContext) {
-    const { cloud, frame } = ctx;
+    const { cloud } = ctx;
     const bin = ctx.bin(VERTICAL_CELL);
     const idx = bin.indices;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
     cloud.setAlphaAll(ctx.dim);
     cloud.setAlpha(idx, 1);
     cloud.setSize(idx, 2.6);

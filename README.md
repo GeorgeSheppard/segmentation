@@ -16,26 +16,33 @@ pnpm dev
 
 ## What it covers
 
-| #   | Stage                       | What you see                                                                 |
-| --- | --------------------------- | ---------------------------------------------------------------------------- |
-| 1   | One LiDAR scan              | 123,924 points from a Velodyne HDL-64E, coloured by height                   |
-| 2   | Why one plane is not enough | A single global plane fit, and the road it throws away                       |
-| 3   | RNR                         | Reflected noise: the mirror-image points hiding below the road               |
-| 4   | CZM                         | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff |
-| 5   | Seeds                       | Sorting a cell by height, the Lowest Point Representative, the seed band     |
-| 6   | R-GPF                       | Three PCA refinements turning seeds into a ground plane                      |
-| 7   | R-VPF                       | Peeling a vertical structure away so the ground on top of it survives        |
-| 8   | GLE                         | Uprightness, elevation and flatness, each shown on a cell that fails it      |
-| 9   | 504 cells                   | The whole sweep, judged ring by ring                                         |
-| 10  | TGR                         | A borderline cell getting a second hearing against its own ring              |
-| 11  | A-GLE                       | The thresholds — and the sensor height — being measured rather than set      |
-| 12  | The result                  | Ground vs not-ground, against the strawman from step 2                       |
+| #   | Stage                | What you see                                                                 |
+| --- | -------------------- | ---------------------------------------------------------------------------- |
+| 1   | How the scan is made | One pulse timed to a real return, then the fan, then a full turn             |
+| 2   | One LiDAR scan       | 123,924 points from a Velodyne HDL-64E, unlabelled and unsorted              |
+| 3   | RNR                  | Reflected noise: the mirror-image points hiding below the road               |
+| 4   | CZM                  | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff |
+| 5   | Seeds                | Sorting a cell by height, the Lowest Point Representative, the seed band     |
+| 6   | R-GPF                | Three PCA refinements turning seeds into a ground plane                      |
+| 7   | R-VPF                | Peeling a vertical structure away so the ground on top of it survives        |
+| 8   | GLE                  | Uprightness, elevation and flatness, each shown on a cell that fails it      |
+| 9   | 504 cells            | The whole sweep, judged ring by ring                                         |
+| 10  | TGR                  | A borderline cell getting a second hearing against its own ring              |
+| 11  | A-GLE                | The thresholds — and the sensor height — being measured rather than set      |
+| 12  | The result           | Ground vs not-ground, against the one-plane strawman it replaces             |
 
 Each stage zooms into a real cell, narrates what happens there, and pulls back to the whole
 scene. A **step rail** across the top stays on screen the whole time with the live pipeline
 step lit, so "where are we" never has to be inferred.
 
-Structures are _built_, not faded in. The Concentric Zone Model is drawn the way the sensor
+The raw scan is one neutral colour, never a height ramp: a ramp bands the cloud into road,
+cars and walls, so the reader would arrive at step 1 holding the answer the next eleven
+stages are supposed to earn.
+
+Structures are _built_, not faded in. The scan itself is built the way the sensor builds it:
+a single pulse goes out, its echo comes back, and the range that falls out of the round trip
+becomes one point — then sixteen of the sixty-four lasers fan out, the head turns, and the
+sweep lays the cloud down behind it, every beam ending on a real return. The Concentric Zone Model is drawn the way the sensor
 draws a scan: a hand sweeps round from straight ahead, the ring arcs trail behind it, and each
 sector spoke appears as the sweep crosses it — zone by zone, inner to outer. Plane fits tween
 between iterations, so R-GPF is seen to settle onto the road and R-VPF's plane is seen to
@@ -50,7 +57,9 @@ linkable — `/#gle` opens Ground Likelihood Estimation directly.
 
 Three colours carry meaning, ever: **ground**, **not ground**, and **focus** — whatever the
 current step is singling out (noise, seeds, peeled points, an undecided cell). Everything else
-on screen is scaffolding: planes, seed bands, normals, grid.
+on screen is scaffolding: planes, seed bands, normals, grid. Unclassified returns get a fourth,
+deliberately opinionless ink — one neutral colour, nudged ±20% by return strength so surfaces
+still read in 3D, and nothing else.
 
 That is not a style choice. A point cloud is a scatter form, so any two classes can end up
 side by side, which means the palette has to clear the _all-pairs_ colour-blindness gate. Four

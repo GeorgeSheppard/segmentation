@@ -8,8 +8,7 @@ import {
   type WebGLRenderer,
 } from "three";
 import { type PointCloud } from "../patchwork/index.ts";
-import { heightColor, labelColor, type Palette } from "./palette.ts";
-import type { Theme } from "./themes.ts";
+import { labelColor, type Palette } from "./palette.ts";
 
 const VERT = /* glsl */ `
   attribute vec3 aColor;
@@ -65,6 +64,9 @@ export class CloudView {
   private readonly alpha: Float32Array;
   private readonly size: Float32Array;
 
+  /** Return strength per point, kept for the raw-scan shading. */
+  private readonly intensity: Float32Array;
+
   private readonly baseColor: Float32Array;
   private readonly baseAlpha: Float32Array;
   private readonly baseSize: Float32Array;
@@ -75,6 +77,7 @@ export class CloudView {
 
   constructor(cloud: PointCloud) {
     this.count = cloud.count;
+    this.intensity = cloud.intensity;
     this.color = new Float32Array(cloud.count * 3);
     this.alpha = new Float32Array(cloud.count).fill(1);
     this.size = new Float32Array(cloud.count).fill(1);
@@ -123,16 +126,23 @@ export class CloudView {
 
   // ---------------------------------------------------------------- base appearance
 
-  /** Colour by height over [zMin, zMax]. The "raw sensor data" look. */
-  setBaseHeightRamp(xyz: Float32Array, zMin: number, zMax: number, theme: Theme): void {
-    const span = Math.max(1e-6, zMax - zMin);
+  /**
+   * The unclassified scan: one neutral ink, shaded only by return strength.
+   *
+   * Nothing here may look like an answer. A height ramp did — its bands line up with road,
+   * cars and walls, so the scan arrived looking pre-segmented and the first two stages had
+   * nothing left to reveal. Intensity is not a class, just the strength of the echo, and a
+   * ±20% lightness wobble is enough to keep surfaces from flattening into a grey fog.
+   */
+  setBaseRaw(color: Color | string, alpha = 1): void {
+    const c = color instanceof Color ? color : scratch.set(color as string);
     for (let i = 0; i < this.count; i++) {
-      const c = heightColor((xyz[i * 3 + 2] - zMin) / span, theme, scratch);
-      this.baseColor[i * 3] = c.r;
-      this.baseColor[i * 3 + 1] = c.g;
-      this.baseColor[i * 3 + 2] = c.b;
+      const k = 0.8 + 0.4 * Math.min(1, this.intensity[i]);
+      this.baseColor[i * 3] = Math.min(1, c.r * k);
+      this.baseColor[i * 3 + 1] = Math.min(1, c.g * k);
+      this.baseColor[i * 3 + 2] = Math.min(1, c.b * k);
     }
-    this.baseAlpha.fill(1);
+    this.baseAlpha.fill(alpha);
     this.baseSize.fill(1);
     this.restore();
   }

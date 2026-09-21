@@ -3,6 +3,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  CylinderGeometry,
   DoubleSide,
   Group,
   Line,
@@ -374,6 +375,91 @@ export class Segment {
   dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+  }
+}
+
+/**
+ * The sensor itself: a squat cylinder at the origin, capped by two rims and a notch.
+ *
+ * The notch is the whole point. A smooth cylinder spinning about its own axis looks
+ * perfectly still, and the one thing this gizmo has to say is *which way it is facing
+ * right now* — so a single radial tick rides the rim and the body becomes a clock hand.
+ */
+export class SensorHead {
+  readonly group = new Group();
+
+  private readonly bodyMaterial: MeshBasicMaterial;
+  private readonly lineMaterial: LineBasicMaterial;
+  private readonly geometries: BufferGeometry[] = [];
+  private alpha = 1;
+
+  constructor(color: Color | string, radius = 0.18, height = 0.32) {
+    const c = new Color(color);
+
+    // three's cylinders run along +y; the sensor's spin axis is +z.
+    const shell = new CylinderGeometry(radius, radius, height, 28, 1, true);
+    shell.rotateX(Math.PI / 2);
+    this.bodyMaterial = new MeshBasicMaterial({
+      color: c,
+      transparent: true,
+      side: DoubleSide,
+      depthWrite: false,
+    });
+    this.geometries.push(shell);
+    this.group.add(new Mesh(shell, this.bodyMaterial));
+
+    this.lineMaterial = new LineBasicMaterial({ color: c, transparent: true });
+    for (const z of [-height / 2, height / 2]) this.group.add(this.rim(radius, z));
+
+    // The notch, drawn at theta = 0 so the sweep and the head agree on "straight ahead".
+    const notch = new BufferGeometry();
+    notch.setAttribute(
+      "position",
+      new BufferAttribute(
+        new Float32Array([radius, 0, 0, radius * 2.4, 0, 0, radius, 0, height / 2, radius, 0, 0]),
+        3,
+      ),
+    );
+    this.geometries.push(notch);
+    this.group.add(new LineSegments(notch, this.lineMaterial));
+
+    this.group.renderOrder = 5;
+    this.opacity = 0;
+  }
+
+  private rim(radius: number, z: number): Line {
+    const segs = 48;
+    const verts: number[] = [];
+    for (let i = 0; i <= segs; i++) {
+      const a = (2 * Math.PI * i) / segs;
+      verts.push(Math.cos(a) * radius, Math.sin(a) * radius, z);
+    }
+    const g = new BufferGeometry();
+    g.setAttribute("position", new BufferAttribute(new Float32Array(verts), 3));
+    this.geometries.push(g);
+    return new Line(g, this.lineMaterial);
+  }
+
+  /** Where the head is pointing, in radians anticlockwise from straight ahead. */
+  set spin(angle: number) {
+    this.group.rotation.z = angle;
+  }
+
+  set opacity(v: number) {
+    this.alpha = v;
+    this.bodyMaterial.opacity = v * 0.3;
+    this.lineMaterial.opacity = v;
+    this.group.visible = v > 0.002;
+  }
+
+  get opacity(): number {
+    return this.alpha;
+  }
+
+  dispose(): void {
+    for (const g of this.geometries) g.dispose();
+    this.bodyMaterial.dispose();
+    this.lineMaterial.dispose();
   }
 }
 

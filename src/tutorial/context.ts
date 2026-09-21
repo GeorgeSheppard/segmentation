@@ -15,6 +15,7 @@ import {
   CellOutline,
   CzmGrid,
   Segment,
+  SensorHead,
   WedgeSurface,
   cellCentre,
   cellFromBin,
@@ -151,6 +152,13 @@ export class StageContext {
     return s;
   }
 
+  /** The sensor at the origin, for the stage that explains where the points come from. */
+  sensorHead(color: Color | string = this.color.normal): SensorHead {
+    const h = this.own(new SensorHead(color));
+    this.scratch.add(h.group);
+    return h;
+  }
+
   grid(z = this.groundZ): CzmGrid {
     const g = this.own(new CzmGrid(this.czm, this.params, z, zoneColors(this.theme)));
     this.scratch.add(g.group);
@@ -255,7 +263,7 @@ export interface Stage {
    * Which pipeline steps this stage covers — drives the step rail, so the reader can always
    * see where in the algorithm they are. Most stages name one; the full-sweep stage names
    * the per-cell steps it runs end to end. Stages that frame the problem rather than
-   * explain a step (the raw scan, the strawman, the result) leave it empty.
+   * explain a step (how a scan is made, the raw scan, the result) leave it empty.
    */
   steps?: StepId[];
   build(ctx: StageContext): import("../anim/timeline.ts").Timeline;

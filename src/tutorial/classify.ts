@@ -18,12 +18,12 @@ export const stageGle: Stage = {
   subtitle: "R-GPF always returns a plane. GLE is the veto: uprightness, elevation, flatness.",
 
   build(ctx: StageContext) {
-    const { cloud, frame } = ctx;
+    const { cloud } = ctx;
     const good = ctx.bin(GOOD_CELL);
     const roof = ctx.bin(ROOF_CELL);
     const wall = ctx.bin(WALL_CELL);
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
     cloud.setAlphaAll(ctx.dim);
     // All three cells stay dim until it is their turn, so it is never ambiguous which
     // one the narration is talking about.
@@ -192,7 +192,7 @@ export const stageSweep: Stage = {
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
     cloud.fadeAllTo(Math.max(ctx.dim, 0.32), 1);
     cloud.captureBase();
 

@@ -15,6 +15,9 @@ export interface Palette {
   /** Whatever the current step is singling out. Only one such class per stage. */
   focus: Color;
 
+  /** Unclassified returns — the scan before anyone has an opinion about it. */
+  raw: Color;
+
   plane: Color;
   seed: Color;
   normal: Color;
@@ -30,6 +33,7 @@ export function paletteFor(theme: Theme): Palette {
     ground: new Color(theme.ground),
     nonGround: new Color(theme.nonGround),
     focus: new Color(theme.focus),
+    raw: new Color(theme.raw),
     plane: new Color(theme.plane),
     seed: new Color(theme.seed),
     normal: new Color(theme.normal),
@@ -51,21 +55,6 @@ export function labelColor(label: PointLabel, palette: Palette): Color {
   if (label === PointLabel.Unassigned) return palette.debug;
   if (label === PointLabel.OutOfRange) return palette.dim;
   return isGroundLabel(label) ? palette.ground : palette.nonGround;
-}
-
-const scratch = new Color();
-const rampCache = new WeakMap<Theme, Color[]>();
-
-/** Height ramp for the raw, unclassified scan — magnitude, so a single ordered ramp. */
-export function heightColor(t: number, theme: Theme, out: Color = scratch): Color {
-  let stops = rampCache.get(theme);
-  if (!stops) {
-    stops = theme.ramp.map((hex) => new Color(hex));
-    rampCache.set(theme, stops);
-  }
-  const c = Math.max(0, Math.min(1, t)) * (stops.length - 1);
-  const i = Math.min(stops.length - 2, Math.floor(c));
-  return out.copy(stops[i]).lerp(stops[i + 1], c - i);
 }
 
 /**

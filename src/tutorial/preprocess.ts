@@ -16,7 +16,7 @@ export const stageRnr: Stage = {
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
     const params = ctx.params;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
 
     ctx.legend([
       { color: ctx.color.focus, label: "reflected noise", note: "removed by RNR" },
@@ -168,8 +168,8 @@ export const stageCzm: Stage = {
     "504 polar cells in four zones, sized against sparsity far out and over-resolution up close.",
 
   build(ctx: StageContext) {
-    const { cloud, frame, czm, params } = ctx;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    const { cloud, czm, params } = ctx;
+    cloud.setBaseRaw(ctx.color.raw);
 
     ctx.legend(
       zoneColors(ctx.theme).map((c, i) => ({
