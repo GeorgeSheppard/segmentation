@@ -177,7 +177,7 @@ owns the build, so there is no token in CI and no deploy step in the workflows:
 Because the project runs the build itself, `wrangler.jsonc` deliberately has **no**
 `build.command` — that would build a second time inside `wrangler deploy`. `workers_dev` and
 `preview_urls` are on, which is what makes the version command's upload reachable at
-`<version>-patchworkpp-tutorial.<subdomain>.workers.dev`.
+`<version>-segmentation.<subdomain>.workers.dev`.
 
 ## Development
 

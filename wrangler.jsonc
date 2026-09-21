@@ -1,6 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "patchworkpp-tutorial",
+  // Must match the Worker service the Cloudflare project is connected to. Workers Builds
+  // runs `wrangler versions upload` from this config, so a different name here would
+  // upload a version of some other Worker and the connected service would never get a
+  // preview URL.
+  "name": "segmentation",
   "compatibility_date": "2026-09-20",
 
   // A static site: no Worker script, just the Vite build served from Cloudflare's edge.
@@ -15,7 +19,7 @@
   },
 
   // What serves per-branch and per-PR previews: a version is uploaded without being
-  // promoted, and reachable at <version>-<name>.<subdomain>.workers.dev.
+  // promoted, and reachable at <version>-segmentation.<subdomain>.workers.dev.
   "workers_dev": true,
   "preview_urls": true,
 
