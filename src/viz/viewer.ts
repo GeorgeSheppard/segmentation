@@ -9,7 +9,6 @@ import {
   type Object3D,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 /** Vertical FOV the stage framing was authored against, at the aspect below. */
 const BASE_FOV = 52;
@@ -58,7 +57,6 @@ export class Viewer {
   readonly scene = new Scene();
   readonly camera: PerspectiveCamera;
   readonly renderer: WebGLRenderer;
-  readonly labelRenderer: CSS2DRenderer;
   readonly controls: OrbitControls;
 
   private readonly onResize = () => this.resize();
@@ -68,10 +66,7 @@ export class Viewer {
   private lastTime = 0;
   private running = false;
 
-  constructor(
-    private readonly canvas: HTMLCanvasElement,
-    labelContainer: HTMLElement,
-  ) {
+  constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({
       canvas,
       antialias: true,
@@ -79,8 +74,6 @@ export class Viewer {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.scene.background = new Color("#070a0f");
-
-    this.labelRenderer = new CSS2DRenderer({ element: labelContainer });
 
     this.camera = new PerspectiveCamera(BASE_FOV, 1, 0.1, 1200);
     this.camera.up.set(0, 0, 1);
@@ -101,6 +94,19 @@ export class Viewer {
     // camera happens to be tilted, which is what a map-style drag feels like.
     this.controls.screenSpacePanning = true;
     this.controls.addEventListener("start", () => this.setManual(true));
+
+    // A trackpad pinch arrives at the browser as a wheel event with ctrlKey set — its way
+    // of asking for page zoom. `touch-action: none` on the page root stops the same gesture
+    // on a touchscreen, but has no say over this one, so without this a pinch anywhere on
+    // the page — not just over the canvas — zooms the whole tab instead of the scene, and
+    // nothing in the app can zoom it back out.
+    window.addEventListener(
+      "wheel",
+      (e) => {
+        if (e.ctrlKey) e.preventDefault();
+      },
+      { passive: false },
+    );
 
     this.resize();
     window.addEventListener("resize", this.onResize);
@@ -166,20 +172,17 @@ export class Viewer {
     for (const cb of this.frameCallbacks) cb(dt);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
-    this.labelRenderer.render(this.scene, this.camera);
   }
 
   resize(): void {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
-    this.labelRenderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.fov = fovForAspect(this.camera.aspect);
 
     // Render the lower slice of a slightly taller frame, which lifts everything the camera
-    // is pointed at away from the bands along the bottom. The 2D labels are projected with
-    // the same matrix, so they move with what they are labelling.
+    // is pointed at away from the bands along the bottom.
     const lift = w < h ? Math.round(h * PORTRAIT_LIFT) : 0;
     if (lift > 0) this.camera.setViewOffset(w, h + lift, 0, lift, w, h);
     else this.camera.clearViewOffset();

@@ -58,19 +58,6 @@ export const stageRnr: Stage = {
     );
     floor.layFlat(-frame.stateBefore.sensorHeight - 0.8);
 
-    const heroLabel = ctx.label(
-      "phantom point",
-      heroPos.clone().add(new Vector3(0, 0, -1.3)),
-      "warn",
-    );
-    const incLabel = ctx.label(
-      "reflective surface — bonnet, roof or glass",
-      incidence.clone().add(new Vector3(0, 0, 1.8)),
-      "accent",
-    );
-    heroLabel.opacity = 0;
-    incLabel.opacity = 0;
-
     const t = ctx.track();
 
     t.say("First, Patchwork++ throws a handful of points away.", 2.2).with(
@@ -98,20 +85,14 @@ export const stageRnr: Stage = {
       }),
       Ease.cinematic,
     );
-    t.add(1.0, { onUpdate: (v) => (heroLabel.opacity = v) });
     t.say(`This one sits <em>${fmt(heroPos.z)} m</em> down, eight metres under the car.`, 2.6);
 
     t.add(1.2, { onUpdate: (v) => (ray.opacity = v * 0.9) });
     t.say(
-      "It is a reflection. The beam bounced off something mirror-like and returned late, so the point lands far out along the outgoing ray.",
-      3.8,
+      "It is a reflection. The beam bounced off something mirror-like — a bonnet, a roof, glass — and returned late, so the point lands far out along the outgoing ray.",
+      4.0,
     );
-    t.add(1.0, {
-      onUpdate: (v) => {
-        incidenceMark.opacity = v;
-        incLabel.opacity = v;
-      },
-    });
+    t.add(1.0, { onUpdate: (v) => (incidenceMark.opacity = v) });
     t.wait(1.2);
 
     t.say(
@@ -140,8 +121,6 @@ export const stageRnr: Stage = {
         cloud.setAlpha(noise, 1 - v);
         ray.opacity = 0.9 * (1 - v);
         incidenceMark.opacity = 1 - v;
-        heroLabel.opacity = 1 - v;
-        incLabel.opacity = 1 - v;
         floor.opacity = 0.1 * (1 - v);
       },
     });
@@ -191,17 +170,6 @@ export const stageCzm: Stage = {
     const uniGrid = ctx.own(new CzmGrid(uni.czm, uni.params, ctx.groundZ, [ctx.color.dim]));
     uniGrid.setOpacity(0);
     ctx.scratch.add(uniGrid.group);
-
-    const zoneLabels = [0, 1, 2, 3].map((z) => {
-      const r = (czm.minRanges[z] + czm.maxRanges[z]) / 2;
-      const l = ctx.label(
-        `Band ${z + 1} · ${params.numRingsEachZone[z]} rings, ${params.numSectorsEachZone[z]} wedges`,
-        new Vector3(r * Math.cos(Math.PI * 0.32), r * Math.sin(Math.PI * 0.32), ctx.groundZ + 0.4),
-        "accent",
-      );
-      l.opacity = 0;
-      return l;
-    });
 
     const focus = ctx.bin("0/0/12");
     const focusOutline = ctx.outline(focus, ctx.groundZ, null, ctx.color.seed);
@@ -254,7 +222,6 @@ export const stageCzm: Stage = {
             sweepTo(z, v);
             // The hand fades out as it closes the loop, leaving the finished band behind.
             hand.opacity = 0.9 * Math.min(1, (1 - v) * 4);
-            zoneLabels[z].opacity = Math.min(1, v * 2.2);
           },
           onExit: () => {
             grid.setZoneSweep(z, 1);
@@ -276,11 +243,6 @@ export const stageCzm: Stage = {
     );
     t.say("<em>Band 4</em> coarsens again. Past 41 m there is barely any data to work with.", 2.6);
 
-    t.add(0.8, {
-      onUpdate: (v) => {
-        for (const l of zoneLabels) l.opacity = 1 - v;
-      },
-    });
     t.wait(0.8);
     t.say(
       `<em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()}. More reliable, and six times cheaper to compute.`,

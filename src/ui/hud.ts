@@ -1,6 +1,5 @@
 import { Color } from "three";
 import { PIPELINE_STEPS, type StepId } from "../patchwork/index.ts";
-import { THEME_ORDER, THEMES, type ThemeId } from "../viz/themes.ts";
 
 /** All DOM outside the canvas: titles, step rail, legend, caption, transport. */
 
@@ -15,13 +14,10 @@ export interface HudCallbacks {
   onContinue: () => void;
   onPrev: () => void;
   onReplay: () => void;
-  onSpeed: (speed: number) => void;
   onJump: (index: number) => void;
-  onTheme: (id: ThemeId) => void;
   onRecentre: () => void;
+  onRestart: () => void;
 }
-
-const SPEEDS = [0.5, 1, 1.5, 2];
 
 /** How long the touch-gesture hint stays up if nobody touches anything. */
 const HINT_MS = 9000;
@@ -37,16 +33,14 @@ export class Hud {
   private readonly progressBar = byId("progress-bar");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
-  private readonly themes = byId("themes");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
-  private readonly themeToggle = byId("theme-toggle") as HTMLButtonElement;
-  private readonly themeName = byId("theme-name");
   private readonly btnContinue = byId("btn-continue") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
   private readonly btnRecentre = byId("btn-recentre") as HTMLButtonElement;
+  private readonly btnRestart = byId("btn-restart") as HTMLButtonElement;
+  private readonly app = byId("app");
   private readonly gestureHint = byId("gesture-hint");
-  private readonly speedGroup = byId("speed");
   private readonly loading = byId("loading");
   private readonly loadingText = byId("loading-text");
   private readonly verdict: HTMLElement;
@@ -55,6 +49,7 @@ export class Hud {
   private verdictTimer = 0;
   private hintTimer = 0;
   private busy = false;
+  private exploring = false;
   private stageIndex = 0;
 
   constructor(private readonly cb: HudCallbacks) {
@@ -66,31 +61,12 @@ export class Hud {
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
     this.btnRecentre.addEventListener("click", () => cb.onRecentre());
-
-    for (const s of SPEEDS) {
-      const b = document.createElement("button");
-      b.textContent = `${s}×`;
-      b.dataset.speed = String(s);
-      b.addEventListener("click", () => {
-        cb.onSpeed(s);
-        this.setSpeed(s);
-      });
-      this.speedGroup.appendChild(b);
-    }
-    this.setSpeed(1);
+    this.btnRestart.addEventListener("click", () => cb.onRestart());
 
     this.buildRail();
-    this.buildThemes();
 
     this.chaptersToggle.addEventListener("click", () => {
-      const open = this.chapters.hidden;
-      this.setPopover(this.chapters, this.chaptersToggle, open);
-      if (open) this.setPopover(this.themes, this.themeToggle, false);
-    });
-    this.themeToggle.addEventListener("click", () => {
-      const open = this.themes.hidden;
-      this.setPopover(this.themes, this.themeToggle, open);
-      if (open) this.setPopover(this.chapters, this.chaptersToggle, false);
+      this.setPopover(this.chapters, this.chaptersToggle, this.chapters.hidden);
     });
 
     document.addEventListener("keydown", (e) => this.onKey(e));
@@ -98,6 +74,7 @@ export class Hud {
 
   private onKey(e: KeyboardEvent): void {
     if (e.target instanceof HTMLInputElement) return;
+    if (this.exploring) return;
     if (this.busy && e.key !== "Escape") return;
     switch (e.key) {
       case " ":
@@ -116,7 +93,6 @@ export class Hud {
         break;
       case "Escape":
         this.setPopover(this.chapters, this.chaptersToggle, false);
-        this.setPopover(this.themes, this.themeToggle, false);
         break;
     }
   }
@@ -220,7 +196,7 @@ export class Hud {
     this.subtitle.innerHTML = subtitle;
     this.btnPrev.disabled = this.busy || index === 0;
     this.btnContinue.querySelector("span")!.textContent =
-      index === total - 1 ? "Start over" : "Continue";
+      index === total - 1 ? "Explore" : "Continue";
     for (const [i, el] of [...this.chapters.children].entries()) {
       el.classList.toggle("active", i === index);
     }
@@ -237,35 +213,6 @@ export class Hud {
       });
       this.chapters.appendChild(b);
     });
-  }
-
-  // ------------------------------------------------------------------ themes
-
-  private buildThemes(): void {
-    this.themes.replaceChildren();
-    for (const id of THEME_ORDER) {
-      const theme = THEMES[id];
-      const b = document.createElement("button");
-      b.dataset.theme = id;
-      b.innerHTML =
-        `<span class="dots">` +
-        `<i style="background:${theme.ground}"></i>` +
-        `<i style="background:${theme.nonGround}"></i>` +
-        `<i style="background:${theme.focus}"></i>` +
-        `</span><span>${theme.name}<span class="meta">${theme.note}</span></span>`;
-      b.addEventListener("click", () => {
-        this.cb.onTheme(id);
-        this.setPopover(this.themes, this.themeToggle, false);
-      });
-      this.themes.appendChild(b);
-    }
-  }
-
-  setTheme(id: ThemeId): void {
-    this.themeName.textContent = THEMES[id].name;
-    for (const el of this.themes.children) {
-      el.classList.toggle("active", (el as HTMLElement).dataset.theme === id);
-    }
   }
 
   private setPopover(panel: HTMLElement, toggle: HTMLButtonElement, open: boolean): void {
@@ -342,10 +289,17 @@ export class Hud {
     this.btnContinue.classList.toggle("pulse", finished);
   }
 
-  private setSpeed(speed: number): void {
-    for (const b of this.speedGroup.children) {
-      b.classList.toggle("active", (b as HTMLElement).dataset.speed === String(speed));
-    }
+  // ------------------------------------------------------------------ explore
+
+  /**
+   * The tour is done. Every band fades out — title, rail, legend, caption, transport — and
+   * only the Restart pill remains, so the finished scene is the whole screen and dragging it
+   * is the only thing left to do.
+   */
+  setExploring(exploring: boolean): void {
+    this.exploring = exploring;
+    this.app.classList.toggle("exploring", exploring);
+    this.btnRestart.hidden = !exploring;
   }
 }
 

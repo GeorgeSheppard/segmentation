@@ -13,7 +13,6 @@
   <body>
     <div id="app">
       <canvas id="view"></canvas>
-      <div id="labels"></div>
 
       <!-- Status for the scan download. A chip, not a curtain: the rest of the page is
            usable while the points stream in. -->
@@ -36,13 +35,6 @@
         </div>
 
         <div id="top-actions">
-          <button id="theme-toggle" title="Change colour theme" aria-expanded="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="8" />
-              <path d="M12 4v16" />
-            </svg>
-            <span id="theme-name">Signal</span>
-          </button>
           <button id="chapters-toggle" title="Chapters" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 6h16M4 12h16M4 18h16" />
@@ -51,7 +43,6 @@
           </button>
         </div>
 
-        <nav id="themes" hidden></nav>
         <nav id="chapters" hidden></nav>
       </header>
 
@@ -89,7 +80,6 @@
               </svg>
               <span>Replay</span>
             </button>
-            <div id="speed" role="group" aria-label="Playback speed"></div>
             <button id="btn-continue" class="primary" title="Continue (→ or space)">
               <span>Continue</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
@@ -97,6 +87,15 @@
           </div>
         </footer>
       </div>
+
+      <!-- Shown only once the tour is done and the reader has chosen to explore: every
+           other band fades out, leaving the finished scene full-screen. -->
+      <button id="btn-restart" title="Restart the tour" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
+        </svg>
+        <span>Restart the tour</span>
+      </button>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

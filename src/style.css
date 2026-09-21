@@ -68,7 +68,7 @@ body {
   inset: 0;
   display: grid;
   /* top band, step rail, legend, then everything else — the bottom band pins to the bottom
-     of it. The canvas, labels and status chip are absolutely positioned and out of flow. */
+     of it. The canvas and status chip are absolutely positioned and out of flow. */
   grid-template-rows: auto auto auto 1fr;
   /* Pin the column to the viewport. Without this the column takes its min-content width
      from the step rail, which is wider than a phone, and every band overflows. */
@@ -81,10 +81,23 @@ body {
 #legend,
 #bottom {
   min-width: 0;
+  transition:
+    opacity 0.6s ease,
+    visibility 0.6s;
 }
 
 #app > * {
   pointer-events: auto;
+}
+
+/* The tour is over: every band steps aside and the finished scene fills the screen. */
+#app.exploring #top,
+#app.exploring #rail,
+#app.exploring #legend,
+#app.exploring #bottom {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 #view {
@@ -96,13 +109,6 @@ body {
   /* The scene is the thing you drag; the bands above it opt back in. */
   pointer-events: auto;
   touch-action: none;
-}
-
-#labels {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
 }
 
 /* ---------------------------------------------------------------- loading */
@@ -514,7 +520,6 @@ button:focus-visible {
 }
 
 button.ghost,
-#theme-toggle,
 #chapters-toggle {
   padding: 8px 12px;
   color: var(--text-dim);
@@ -528,7 +533,6 @@ button.ghost {
   border-radius: 9px;
 }
 button.ghost:hover:not(:disabled),
-#theme-toggle:hover,
 #chapters-toggle:hover {
   color: var(--text);
   border-color: var(--border-strong);
@@ -558,31 +562,9 @@ button.primary.pulse {
   }
 }
 
-#speed {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: color-mix(in srgb, var(--text-faint) 20%, transparent);
-  border-radius: 9px;
-}
-#speed button {
-  padding: 5px 9px;
-  min-height: 30px;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--text-faint);
-  background: none;
-  border: none;
-}
-#speed button.active {
-  color: var(--text);
-  background: color-mix(in srgb, var(--text-dim) 26%, transparent);
-}
-
 /* ---------------------------------------------------------------- popovers */
 
-#chapters,
-#themes {
+#chapters {
   position: absolute;
   top: calc(100% + 8px);
   right: calc(var(--safe-r) + var(--gutter));
@@ -597,8 +579,7 @@ button.primary.pulse {
   border-radius: var(--radius);
   box-shadow: 0 16px 48px color-mix(in srgb, var(--surface) 75%, transparent);
 }
-#chapters button,
-#themes button {
+#chapters button {
   display: flex;
   gap: 10px;
   width: 100%;
@@ -611,13 +592,11 @@ button.primary.pulse {
   font-size: 13px;
   line-height: 1.35;
 }
-#chapters button:hover,
-#themes button:hover {
+#chapters button:hover {
   background: color-mix(in srgb, var(--text-dim) 14%, transparent);
   color: var(--text);
 }
-#chapters button.active,
-#themes button.active {
+#chapters button.active {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--text);
 }
@@ -631,53 +610,30 @@ button.primary.pulse {
 #chapters button.active .idx {
   color: var(--accent);
 }
-#themes .dots {
+
+/* ---------------------------------------------------------------- explore */
+
+/* The one control left once the tour is done: small, out of the way, easy to ignore while
+   looking at the scene, easy to find when the reader is ready to start again. */
+#btn-restart {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 20px);
+  transform: translateX(-50%);
+  z-index: 20;
   display: flex;
-  gap: 3px;
-  flex: none;
-  padding-top: 3px;
-}
-#themes .dots i {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-}
-#themes .meta {
-  display: block;
-  font-size: 11.5px;
-  color: var(--text-faint);
-}
-
-/* ---------------------------------------------------------------- 3D labels */
-
-.scene-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: var(--text-dim);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 4px 8px;
-  white-space: nowrap;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  backdrop-filter: blur(6px);
+  border-radius: 999px;
 }
-.scene-label.accent {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-.scene-label.warn {
-  color: var(--seed);
-  border-color: color-mix(in srgb, var(--seed) 50%, transparent);
-}
-.scene-label.good {
-  color: var(--ground);
-  border-color: color-mix(in srgb, var(--ground) 55%, transparent);
-}
-.scene-label.bad {
-  color: var(--non-ground);
-  border-color: color-mix(in srgb, var(--non-ground) 55%, transparent);
+#btn-restart:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 /* ---------------------------------------------------------------- verdict */
@@ -773,11 +729,9 @@ button.primary.pulse {
     padding: 4px 8px;
     margin-top: 1px;
   }
-  #theme-toggle span,
   #chapters-toggle span {
     display: none;
   }
-  #theme-toggle,
   #chapters-toggle {
     padding: 8px 10px;
   }
@@ -832,12 +786,6 @@ button.primary.pulse {
   }
   button.ghost {
     padding: 8px 11px;
-  }
-  #speed {
-    margin-left: auto;
-  }
-  #speed button {
-    padding: 5px 7px;
   }
   button.primary {
     order: 10;

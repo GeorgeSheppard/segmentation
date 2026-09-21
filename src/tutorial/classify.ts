@@ -47,13 +47,7 @@ export const stageGle: Stage = {
       const nLine = ctx.segment(ctx.color.normal, 0);
       const base = new Vector3(...bin.plane!.mean);
       nLine.set(base, base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.0)));
-      const nLabel = ctx.label(
-        "",
-        base.clone().add(new Vector3(...bin.plane!.normal).multiplyScalar(2.4)),
-        "accent",
-      );
-      nLabel.opacity = 0;
-      return { outline, surf, nLine, nLabel, bin };
+      return { outline, surf, nLine, bin };
     };
 
     const cells = {
@@ -66,7 +60,6 @@ export const stageGle: Stage = {
       c.outline.opacity = v * 0.85;
       c.surf.opacity = v * planeOpacity;
       c.nLine.opacity = v;
-      c.nLabel.opacity = v;
       cloud.fadeTo(c.bin.indices, 0.3 + 0.7 * v, 1);
       cloud.sizeTo(c.bin.indices, 1.4 + 1.0 * v, 1);
     };
@@ -82,14 +75,13 @@ export const stageGle: Stage = {
 
     t.add(1.0, {
       onEnter: () => {
-        cells.wall.nLabel.text = facingLabel(wall.gle!.uprightness);
         ctx.verdict("Rejected — not upright", "bad");
       },
       onUpdate: (v) => reveal(cells.wall, v),
     });
     t.say(
-      "First test, the cheapest: does the plane face <em>up</em>? This one is nearly on edge.",
-      3,
+      `First test, the cheapest: does the plane face <em>up</em>? This one is <em>${facingLabel(wall.gle!.uprightness)}</em> — nearly on edge.`,
+      3.2,
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, ctx.color.nonGround, v) });
     t.wait(0.6);
@@ -97,14 +89,11 @@ export const stageGle: Stage = {
     // ---- Test 2: elevation, shown on the roof cell.
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
-      onEnter: () => {
-        cells.roof.nLabel.text = facingLabel(roof.gle!.uprightness);
-      },
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      "Facing up is not enough on its own. This plane passes easily, because it is a <em>car roof</em>.",
-      3.2,
+      `Facing up is not enough on its own. This one is <em>${facingLabel(roof.gle!.uprightness)}</em> and passes easily — because it is a <em>car roof</em>.`,
+      3.4,
     );
 
     const sensorDisc = ctx.surface(
@@ -118,8 +107,6 @@ export const stageGle: Stage = {
       3,
     );
     sensorDisc.layFlat(0);
-    const originLabel = ctx.label("level with the sensor", new Vector3(3, 0, 0.35), "accent");
-    originLabel.opacity = 0;
 
     t.add(1.2, {
       onEnter: () => {
@@ -127,7 +114,6 @@ export const stageGle: Stage = {
       },
       onUpdate: (v) => {
         sensorDisc.opacity = v * 0.1;
-        originLabel.opacity = v;
       },
     });
     t.say(
@@ -145,14 +131,12 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(good, { distance: 8.5, height: 4.2 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
-        cells.good.nLabel.text = facingLabel(good.gle!.uprightness);
         ctx.verdict("Accepted — ground", "good");
       },
       onUpdate: (v) => {
         reveal(cells.good, v);
         cloud.paint(good.cellGround, ctx.color.ground, v);
         sensorDisc.opacity = 0.1 * (1 - v);
-        originLabel.opacity = 1 - v;
       },
     });
     t.say(
@@ -344,25 +328,17 @@ export const stageTgr: Stage = {
       hero.gle!.elevation + 2.0,
     ]);
 
-    const heroLabel = ctx.label(
-      `${thickness(hero.gle!.flatness)} thick`,
-      ctx.centreOf(hero, hero.gle!.elevation + 1.0),
-      "warn",
-    );
-    heroLabel.opacity = 0;
-
     const t = ctx.track();
 
     t.say(
-      `That cell: a small patch ${hero.radii[0].toFixed(1)} m out, <em>above</em> the elevation threshold and not flat enough to rescue.`,
-      3.2,
+      `That cell: a small patch ${hero.radii[0].toFixed(1)} m out, <em>above</em> the elevation threshold and <em>${thickness(hero.gle!.flatness)}</em> thick — too rough to rescue.`,
+      3.6,
     )
       .with(2.3, ctx.rig.flyTo(ctx.binPose(hero, { distance: 10, height: 5 })), Ease.cinematic)
       .with(1.2, {
         onUpdate: (v) => {
           heroOutline.opacity = v * 0.9;
           heroCell.opacity = v * 0.22;
-          heroLabel.opacity = v;
           cloud.paint(hero.cellGround, ctx.color.focus, v);
           cloud.fadeTo(hero.cellGround, 1, v);
           cloud.sizeTo(hero.cellGround, 5, v);
@@ -398,7 +374,6 @@ export const stageTgr: Stage = {
           heroCell.color = ctx.color.focus;
           heroOutline.color = ctx.color.focus;
         }
-        heroLabel.variant = verdict.reverted ? "good" : "bad";
       },
     });
     t.say("Against its neighbours it is not rough at all. Reverted to ground.", 2.6);
@@ -418,7 +393,6 @@ export const stageTgr: Stage = {
         cloud.fadeAllTo(1, v);
         heroOutline.opacity = 0.9 * (1 - v);
         heroCell.opacity = 0.3 * (1 - v);
-        heroLabel.opacity = 1 - v;
         for (const c of peerCells) c.opacity = 0.3 * (1 - v);
       },
     });

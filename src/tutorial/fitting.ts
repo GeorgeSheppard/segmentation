@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { lerpPlane, type Vec3 } from "../core/linalg.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { facingLabel, fmt, thickness } from "./helpers.ts";
+import { fmt, thickness } from "./helpers.ts";
 
 /** The cell the seed / R-GPF stages work in: a big, clean, half-road half-car patch. */
 const FIT_CELL = "0/0/12";
@@ -47,20 +47,6 @@ export const stageSeeds: Stage = {
     const cutPlane = ctx.wedge(bin, ctx.color.seed, 0);
     cutPlane.layFlat(bin.seedCutoff);
 
-    const centre = ctx.centreOf(bin, 0);
-    const lprLabel = ctx.label(
-      `floor · ${fmt(bin.lprHeight)} m`,
-      new Vector3(centre.x, centre.y, bin.lprHeight - 0.45),
-      "bad",
-    );
-    const cutLabel = ctx.label(
-      `floor + 12.5 cm = ${fmt(bin.seedCutoff)} m`,
-      new Vector3(centre.x, centre.y, bin.seedCutoff + 0.55),
-      "warn",
-    );
-    lprLabel.opacity = 0;
-    cutLabel.opacity = 0;
-
     const lpr = idx.subarray(bin.lprStart, bin.lprStart + params.numLPR);
     const seeds = idx.subarray(0, bin.seedCount);
 
@@ -103,7 +89,6 @@ export const stageSeeds: Stage = {
         cloud.paint(lpr, ctx.color.focus, v);
         cloud.sizeTo(lpr, 4.5, v);
         lprPlane.opacity = v * 0.3;
-        lprLabel.opacity = v;
       },
     });
     t.say(
@@ -114,7 +99,6 @@ export const stageSeeds: Stage = {
     t.add(1.2, {
       onUpdate: (v) => {
         cutPlane.opacity = v * 0.24;
-        cutLabel.opacity = v;
         cloud.paint(seeds, ctx.color.seed, v);
       },
     });
@@ -140,8 +124,6 @@ export const stageSeeds: Stage = {
         prism.opacity = 0.8 * (1 - v);
         lprPlane.opacity = 0.3 * (1 - v);
         cutPlane.opacity = 0.24 * (1 - v);
-        lprLabel.opacity = 1 - v;
-        cutLabel.opacity = 1 - v;
       },
     });
     t.wait(0.3);
@@ -183,8 +165,6 @@ export const stageRgpf: Stage = {
     const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
     const slabSurf = ctx.wedge(bin, ctx.color.ground, 0);
     const normalLine = ctx.segment(ctx.color.normal, 0);
-    const normalLabel = ctx.label("", new Vector3(), "accent");
-    normalLabel.opacity = 0;
 
     const showPlane = (p: { normal: Vec3; d: number; mean: Vec3 }) => {
       planeSurf.layOnPlane(p.normal, p.d);
@@ -194,8 +174,6 @@ export const stageRgpf: Stage = {
         .clone()
         .add(new Vector3(p.normal[0], p.normal[1], p.normal[2]).multiplyScalar(1.8));
       normalLine.set(base, tip);
-      normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.35)));
-      normalLabel.text = facingLabel(p.normal[2]);
     };
     /** Each pass tweens from the fit before it, so the plane is seen to settle. */
     const planeAt = (it: number) => (it < 0 ? bin.rgpf[0].plane : bin.rgpf[it].plane);
@@ -216,7 +194,6 @@ export const stageRgpf: Stage = {
       onUpdate: (v) => {
         planeSurf.opacity = v * 0.32;
         normalLine.opacity = v;
-        normalLabel.opacity = v;
       },
     });
     t.say(
@@ -294,7 +271,6 @@ export const stageRgpf: Stage = {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.32 * (1 - v);
         normalLine.opacity = 1 - v;
-        normalLabel.opacity = 1 - v;
         prism.opacity = 0.55 * (1 - v);
       },
     });
@@ -335,8 +311,6 @@ export const stageRvpf: Stage = {
 
     const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
     const normalLine = ctx.segment(ctx.color.normal, 0);
-    const normalLabel = ctx.label("", new Vector3(), "warn");
-    normalLabel.opacity = 0;
 
     const showPlane = (normal: readonly number[], d: number, mean: readonly number[]) => {
       planeSurf.layOnPlane(normal as [number, number, number], d, [-2.0, 1.1]);
@@ -345,8 +319,6 @@ export const stageRvpf: Stage = {
         .clone()
         .add(new Vector3(normal[0], normal[1], normal[2]).multiplyScalar(1.6));
       normalLine.set(base, tip);
-      normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.3)));
-      normalLabel.text = facingLabel(normal[2]);
     };
 
     const t = ctx.track();
@@ -374,7 +346,6 @@ export const stageRvpf: Stage = {
       onUpdate: (v) => {
         planeSurf.opacity = v * 0.3;
         normalLine.opacity = v;
-        normalLabel.opacity = v;
       },
     });
     t.say(
@@ -451,7 +422,6 @@ export const stageRvpf: Stage = {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.3 * (1 - v);
         normalLine.opacity = 1 - v;
-        normalLabel.opacity = 1 - v;
         prism.opacity = 0.55 * (1 - v);
       },
     });
