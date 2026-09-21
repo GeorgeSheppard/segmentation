@@ -66,10 +66,19 @@ class App {
   }
 
   async start(): Promise<void> {
-    this.hud.setLoading("Loading LiDAR scan…");
-    const cloud = await loadKittiFrame(HERO_FRAME);
+    // The scan is ~2 MB of raw float32; on a slow connection it is the whole wait.
+    this.hud.setLoading("Fetching the scan…");
+    const cloud = await loadKittiFrame(HERO_FRAME, ({ received, total }) => {
+      const mb = (received / 1e6).toFixed(1);
+      this.hud.setLoading(
+        total
+          ? `Fetching the scan… ${mb} / ${(total / 1e6).toFixed(1)} MB`
+          : `Fetching the scan… ${mb} MB`,
+        total ? received / total : undefined,
+      );
+    });
 
-    this.hud.setLoading("Running Patchwork++…");
+    this.hud.setLoading(`Segmenting ${cloud.count.toLocaleString()} points…`, 1);
     // Yield so the loading text paints before the (synchronous) segmentation runs.
     await nextFrame();
     this.frame = segmentGround(cloud, HERO_FRAME, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));

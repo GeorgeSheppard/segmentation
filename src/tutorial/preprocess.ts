@@ -11,8 +11,7 @@ export const stageRnr: Stage = {
   id: "rnr",
   steps: ["rnr"],
   title: "RNR — Reflected Noise Removal",
-  subtitle:
-    "A handful of points arrive from under the road. Each one, left alone, wrecks an entire cell.",
+  subtitle: "A few points arrive from under the road. Each one ruins the cell it lands in.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -75,9 +74,9 @@ export const stageRnr: Stage = {
     const t = ctx.track();
 
     t.say(
-      "Before anything else, Patchwork++ throws away a few points. Only a few — but they are the dangerous ones.",
-      3.0,
-    ).with(2.6, ctx.rig.flyTo(pose([-52, -40, 8], [10, 2, -5])), Ease.cinematic);
+      "First, Patchwork++ discards a handful of points. Very few, but they do real damage.",
+      3,
+    ).with(2.1, ctx.rig.flyTo(pose([-52, -40, 8], [10, 2, -5])), Ease.cinematic);
 
     // Blow the noise points up so three points among 124,000 are actually findable.
     t.add(1.4, {
@@ -88,13 +87,10 @@ export const stageRnr: Stage = {
         cloud.fadeTo(noise, 1, v);
       },
     });
-    t.say(
-      `There they are: <em>${noise.length} points</em> that claim to be metres <em>below</em> the road surface.`,
-      3.4,
-    );
+    t.say(`<em>${noise.length} points</em>, all of them metres <em>below</em> the road.`, 2.4);
 
     t.add(
-      3.0,
+      2.4,
       ctx.rig.flyTo({
         position: heroPos.clone().add(new Vector3(-13, -11, 7)),
         target: heroPos.clone().add(new Vector3(0, 0, 2.5)),
@@ -102,15 +98,12 @@ export const stageRnr: Stage = {
       Ease.cinematic,
     );
     t.add(1.0, { onUpdate: (v) => (heroLabel.opacity = v) });
-    t.say(
-      `This one sits at <em>z = ${fmt(heroPos.z)} m</em> — more than eight metres under the car. No road does that.`,
-      3.8,
-    );
+    t.say(`This one reads <em>z = ${fmt(heroPos.z)} m</em>. Eight metres under the car.`, 2.6);
 
     t.add(1.2, { onUpdate: (v) => (ray.opacity = v * 0.9) });
     t.say(
-      "It is a reflection. The beam hit something mirror-like, bounced, and came back late — so the sensor reports a point far out along the outgoing ray.",
-      4.6,
+      "It is a reflection. The beam bounced off something mirror-like and returned late, so the point lands far out along the outgoing ray.",
+      3.8,
     );
     t.add(1.0, {
       onUpdate: (v) => {
@@ -121,8 +114,8 @@ export const stageRnr: Stage = {
     t.wait(1.2);
 
     t.say(
-      "Why it matters: every plane fit in Patchwork++ starts from <em>the lowest points in a cell</em>. One phantom point below the road tips the whole plane over.",
-      4.8,
+      "Every plane fit starts from <em>the lowest points in a cell</em>. One phantom point tips the whole fit.",
+      3.2,
     );
 
     // The three tests.
@@ -148,13 +141,13 @@ export const stageRnr: Stage = {
       onUpdate: (v) => (floor.opacity = v * 0.1),
     });
     t.say(
-      "RNR only removes a point if <em>all three</em> hold: it came from a downward ray, it is well below the road, and it came back dim — reflections lose energy on the extra bounce.",
-      5.4,
+      "RNR needs <em>all three</em>: a downward ray, well below the road, and dim. Reflections lose energy on the extra bounce.",
+      3.8,
     );
 
     t.say(
-      "That last test is what makes it safe. A blunt <code>z &lt; threshold</code> filter would delete real road every time the car drives downhill.",
-      4.4,
+      "The intensity test is what makes it safe. A plain height cutoff would delete real road on every downhill.",
+      3.4,
     );
 
     t.add(1.6, {
@@ -167,9 +160,9 @@ export const stageRnr: Stage = {
         floor.opacity = 0.1 * (1 - v);
       },
     });
-    t.say("Gone. The rest of the pipeline never sees them.", 2.4);
+    t.say("Gone. Nothing downstream sees them.", 2);
 
-    t.add(3.0, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
+    t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         cloud.setAlpha(noise, 0); // the removed points stay removed
@@ -187,7 +180,7 @@ export const stageCzm: Stage = {
   steps: ["czm"],
   title: "CZM — the Concentric Zone Model",
   subtitle:
-    "504 polar cells, in four zones, with bin sizes chosen to fight sparsity far away and over-resolution up close.",
+    "504 polar cells in four zones, sized against sparsity far out and over-resolution up close.",
 
   build(ctx: StageContext) {
     const { cloud, frame, czm, params } = ctx;
@@ -229,24 +222,22 @@ export const stageCzm: Stage = {
 
     const t = ctx.track();
 
-    t.say(
-      "Looking straight down. Point density is not uniform — it falls off roughly as <em>1/r²</em>.",
-      3.0,
-    ).with(2.8, ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])), Ease.cinematic);
+    t.say("From above. Density falls off as <em>1/r²</em>.", 2.2).with(
+      2.3,
+      ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])),
+      Ease.cinematic,
+    );
 
     t.add(1.4, { onUpdate: (v) => uniGrid.setOpacity(v * 0.5) }).with(1.4, {
       onUpdate: (v) => cloud.fadeAllTo(0.35, v),
     });
     t.say(
-      "So an even polar grid gets it wrong twice: cells far out hold three or four points — too few to fit anything — while cells up close are smaller than the road's own texture.",
-      5.4,
+      "An even grid fails twice. Far cells hold three or four points. Near cells are smaller than the road’s own texture.",
+      3.8,
     );
 
     t.add(1.6, { onUpdate: (v) => uniGrid.setOpacity(0.5 * (1 - v)) });
-    t.say(
-      "The Concentric Zone Model sizes the cells to match the data. Four zones, each with its own resolution.",
-      3.6,
-    );
+    t.say("The Concentric Zone Model sizes cells to the data. Four zones, four resolutions.", 2.8);
 
     // Build the zones one at a time, outward — drawn, not faded in. A hand sweeps round
     // from straight ahead the way the sensor does, the ring arcs trail behind it, and each
@@ -287,17 +278,14 @@ export const stageCzm: Stage = {
     }
 
     t.at(t.time - 5.8).say(
-      "<em>Z1</em> is deliberately coarse — cells small enough to fit the kerb would give a meaningless normal.",
-      2.6,
+      "<em>Z1</em> is deliberately coarse. Cells small enough to fit the kerb give a meaningless normal.",
+      3,
     );
     t.say(
-      "<em>Z2</em> and <em>Z3</em> are the dense middle field, so the cells get finer. Z3 gets the most sectors of all: 54.",
-      3.0,
+      "<em>Z2</em> and <em>Z3</em> hold the dense middle field, so cells get finer. Z3 takes 54 sectors.",
+      3,
     );
-    t.say(
-      "<em>Z4</em> goes coarse again — past 41 m there is barely any data, so cells have to be big to hold enough points to fit.",
-      3.2,
-    );
+    t.say("<em>Z4</em> coarsens again. Past 41 m there is barely any data to fit.", 2.6);
 
     t.add(0.8, {
       onUpdate: (v) => {
@@ -316,14 +304,14 @@ export const stageCzm: Stage = {
         ]),
     });
     t.say(
-      `That is <em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()} — better conditioned <em>and</em> six times cheaper.`,
-      4.0,
+      `<em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()}. Better conditioned and six times cheaper.`,
+      3,
     );
 
     // Drop into a single cell: this is the unit everything else works on.
     t.add(1.0, { onUpdate: (v) => (focusOutline.opacity = v) });
     t.add(
-      3.0,
+      2.4,
       ctx.rig.flyTo(ctx.binPose(focus, { distance: 9, height: 4.5 })),
       Ease.cinematic,
     ).with(1.6, {
@@ -333,13 +321,11 @@ export const stageCzm: Stage = {
       },
     });
     t.say(
-      `From here on, everything happens inside one cell like this one — <em>${focus.indices.length.toLocaleString()} points</em>, ${focus.radii[0].toFixed(
-        1,
-      )}–${focus.radii[1].toFixed(1)} m out, 22.5° wide.`,
-      4.6,
+      `Everything from here happens in one cell: <em>${focus.indices.length.toLocaleString()} points</em>, ${focus.radii[0].toFixed(1)}\u2013${focus.radii[1].toFixed(1)} m out, 22.5° wide.`,
+      3.4,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         cloud.sizeTo(focus.indices, 1, v);

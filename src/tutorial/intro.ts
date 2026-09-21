@@ -9,8 +9,7 @@ import { fitGlobalPlane } from "./helpers.ts";
 export const stageScan: Stage = {
   id: "scan",
   title: "One LiDAR scan",
-  subtitle:
-    "A single 360° sweep from a Velodyne HDL-64E on a car in Karlsruhe, coloured by height.",
+  subtitle: "One 360° sweep from a Velodyne HDL-64E, coloured by height.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -50,30 +49,27 @@ export const stageScan: Stage = {
     const t = ctx.track();
 
     t.say(
-      `This is what a self-driving car sees: <em>${frame.cloud.count.toLocaleString()} points</em>, ten times a second, with no labels at all.`,
-      3.4,
-    ).with(2.8, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
+      `<em>${frame.cloud.count.toLocaleString()} points</em>, ten times a second. No labels.`,
+      2.6,
+    ).with(2.3, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
 
     t.say(
-      "The sensor sits at the origin, about <em>1.72 m</em> above the road. Axes are <code>x</code> forward, <code>y</code> left, <code>z</code> up.",
-      4.2,
+      "Sensor at the origin, <em>1.72 m</em> above the road. <code>x</code> forward, <code>y</code> left, <code>z</code> up.",
+      3.2,
     ).with(1.4, { onUpdate: setAxes });
 
-    t.add(3.2, ctx.rig.flyTo(pose([-14, -10, 4.5], [3.5, 1, -1.6])), Ease.cinematic).with(1.0, {
+    t.add(2.6, ctx.rig.flyTo(pose([-14, -10, 4.5], [3.5, 1, -1.6])), Ease.cinematic).with(1.0, {
       onUpdate: (v) => setAxes(1 - v),
     });
-    t.say(
-      "Up close the beam pattern shows: <em>64 laser rings</em>, dense near the car and spreading fast with distance.",
-      4.2,
-    );
+    t.say("<em>64 laser rings</em>. Dense near the car, sparse far out.", 2.4);
 
     t.add(4.2, ctx.rig.orbit(50), Ease.inOut);
     t.say(
-      "The job: split every point into <em>ground</em> and <em>not ground</em> — fast enough to be a preprocessing step, on any road, with no training data.",
-      4.4,
+      "The job: label every point <em>ground</em> or <em>not ground</em>. Fast, on any road, without training data.",
+      3.2,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
     t.wait(0.3);
 
     return t.build();
@@ -85,7 +81,7 @@ export const stageProblem: Stage = {
   id: "problem",
   title: "Why one plane is not enough",
   subtitle:
-    "Fit a single plane to the whole scan and the road's own curvature turns real ground into phantom obstacles.",
+    "Fit one plane to the whole scan and the road's curvature turns real ground into obstacles.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -125,9 +121,9 @@ export const stageProblem: Stage = {
     const t = ctx.track();
 
     t.say(
-      "The classic approach: assume the world is flat, fit <em>one</em> plane to the lowest points, call everything near it ground.",
-      3.2,
-    ).with(2.4, ctx.rig.flyTo(pose([-66, -48, 24], [6, 0, -1.6])), Ease.cinematic);
+      "The obvious approach: fit <em>one</em> plane to the lowest points. Anything near it is ground.",
+      3,
+    ).with(2.0, ctx.rig.flyTo(pose([-66, -48, 24], [6, 0, -1.6])), Ease.cinematic);
 
     t.add(1.6, {
       onEnter: () =>
@@ -142,13 +138,10 @@ export const stageProblem: Stage = {
         cloud.paint(nonGround, ctx.color.nonGround, v * 0.85);
       },
     });
-    t.say("Near the car it works. The plane is fitted there, so the road lands on it.", 3.4);
+    t.say("Near the car it works. The fit is anchored there.", 2.2);
 
-    t.add(3.2, ctx.rig.flyTo(ctx.binPose(worst, { distance: 22, height: 11 })), Ease.cinematic);
-    t.say(
-      "Further out, the surface has drifted off the fit — and the algorithm has stopped believing it is road.",
-      4.0,
-    );
+    t.add(2.6, ctx.rig.flyTo(ctx.binPose(worst, { distance: 22, height: 11 })), Ease.cinematic);
+    t.say("Further out, the road curves away from the plane.", 2.4);
 
     t.add(1.4, {
       onEnter: () =>
@@ -169,15 +162,12 @@ export const stageProblem: Stage = {
       },
     });
     t.say(
-      `<em>${missedArr.length.toLocaleString()} points</em> of real road end up labelled as obstacles. Clustering will fuse them into walls that are not there.`,
-      4.4,
+      `<em>${missedArr.length.toLocaleString()} points</em> of road, labelled obstacle. Clustering turns those into walls that are not there.`,
+      3.4,
     );
 
-    t.add(3.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
-    t.say(
-      "So: stop fitting one plane. Fit <em>hundreds of small ones</em>, and check every single one.",
-      3.8,
-    );
+    t.add(2.7, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
+    t.say("So fit <em>hundreds of small planes</em> instead, and check each one.", 2.8);
 
     return t.build();
   },

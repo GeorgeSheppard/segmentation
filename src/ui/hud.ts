@@ -118,8 +118,13 @@ export class Hud {
 
   // ------------------------------------------------------------------ loading
 
-  setLoading(text: string): void {
+  setLoading(text: string, progress?: number): void {
     this.loadingText.textContent = text;
+    const bar = document.getElementById("loading-bar");
+    if (!bar) return;
+    // Indeterminate until there is something real to report.
+    bar.style.opacity = progress === undefined ? "0" : "1";
+    bar.style.setProperty("--p", `${Math.round((progress ?? 0) * 100)}%`);
   }
 
   hideLoading(): void {

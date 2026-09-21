@@ -15,8 +15,7 @@ export const stageGle: Stage = {
   id: "gle",
   steps: ["gle"],
   title: "GLE — is that plane really ground?",
-  subtitle:
-    "R-GPF always returns a plane. Ground Likelihood Estimation is the veto: uprightness, elevation, flatness.",
+  subtitle: "R-GPF always returns a plane. GLE is the veto: uprightness, elevation, flatness.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params } = ctx;
@@ -75,10 +74,11 @@ export const stageGle: Stage = {
     const t = ctx.track();
 
     // ---- Test 1: uprightness, shown on the wall cell.
-    t.say(
-      "R-GPF is not allowed to have an opinion — it fits a plane to whatever is in the cell. This cell contains a wall.",
-      3.0,
-    ).with(2.6, ctx.rig.flyTo(ctx.binPose(wall, { distance: 9, height: 4.5 })), Ease.cinematic);
+    t.say("R-GPF fits whatever is in the cell. This one holds a wall.", 2.4).with(
+      2.1,
+      ctx.rig.flyTo(ctx.binPose(wall, { distance: 9, height: 4.5 })),
+      Ease.cinematic,
+    );
 
     t.add(1.0, {
       onEnter: () => {
@@ -93,16 +93,14 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.wall, v),
     });
     t.say(
-      `The first test is the cheapest: does the normal point <em>up</em>? Here n<sub>z</sub> = ${wall.gle!.uprightness.toFixed(
-        3,
-      )}, nowhere near the 0.707 needed for 45°. Rejected.`,
-      4.6,
+      `First test, the cheapest: does the normal point <em>up</em>? n<sub>z</sub> = ${wall.gle!.uprightness.toFixed(3)}, against 0.707 for 45°.`,
+      3.2,
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, ctx.color.nonGround, v) });
     t.wait(0.6);
 
     // ---- Test 2: elevation, shown on the roof cell.
-    t.add(2.8, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
+    t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
         cells.roof.nLabel.text = `n<sub>z</sub> = ${roof.gle!.uprightness.toFixed(3)}`;
@@ -115,10 +113,8 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      `Uprightness is not enough on its own. This plane passes it easily — n<sub>z</sub> = ${roof.gle!.uprightness.toFixed(
-        3,
-      )} — because it is the <em>roof of a car</em>, and roofs are horizontal.`,
-      4.8,
+      `Uprightness alone is not enough. This plane passes at n<sub>z</sub> = ${roof.gle!.uprightness.toFixed(3)}, because it is a <em>car roof</em>.`,
+      3.4,
     );
 
     const sensorDisc = ctx.surface(
@@ -150,17 +146,17 @@ export const stageGle: Stage = {
       },
     });
     t.say(
-      "So the second test asks where the plane <em>sits</em>. A real ground plane passes below the sensor. This one does not — its supporting point is above the origin.",
-      5.0,
+      "Second test: where does the plane <em>sit</em>? Ground passes below the sensor. This sits above it.",
+      3.2,
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.nonGround, v) });
     t.say(
-      "Near the sensor, elevation is a sharp discriminator. Far away it stops being one — a high patch might just be a hill — so past <em>17 m</em> the test is switched off and uprightness decides alone.",
-      5.2,
+      "Elevation only discriminates near the sensor. Far out a high patch may be a hill, so past <em>17 m</em> the test is off.",
+      3.6,
     );
 
     // ---- Test 3: flatness, on the good cell.
-    t.add(2.8, ctx.rig.flyTo(ctx.binPose(good, { distance: 8.5, height: 4.2 })), Ease.cinematic);
+    t.add(2.3, ctx.rig.flyTo(ctx.binPose(good, { distance: 8.5, height: 4.2 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
         cells.good.nLabel.text = `n<sub>z</sub> = ${good.gle!.uprightness.toFixed(4)}`;
@@ -180,23 +176,21 @@ export const stageGle: Stage = {
       },
     });
     t.say(
-      "The third test is a rescue, not a rejection. A steep but genuinely smooth slope fails elevation — yet it is obviously a surface.",
-      4.6,
+      "The third test rescues rather than rejects. A steep but smooth slope fails elevation and is still a surface.",
+      3.4,
     );
 
     t.say(
-      `So flatness gets a vote: <em>λ₃</em>, the smallest eigenvalue, is the plane's physical thickness. Here it is ${good.gle!.flatness.toExponential(
-        2,
-      )} m² — a few millimetres of road texture.`,
-      5.0,
+      `So flatness votes. <em>λ₃</em> is the plane’s thickness: ${good.gle!.flatness.toExponential(2)} m² here, a few millimetres of road texture.`,
+      3.4,
     );
 
     t.say(
-      "Patchwork used a <em>ratio</em> of eigenvalues here. Patchwork++ dropped that: because CZM cells differ in size and shape, the ratio moved even when the ground did not. Raw λ₃ means the same thing everywhere.",
-      5.6,
+      "Patchwork used an eigenvalue <em>ratio</em>. It moved when cell shape changed, not when the ground did. Raw λ₃ is consistent.",
+      3.8,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         for (const c of Object.values(cells)) reveal(c, 1 - v);
@@ -213,7 +207,7 @@ export const stageSweep: Stage = {
   id: "sweep",
   steps: ["seeds", "rvpf", "rgpf", "gle"],
   title: "504 cells, one scan",
-  subtitle: "Everything so far, applied to the whole sweep — ring by ring, outward from the car.",
+  subtitle: "Everything so far, over the whole sweep, ring by ring outward.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -250,11 +244,8 @@ export const stageSweep: Stage = {
 
     const t = ctx.track();
 
-    t.say(
-      "That whole procedure — seed, peel, fit, judge — now runs in every cell, ring by ring, working outward.",
-      3.0,
-    ).with(
-      2.6,
+    t.say("Seed, peel, fit, judge. Now in every cell, ring by ring, outward.", 2.6).with(
+      2.1,
       ctx.rig.flyTo({
         position: new Vector3(-14, -24, 86),
         target: new Vector3(0, 0, -1.7),
@@ -304,13 +295,10 @@ export const stageSweep: Stage = {
     }
 
     t.at(1.0).say(
-      "The cell itself is the unit of work — 504 independent little problems, each small enough that the flat-world assumption actually holds.",
-      4.4,
+      "The cell is the unit of work: 504 small problems, each one flat enough for the assumption to hold.",
+      3.4,
     );
-    t.say(
-      "Notice what is <em>not</em> here: no training data, no per-scene tuning, and no random sampling anywhere.",
-      4.0,
-    );
+    t.say("No training data, no per-scene tuning, no random sampling.", 2.6);
 
     t.at(Math.max(t.time, 2.6 + ringOrder.length * perRing + 0.4));
     t.add(1.2, {
@@ -323,11 +311,11 @@ export const stageSweep: Stage = {
         ]),
     });
     t.say(
-      `Almost everything is decided. Almost — the amber points sit in cells GLE could not call either way. On this scan there is exactly <em>one such cell</em>.`,
-      4.4,
+      "Nearly all decided. The amber points sit in cells GLE could not call. This scan has <em>one</em>.",
+      3,
     );
 
-    t.add(3.0, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
+    t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
       onUpdate: (v) => {
         grid.setOpacity(0.25 * (1 - v));
         sweepRing.opacity = 0;
@@ -344,8 +332,7 @@ export const stageTgr: Stage = {
   id: "tgr",
   steps: ["tgr"],
   title: "TGR — Temporal Ground Revert",
-  subtitle:
-    "The borderline cells get one more hearing — judged against the other cells in their own ring, right now.",
+  subtitle: "Borderline cells get one more hearing, against the other cells in their own ring.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -395,12 +382,10 @@ export const stageTgr: Stage = {
     const t = ctx.track();
 
     t.say(
-      `Here is one of them: a small patch ${hero.radii[0].toFixed(
-        1,
-      )} m out, sitting <em>above</em> the elevation threshold and not flat enough to be rescued.`,
-      3.4,
+      `That cell: a small patch ${hero.radii[0].toFixed(1)} m out, <em>above</em> the elevation threshold and not flat enough to rescue.`,
+      3.2,
     )
-      .with(2.8, ctx.rig.flyTo(ctx.binPose(hero, { distance: 10, height: 5 })), Ease.cinematic)
+      .with(2.3, ctx.rig.flyTo(ctx.binPose(hero, { distance: 10, height: 5 })), Ease.cinematic)
       .with(1.2, {
         onUpdate: (v) => {
           heroOutline.opacity = v * 0.9;
@@ -413,8 +398,8 @@ export const stageTgr: Stage = {
       });
 
     t.say(
-      "The thresholds it failed were learned from <em>hundreds</em> of past frames. A patch of gravel or grass that is rough <em>today</em> will always lose that argument.",
-      5.0,
+      "Those thresholds came from <em>hundreds</em> of past frames. Gravel that is rough <em>today</em> always loses.",
+      3.2,
     );
 
     t.add(1.4, {
@@ -429,8 +414,8 @@ export const stageTgr: Stage = {
       },
     });
     t.say(
-      `So TGR asks a different question: how flat are the cells in <em>this ring, in this scan</em>? These ${ring.flatnessSamples.length} are the ones GLE was confident about.`,
-      5.0,
+      `TGR asks a different question: how flat is <em>this ring, this scan</em>? These ${ring.flatnessSamples.length} cells are the reference.`,
+      3.4,
     );
 
     const verdict = hero.tgr!;
@@ -466,23 +451,18 @@ export const stageTgr: Stage = {
       },
     });
     t.say(
-      `Against its own neighbours it is <em>not</em> rough — λ₃ = ${hero.gle!.flatness.toExponential(
-        2,
-      )} against µ = ${verdict.mu.toExponential(2)}. Reverted to ground.`,
-      4.6,
+      `Against its neighbours it is not rough: λ₃ = ${hero.gle!.flatness.toExponential(2)} against µ = ${verdict.mu.toExponential(2)}. Reverted.`,
+      3,
     );
 
     t.say(
-      "One more guard before it counts: <em>λ₁/λ₂</em>. A guardrail seen edge-on is thin too — but it is a <em>line</em>, not a surface, and a ratio above 8 vetoes the revert.",
-      5.2,
+      "One guard: <em>λ₁/λ₂</em>. A guardrail seen edge-on is thin too, so a ratio above 8 vetoes the revert.",
+      3.2,
     );
 
-    t.say(
-      "Across SemanticKITTI this buys about <em>+0.5% recall</em> for a rounding error of precision. It is the difference between 'nearly always works' and 'no partial failures'.",
-      5.0,
-    );
+    t.say("Across SemanticKITTI: <em>+0.5% recall</em>, precision unchanged to rounding.", 2.8);
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         heroOutline.opacity = 0.9 * (1 - v);

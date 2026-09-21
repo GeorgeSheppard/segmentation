@@ -175,9 +175,13 @@ owns the build, so there is no token in CI and no deploy step in the workflows:
 | Production branch | `main`, with non-production branch builds on |
 
 Because the project runs the build itself, `wrangler.jsonc` deliberately has **no**
-`build.command` — that would build a second time inside `wrangler deploy`. `workers_dev` and
+`build.command`; that would build a second time inside `wrangler deploy`. `workers_dev` and
 `preview_urls` are on, which is what makes the version command's upload reachable at
 `<version>-segmentation.<subdomain>.workers.dev`.
+
+Workers Builds reports that URL in the **check run summary**, not as a PR comment (commenting
+is a Pages behaviour). `.github/workflows/preview-comment.yml` mirrors it into a comment so
+the link sits on the conversation tab instead of two clicks into the build.
 
 ## Development
 

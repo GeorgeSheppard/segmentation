@@ -17,7 +17,7 @@ export const stageAgle: Stage = {
   steps: ["agle"],
   title: "A-GLE — it tunes itself",
   subtitle:
-    "The elevation and flatness thresholds are not set by a human. They are measured, every frame, from the cells the algorithm was most sure about.",
+    "The thresholds are measured every frame, from the cells the algorithm was surest about.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params, czm } = ctx;
@@ -74,9 +74,9 @@ export const stageAgle: Stage = {
     const t = ctx.track();
 
     t.say(
-      "Two of those three tests needed a threshold. In Patchwork, a human picked them — and the right value is different on a motorway, in a suburb, and on a country lane.",
+      "Two of those tests need a threshold. Patchwork had a human pick them, and the right value differs by scene.",
       3.2,
-    ).with(2.8, ctx.rig.flyTo(pose([-26, -30, 26], [4, 0, -1.6])), Ease.cinematic);
+    ).with(2.3, ctx.rig.flyTo(pose([-26, -30, 26], [4, 0, -1.6])), Ease.cinematic);
 
     t.add(1.4, {
       onUpdate: (v) => {
@@ -87,10 +87,8 @@ export const stageAgle: Stage = {
       },
     });
     t.say(
-      `A-GLE measures them instead. Only the inner <em>${params.numRingsOfInterest} rings</em> take part — out past ${czm.minRanges[1].toFixed(
-        0,
-      )} m the tests are off anyway.`,
-      4.6,
+      `A-GLE measures them instead, from the inner <em>${params.numRingsOfInterest} rings</em>. Past ${czm.minRanges[1].toFixed(0)} m the tests are off anyway.`,
+      3.2,
     );
 
     t.add(1.6, {
@@ -107,13 +105,13 @@ export const stageAgle: Stage = {
       },
     });
     t.say(
-      "These are the cells that passed <em>every</em> test with room to spare — the <em>definite ground</em>. Roughly 96% of them really are road.",
-      4.8,
+      "Cells that passed <em>every</em> test with room to spare: the <em>definite ground</em>. About 96% are road.",
+      3.4,
     );
 
     t.say(
-      "So they make a good ruler. Take their heights, take their thicknesses, and set the next frame's thresholds to <em>mean + a few standard deviations</em>.",
-      4.8,
+      "Good enough to measure against. Next frame’s thresholds are <em>mean + a few standard deviations</em> of these.",
+      3.4,
     );
 
     // Drop the threshold discs from the cold-start zero down to the learned values.
@@ -141,8 +139,8 @@ export const stageAgle: Stage = {
       Ease.inOut,
     );
     t.at(t.time - 2.6).say(
-      "Watch them fall. They started this scan at <em>zero</em> — the cold-start value — and land on the road.",
-      2.8,
+      "Watch them fall. They started this scan at <em>zero</em> and land on the road.",
+      2.6,
     );
     t.wait(1.2);
 
@@ -157,8 +155,8 @@ export const stageAgle: Stage = {
         ]),
     });
     t.say(
-      "The flatness thresholds are learned the same way — and they end up describing how rough <em>this</em> road actually is, not how rough roads are in general.",
-      4.8,
+      "Flatness is learned the same way, describing how rough <em>this</em> road is rather than roads in general.",
+      3.4,
     );
 
     // The sensor height correction, and its effect on RNR.
@@ -174,18 +172,13 @@ export const stageAgle: Stage = {
         ]),
     });
     t.say(
-      `There is a bonus: the innermost ring also measures the <em>sensor height</em>. It was told 1.723 m; it measured <em>${after.sensorHeight.toFixed(
-        3,
-      )} m</em> — and that number is what RNR's floor rides on.`,
-      5.4,
+      `The innermost ring also measures the <em>sensor height</em>. Told 1.723 m, measured <em>${after.sensorHeight.toFixed(3)} m</em>. RNR’s floor rides on it.`,
+      3.8,
     );
 
-    t.say(
-      "So the noise filter follows the car downhill instead of eating the road. Every part of the loop feeds the next frame.",
-      4.4,
-    );
+    t.say("So the noise filter follows the car downhill instead of eating the road.", 2.8);
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         for (const r of roi) {
@@ -205,8 +198,7 @@ export const stageAgle: Stage = {
 export const stageResult: Stage = {
   id: "result",
   title: "The result",
-  subtitle:
-    "Ground and not-ground, from one CPU core, in a few milliseconds, with nothing learned in advance.",
+  subtitle: "Ground and not-ground, one CPU core, a few milliseconds, nothing learned in advance.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -240,10 +232,10 @@ export const stageResult: Stage = {
     const t = ctx.track();
 
     t.say(
-      `Every point placed: <em>${g.length.toLocaleString()} ground</em>, <em>${n.length.toLocaleString()} not</em>. The road is continuous, the cars are solid, the walls stand.`,
-      3.4,
+      `Every point placed: <em>${g.length.toLocaleString()} ground</em>, <em>${n.length.toLocaleString()} not</em>.`,
+      2.4,
     )
-      .with(2.4, ctx.rig.flyTo(pose([-46, -38, 20], [6, 0, -1.6])), Ease.cinematic)
+      .with(2.0, ctx.rig.flyTo(pose([-46, -38, 20], [6, 0, -1.6])), Ease.cinematic)
       .with(1.6, {
         onEnter: () =>
           ctx.readout("Patchwork++", [
@@ -265,8 +257,8 @@ export const stageResult: Stage = {
       },
     });
     t.say(
-      "Ground alone: kerbs, the crown of the road, the pavement rising onto the verge — it followed all of it, because it never assumed any of it was flat.",
-      5.0,
+      "Ground alone: kerbs, the road’s camber, the pavement rising onto the verge. None of it assumed flat.",
+      3.4,
     );
 
     t.add(1.4, {
@@ -283,8 +275,8 @@ export const stageResult: Stage = {
         ]),
     });
     t.say(
-      `In cyan: the <em>${rescued.length.toLocaleString()} points</em> of road that step 2's single plane threw away. That gap is the whole point of the paper.`,
-      4.8,
+      `In cyan, the <em>${rescued.length.toLocaleString()} points</em> of road the single plane threw away.`,
+      3,
     );
 
     t.add(4.5, ctx.rig.orbit(65), Ease.inOut).with(1.0, {
@@ -298,17 +290,14 @@ export const stageResult: Stage = {
         ),
     });
     t.say(
-      "<em>RNR</em> kills the reflections. <em>CZM</em> sizes the cells to the data. <em>R-VPF</em> peels the walls. <em>R-GPF</em> fits. <em>GLE</em> judges. <em>A-GLE</em> learns the thresholds. <em>TGR</em> gives the close calls a second hearing.",
-      6.0,
+      "<em>RNR</em> drops reflections. <em>CZM</em> sizes the cells. <em>R-VPF</em> peels walls. <em>R-GPF</em> fits. <em>GLE</em> judges. <em>A-GLE</em> learns the thresholds. <em>TGR</em> re-hears the close calls.",
+      4.4,
     );
 
-    t.add(3.0, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(2.0, {
+    t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(2.0, {
       onUpdate: (v) => cloud.fadeTo(n, 0.9, v),
     });
-    t.say(
-      "Seven ideas, no training data, one CPU core. Drag to look around — or start again from the top.",
-      4.0,
-    );
+    t.say("Drag to look around, or start again from the top.", 2.6);
 
     return t.build();
   },

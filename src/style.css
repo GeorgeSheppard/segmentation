@@ -122,6 +122,24 @@ body {
   margin: 0;
   letter-spacing: 0.02em;
 }
+#loading-bar {
+  width: 190px;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+#loading-bar i {
+  display: block;
+  height: 100%;
+  width: var(--p, 0%);
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.12s linear;
+}
+
 .spinner {
   width: 34px;
   height: 34px;

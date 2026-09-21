@@ -15,7 +15,7 @@ export const stageSeeds: Stage = {
   steps: ["seeds"],
   title: "Seeds — the lowest points win",
   subtitle:
-    "Inside a cell, sort by height, average the 20 lowest, and take everything within 12.5 cm of that as the seed set.",
+    "Sort the cell by height, average the 20 lowest, and seed from everything within 12.5 cm.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params } = ctx;
@@ -63,16 +63,13 @@ export const stageSeeds: Stage = {
     const t = ctx.track();
 
     t.say(
-      `One cell, <em>${idx.length.toLocaleString()} points</em>. Part road, part parked car. Patchwork++ has to find the road part without being told which is which.`,
-      3.4,
+      `One cell, <em>${idx.length.toLocaleString()} points</em>. Part road, part parked car, and nothing says which.`,
+      3,
     )
-      .with(2.6, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8.5, height: 4.2 })), Ease.cinematic)
+      .with(2.1, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8.5, height: 4.2 })), Ease.cinematic)
       .with(1.2, { onUpdate: (v) => (prism.opacity = v * 0.8) });
 
-    t.say(
-      "The only assumption it makes: <em>the lowest points in a cell are probably ground</em>. Everything else follows from that.",
-      3.8,
-    );
+    t.say("One assumption: <em>the lowest points in a cell are probably ground</em>.", 2.6);
 
     // Sweep a plane up through the cell — this *is* the sort by z.
     const zLo = ctx.xyz[idx[0] * 3 + 2] - 0.05;
@@ -93,8 +90,8 @@ export const stageSeeds: Stage = {
       },
     });
     t.at(t.time - 3.0).say(
-      "So: sort the cell by height. <em>O(M log M)</em> inside one cell, not over the whole cloud — that single change is why Patchwork++ is faster than Patchwork.",
-      3.0,
+      "Sort the cell by height. <em>O(M log M)</em> inside one cell, not over the whole cloud, which is why Patchwork++ is faster than Patchwork.",
+      3.8,
     );
 
     t.add(1.2, {
@@ -106,10 +103,8 @@ export const stageSeeds: Stage = {
       },
     });
     t.say(
-      `Take the <em>${params.numLPR} lowest</em> and average their height. That is the <em>Lowest Point Representative</em>: ${fmt(
-        bin.lprHeight,
-      )} m — a robust stand-in for "where the road is here".`,
-      4.6,
+      `Average the <em>${params.numLPR} lowest</em> heights. That is the <em>Lowest Point Representative</em>: ${fmt(bin.lprHeight)} m.`,
+      3.2,
     );
 
     t.add(1.2, {
@@ -120,13 +115,13 @@ export const stageSeeds: Stage = {
       },
     });
     t.say(
-      `Everything within <code>th_seeds = 0.125 m</code> above the LPR becomes a <em>seed</em>: ${bin.seedCount.toLocaleString()} of the cell's ${idx.length.toLocaleString()} points.`,
-      4.4,
+      `Points within <code>th_seeds = 0.125 m</code> of it are <em>seeds</em>: ${bin.seedCount.toLocaleString()} of ${idx.length.toLocaleString()}.`,
+      3,
     );
 
     t.say(
-      "No random sampling, no RANSAC iterations — the seed set is <em>deterministic</em>. That is the trick that makes this fast enough to run 500 times per scan.",
-      4.6,
+      "No sampling, no RANSAC. The seed set is <em>deterministic</em>, which is what makes 500 fits per scan affordable.",
+      3.6,
     );
 
     t.add(0.9, {
@@ -139,11 +134,11 @@ export const stageSeeds: Stage = {
         ]),
     });
     t.say(
-      "And it is the weak point too: one phantom point below the road would drag the LPR down with it. Which is exactly why RNR ran first.",
-      4.4,
+      "It is also the weak point. One phantom point drags the LPR down with it, which is why RNR ran first.",
+      3.2,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         prism.opacity = 0.8 * (1 - v);
@@ -165,7 +160,7 @@ export const stageRgpf: Stage = {
   steps: ["rgpf"],
   title: "R-GPF — fit, re-select, repeat",
   subtitle:
-    "PCA on the seeds gives a plane. Everything within 12.5 cm of it becomes the new seed set. Three times.",
+    "PCA on the seeds gives a plane. Points within 12.5 cm become the next seed set. Three times.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params } = ctx;
@@ -214,11 +209,8 @@ export const stageRgpf: Stage = {
 
     const t = ctx.track();
 
-    t.say(
-      "Start from the seeds. Take their covariance, and eigen-decompose it — a <em>PCA</em>, not a RANSAC.",
-      3.2,
-    )
-      .with(2.4, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 4 })), Ease.cinematic)
+    t.say("Take the seeds’ covariance and eigen-decompose it. A <em>PCA</em>, not a RANSAC.", 2.8)
+      .with(2.0, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 4 })), Ease.cinematic)
       .with(1.0, { onUpdate: (v) => cloud.paint(seeds, ctx.color.seed, v) });
 
     t.add(1.2, {
@@ -235,8 +227,8 @@ export const stageRgpf: Stage = {
         ]),
     });
     t.say(
-      "The eigenvector of the <em>smallest</em> eigenvalue points across the thinnest direction of the point set — which, for a patch of road, is straight up. That is the surface normal.",
-      5.2,
+      "The <em>smallest</em> eigenvalue’s eigenvector points across the thinnest direction. For road, that is straight up: the surface normal.",
+      3.8,
     );
 
     // Three refinement passes.
@@ -274,17 +266,17 @@ export const stageRgpf: Stage = {
 
       if (it === 0) {
         t.at(t.time - 2.0).say(
-          "Now measure every point in the cell against that plane. Within <code>th_dist = 0.125 m</code> — <em>or below it</em> — and it counts as ground.",
-          2.0,
+          "Now measure every point against that plane. Within <code>th_dist = 0.125 m</code>, or below it, counts as ground.",
+          3.4,
         );
         t.say(
-          "The test is one-sided on purpose: dips and road texture below the plane are still road. Only points sticking <em>up</em> are rejected.",
-          2.6,
+          "One-sided on purpose. Dips below the plane are still road; only points sticking <em>up</em> are rejected.",
+          3,
         );
       } else {
         t.say(
-          `Refit on the ${accepted.length.toLocaleString()} points that passed, and measure again. The plane settles onto the road.`,
-          2.4,
+          `Refit on the ${accepted.length.toLocaleString()} that passed, then measure again. The plane settles.`,
+          2.6,
         );
       }
       t.wait(0.3);
@@ -308,16 +300,16 @@ export const stageRgpf: Stage = {
       },
     });
     t.say(
-      `After three passes the cell is split: <em>${finalGround.length.toLocaleString()} ground</em>, <em>${finalNon.length.toLocaleString()} not</em>. The car is cleanly separated from the tarmac it is parked on.`,
-      4.6,
+      `Three passes, and the cell splits: <em>${finalGround.length.toLocaleString()} ground</em>, <em>${finalNon.length.toLocaleString()} not</em>.`,
+      3,
     );
 
     t.say(
-      "This runs for every one of the 504 cells. But there is a catch — R-GPF <em>always</em> returns a plane, even in a cell that contains nothing but a wall.",
-      4.8,
+      "This runs in all 504 cells. The catch: R-GPF <em>always</em> returns a plane, even for a cell holding only a wall.",
+      3.6,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.32 * (1 - v);
@@ -338,7 +330,7 @@ export const stageRvpf: Stage = {
   steps: ["rvpf"],
   title: "R-VPF — peeling off vertical structure",
   subtitle:
-    "When ground sits on a kerb, a fence or a retaining wall, the wall's points are lower — so they win the seeding and tip the plane.",
+    "When ground sits on a kerb or a wall, the wall's points are lower, so they win the seeding.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params } = ctx;
@@ -380,19 +372,17 @@ export const stageRvpf: Stage = {
     const t = ctx.track();
 
     t.say(
-      `A different cell, ${bin.radii[0].toFixed(1)}–${bin.radii[1].toFixed(
-        1,
-      )} m out. There is a low structure in it, and there is ground <em>on top of</em> that structure.`,
-      3.4,
+      `A different cell, ${bin.radii[0].toFixed(1)}\u2013${bin.radii[1].toFixed(1)} m out. A low structure, with ground <em>on top of</em> it.`,
+      3,
     ).with(
-      2.6,
+      2.1,
       ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 3.8, swing: 0.7 })),
       Ease.cinematic,
     );
 
     t.say(
-      "The ground up there is still ground — a person can stand on it. But its points are <em>higher</em> than the wall's, so the seeding picks the wall instead.",
-      4.6,
+      "That is still ground; a person can stand on it. But it sits <em>higher</em> than the wall, so seeding picks the wall.",
+      3.4,
     );
 
     // Show the damage first: the plane you get without peeling.
@@ -412,16 +402,11 @@ export const stageRvpf: Stage = {
       },
     });
     t.say(
-      `Fit it as-is and you get this: a plane standing almost on edge, <em>n<sub>z</sub> = ${first.normal[2].toFixed(
-        3,
-      )}</em>. PCA has no defence against that — it just fits what it is given.`,
-      4.8,
+      `Fit it as-is and the plane stands on edge: <em>n<sub>z</sub> = ${first.normal[2].toFixed(3)}</em>. PCA fits whatever it is given.`,
+      3.4,
     );
 
-    t.say(
-      "So R-VPF does the opposite of what you would expect. Before fitting the ground, it deliberately fits the <em>wall</em> — and throws it away.",
-      4.6,
-    );
+    t.say("R-VPF fits the <em>wall</em> first, on purpose, and deletes it.", 2.6);
 
     // Peel, iteration by iteration.
     let removedSoFar: number[] = [];
@@ -471,15 +456,13 @@ export const stageRvpf: Stage = {
         });
         removedSoFar = removedSoFar.concat(Array.from(batch));
         t.say(
-          `Pass ${i + 1}: the plane is vertical, so every point lying in it — <em>${batch.length.toLocaleString()} of them</em> — is tagged as structure and removed.`,
+          `Pass ${i + 1}: the plane is vertical, so the <em>${batch.length.toLocaleString()} points</em> lying in it are removed.`,
           2.8,
         );
       } else {
         t.say(
-          `Pass ${i + 1}: the plane has <em>stood up</em> (n<sub>z</sub> = ${pass.plane.normal[2].toFixed(
-            3,
-          )}). The wall is gone. R-VPF stops here — what is left is ground.`,
-          4.0,
+          `Pass ${i + 1}: the plane has <em>stood up</em> (n<sub>z</sub> = ${pass.plane.normal[2].toFixed(3)}). Wall gone, R-VPF stops.`,
+          3,
         );
       }
     });
@@ -501,16 +484,16 @@ export const stageRvpf: Stage = {
       },
     });
     t.say(
-      `Now R-GPF runs on what survived, and the ground on top of the structure is recovered: <em>${bin.cellGround.length} points</em> that Patchwork would have thrown away.`,
-      4.8,
+      `R-GPF now runs on the survivors and recovers <em>${bin.cellGround.length} points</em> Patchwork would have discarded.`,
+      3.2,
     );
 
     t.say(
-      "There is a second prize. With the wall gone, what is left really is planar — so the cell's <em>thickness</em> collapses, and a thin cell is one the flatness test can accept.",
-      5.0,
+      "Second effect: without the wall the cell is genuinely planar, so its <em>thickness</em> collapses. Thin cells pass the flatness test.",
+      3.8,
     );
 
-    t.add(3.2, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
+    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.3 * (1 - v);
