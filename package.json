@@ -12,11 +12,11 @@
     "verify": "node --experimental-strip-types scripts/verify-port.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "deploy": "wrangler deploy",
+    "deploy": "pnpm run build && wrangler deploy",
     "preview:cf": "pnpm run build && wrangler dev",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "preview:upload": "wrangler versions upload"
+    "preview:upload": "pnpm run build && wrangler versions upload"
   },
   "dependencies": {
     "three": "^0.186.0"

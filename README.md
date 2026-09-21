@@ -164,14 +164,20 @@ pnpm preview:cf      # serve it locally the way Cloudflare will
 pnpm preview:upload  # upload a version — preview URL, production untouched
 ```
 
-The build is part of the deploy: `wrangler.jsonc` declares `build.command`, so a bare
-`wrangler deploy` runs `pnpm build` first and then uploads `./dist`. That matters because
-Cloudflare's **Git integration** (Workers & Pages → Builds) runs `wrangler deploy` on its own
-builder — with the build declared in config there is nothing to configure in the dashboard
-beyond connecting the repository, and no API token in CI.
+The Cloudflare project (**Workers & Pages → segmentation**) is connected to this repo and
+owns the build, so there is no token in CI and no deploy step in the workflows:
 
-`workers_dev` and `preview_urls` are on, which is what serves per-branch and per-PR previews
-at `<version>-patchworkpp-tutorial.<subdomain>.workers.dev`.
+| Setting           | Value                                        |
+| ----------------- | -------------------------------------------- |
+| Build command     | `pnpm build`                                 |
+| Deploy command    | `npx wrangler deploy`                        |
+| Version command   | `npx wrangler versions upload`               |
+| Production branch | `main`, with non-production branch builds on |
+
+Because the project runs the build itself, `wrangler.jsonc` deliberately has **no**
+`build.command` — that would build a second time inside `wrangler deploy`. `workers_dev` and
+`preview_urls` are on, which is what makes the version command's upload reachable at
+`<version>-patchworkpp-tutorial.<subdomain>.workers.dev`.
 
 ## Development
 
