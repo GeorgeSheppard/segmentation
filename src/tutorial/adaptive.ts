@@ -9,7 +9,7 @@ import {
 } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fitGlobalPlane, fmt } from "./helpers.ts";
+import { fitGlobalPlane, fmt, thickness } from "./helpers.ts";
 
 /** Step 11 — A-GLE: the algorithm tunes its own thresholds from what it just saw. */
 export const stageAgle: Stage = {
@@ -29,7 +29,7 @@ export const stageAgle: Stage = {
     cloud.captureBase();
 
     ctx.legend([
-      { color: ctx.color.ground, label: "definite ground", note: "upright, low, near — set Dₘ" },
+      { color: ctx.color.ground, label: "definite ground", note: "upright, low and near" },
       { color: ctx.color.plane, label: "elevation threshold", note: "learned per ring" },
     ]);
 
@@ -93,7 +93,7 @@ export const stageAgle: Stage = {
 
     t.add(1.6, {
       onEnter: () =>
-        ctx.readout("Definite ground Dₘ", [
+        ctx.readout("Definite ground", [
           { label: "cells", value: String(roi.reduce((s, r) => s + r.cells.length, 0)) },
           { label: "points", value: definite.length.toLocaleString() },
           { label: "purity (paper)", value: "95.8%", state: "pass" },
@@ -109,10 +109,7 @@ export const stageAgle: Stage = {
       3.4,
     );
 
-    t.say(
-      "Good enough to measure against. Next frame’s thresholds are <em>mean + a few standard deviations</em> of these.",
-      3.4,
-    );
+    t.say("Good enough to measure against. Next frame's thresholds are these, plus a margin.", 3);
 
     // Drop the threshold discs from the cold-start zero down to the learned values.
     t.add(
@@ -139,17 +136,17 @@ export const stageAgle: Stage = {
       Ease.inOut,
     );
     t.at(t.time - 2.6).say(
-      "Watch them fall. They started this scan at <em>zero</em> and land on the road.",
+      "They started this scan at <em>zero</em> and settle onto the road.",
       2.6,
     );
     t.wait(1.2);
 
     t.add(1.4, {
       onEnter: () =>
-        ctx.readout("Flatness threshold λ₃", [
+        ctx.readout("Thickness limit", [
           ...roi.map((r) => ({
             label: `ring ${r.m}`,
-            value: after.flatnessThr[r.m].toExponential(1),
+            value: thickness(after.flatnessThr[r.m]),
             state: "pass" as const,
           })),
         ]),
@@ -176,7 +173,7 @@ export const stageAgle: Stage = {
       3.8,
     );
 
-    t.say("So the noise filter follows the car downhill instead of eating the road.", 2.8);
+    t.say("So the noise filter follows the car downhill rather than cutting into the road.", 3);
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
@@ -256,10 +253,7 @@ export const stageResult: Stage = {
         cloud.fadeTo(n, Math.max(ctx.dim, 0.1), v);
       },
     });
-    t.say(
-      "Ground alone: kerbs, the road’s camber, the pavement rising onto the verge. None of it assumed flat.",
-      3.4,
-    );
+    t.say("Ground alone: kerbs, the road's camber, the pavement rising onto the verge.", 3);
 
     t.add(1.4, {
       onUpdate: (v) => {

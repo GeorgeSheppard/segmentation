@@ -128,7 +128,7 @@ export const stageProblem: Stage = {
     t.add(1.6, {
       onEnter: () =>
         ctx.readout("Single plane (GPF)", [
-          { label: "normal z", value: plane.normal[2].toFixed(4) },
+          { label: "facing up (1 = flat)", value: plane.normal[2].toFixed(4) },
           { label: "ground", value: ground.length.toLocaleString() },
           { label: "obstacles", value: nonGround.length.toLocaleString() },
         ]),

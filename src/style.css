@@ -101,29 +101,38 @@ body {
 
 /* ---------------------------------------------------------------- loading */
 
+/* A chip in the middle of the empty scene, not a curtain over the page: the titles, the
+   step rail and the controls are all readable while the points are still arriving. */
 #loading {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 18px;
-  background: var(--surface);
-  z-index: 60;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  z-index: 25;
+  pointer-events: none;
   transition: opacity 0.5s ease;
 }
 #loading.hidden {
   opacity: 0;
-  pointer-events: none;
 }
 #loading p {
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 #loading-bar {
-  width: 190px;
+  width: 70px;
   height: 3px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--text-faint) 30%, transparent);
@@ -141,8 +150,9 @@ body {
 }
 
 .spinner {
-  width: 34px;
-  height: 34px;
+  width: 18px;
+  height: 18px;
+  flex: none;
   border: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-top-color: var(--accent);
   border-radius: 50%;
@@ -430,6 +440,45 @@ body {
 #caption-text em {
   color: var(--accent);
   font-style: normal;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ gesture hint */
+
+/* One line, on touch devices only, saying what fingers do. Never in the way: it cannot be
+   touched, and it leaves at the first gesture. */
+#gesture-hint {
+  /* Floated above the bottom band rather than stacked into it, so a hint that is on
+     screen for nine seconds never squeezes the scene. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin: 0 0 8px;
+  width: fit-content;
+  max-width: calc(100% - 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+#gesture-hint.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#gesture-hint b {
+  color: var(--text);
   font-weight: 600;
 }
 

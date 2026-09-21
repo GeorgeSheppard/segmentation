@@ -24,9 +24,14 @@ export interface HudCallbacks {
   onSpeed: (speed: number) => void;
   onJump: (index: number) => void;
   onTheme: (id: ThemeId) => void;
+  onRecentre: () => void;
 }
 
 const SPEEDS = [0.5, 1, 1.5, 2];
+
+/** How long the touch-gesture hint stays up if nobody touches anything. */
+const HINT_MS = 9000;
+const HINT_SEEN_KEY = "patchworkpp.gesture-hint-seen";
 
 export class Hud {
   private readonly stepNum = byId("step-num");
@@ -46,6 +51,8 @@ export class Hud {
   private readonly btnContinue = byId("btn-continue") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
+  private readonly btnRecentre = byId("btn-recentre") as HTMLButtonElement;
+  private readonly gestureHint = byId("gesture-hint");
   private readonly speedGroup = byId("speed");
   private readonly loading = byId("loading");
   private readonly loadingText = byId("loading-text");
@@ -53,6 +60,9 @@ export class Hud {
 
   private currentCaption = "";
   private verdictTimer = 0;
+  private hintTimer = 0;
+  private busy = false;
+  private stageIndex = 0;
 
   constructor(private readonly cb: HudCallbacks) {
     this.verdict = document.createElement("div");
@@ -62,6 +72,7 @@ export class Hud {
     this.btnContinue.addEventListener("click", () => cb.onContinue());
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
+    this.btnRecentre.addEventListener("click", () => cb.onRecentre());
 
     for (const s of SPEEDS) {
       const b = document.createElement("button");
@@ -94,6 +105,7 @@ export class Hud {
 
   private onKey(e: KeyboardEvent): void {
     if (e.target instanceof HTMLInputElement) return;
+    if (this.busy && e.key !== "Escape") return;
     switch (e.key) {
       case " ":
       case "Enter":
@@ -134,6 +146,48 @@ export class Hud {
     }, 600);
   }
 
+  /**
+   * While the scan is still downloading the page is fully drawn but there is nothing to
+   * step through yet, so the transport is held rather than hidden.
+   */
+  setBusy(busy: boolean): void {
+    this.busy = busy;
+    this.btnContinue.disabled = busy;
+    this.btnReplay.disabled = busy;
+    this.btnPrev.disabled = busy || this.stageIndex === 0;
+  }
+
+  // ------------------------------------------------------------------ camera
+
+  /** The camera is the viewer's while `manual` holds; offer them the way back. */
+  setManualCamera(manual: boolean): void {
+    this.btnRecentre.hidden = !manual;
+    if (manual) this.dismissGestureHint();
+  }
+
+  /**
+   * Touch devices get one line telling them what their fingers do. It goes away at the
+   * first touch, and never comes back once it has been read.
+   */
+  armGestureHint(): void {
+    const touch = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    if (!touch || readFlag(HINT_SEEN_KEY)) return;
+    this.gestureHint.hidden = false;
+    // Next frame, so the transition has a hidden->shown edge to run on.
+    requestAnimationFrame(() => this.gestureHint.classList.add("visible"));
+    this.hintTimer = window.setTimeout(() => this.dismissGestureHint(), HINT_MS);
+  }
+
+  private dismissGestureHint(): void {
+    if (this.gestureHint.hidden) return;
+    window.clearTimeout(this.hintTimer);
+    this.gestureHint.classList.remove("visible");
+    writeFlag(HINT_SEEN_KEY);
+    window.setTimeout(() => {
+      this.gestureHint.hidden = true;
+    }, 400);
+  }
+
   // ------------------------------------------------------------------ step rail
 
   /** The pipeline, always on screen, so "where are we" never needs to be inferred. */
@@ -166,11 +220,12 @@ export class Hud {
   // ------------------------------------------------------------------ stage
 
   setStage(index: number, total: number, title: string, subtitle: string): void {
+    this.stageIndex = index;
     this.stepNum.textContent = String(index + 1);
     this.stepTotal.textContent = String(total);
     this.title.textContent = title;
     this.subtitle.innerHTML = subtitle;
-    this.btnPrev.disabled = index === 0;
+    this.btnPrev.disabled = this.busy || index === 0;
     this.btnContinue.querySelector("span")!.textContent =
       index === total - 1 ? "Start over" : "Continue";
     for (const [i, el] of [...this.chapters.children].entries()) {
@@ -316,6 +371,23 @@ export class Hud {
     for (const b of this.speedGroup.children) {
       b.classList.toggle("active", (b as HTMLElement).dataset.speed === String(speed));
     }
+  }
+}
+
+/** Storage is a nicety here: a browser that refuses it just shows the hint again. */
+function readFlag(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string): void {
+  try {
+    window.localStorage.setItem(key, "1");
+  } catch {
+    /* ignore */
   }
 }
 

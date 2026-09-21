@@ -10,12 +10,25 @@ const EPS = 1e-6;
  * `flyTo` returns clip handlers rather than starting a tween, so a move is just another clip
  * on the stage timeline: it obeys the speed control, and replaying the stage replays the move.
  * The starting pose is captured on entry, which means a move always continues smoothly from
- * wherever the user last dragged the camera to.
+ * wherever the user last dragged the camera to. A move also yields: if the viewer takes hold
+ * of the scene mid-flight, the tour leaves the camera alone until the stage is replayed or
+ * the view is reset.
  */
 export class CameraRig {
   private from: CameraPose | null = null;
+  private last: CameraPose | null = null;
 
   constructor(private readonly viewer: Viewer) {}
+
+  /**
+   * The last pose the tour drove the camera to. While the viewer has hold of the camera
+   * this stops updating, so it is the view they left — which is the one Recentre restores.
+   */
+  get lastPose(): CameraPose | null {
+    return this.last
+      ? { position: this.last.position.clone(), target: this.last.target.clone() }
+      : null;
+  }
 
   flyTo(to: CameraPose | (() => CameraPose)): ClipHandlers {
     let target: CameraPose;
@@ -23,10 +36,11 @@ export class CameraRig {
       onEnter: () => {
         this.from = this.viewer.currentPose;
         target = typeof to === "function" ? to() : to;
-        this.viewer.controls.enabled = false;
       },
       onUpdate: (t) => {
-        if (!this.from) return;
+        // Once the viewer has dragged the scene themselves, the tour stops steering: the
+        // orbit controls stay live the whole time so a gesture is never swallowed.
+        if (!this.from || this.viewer.manualControl) return;
         // Slerp-ish: interpolate the orbit offset in spherical space so the camera arcs
         // around the target instead of cutting through the scene.
         const tgt = new Vector3().lerpVectors(this.from.target, target.target, t);
@@ -40,9 +54,9 @@ export class CameraRig {
         this.viewer.camera.position.copy(tgt).addScaledVector(dir, radius);
         this.viewer.controls.target.copy(tgt);
         this.viewer.camera.lookAt(tgt);
+        this.last = { position: this.viewer.camera.position.clone(), target: tgt.clone() };
       },
       onExit: () => {
-        this.viewer.controls.enabled = true;
         this.from = null;
       },
     };
@@ -54,19 +68,18 @@ export class CameraRig {
     return {
       onEnter: () => {
         start = this.viewer.currentPose;
-        this.viewer.controls.enabled = false;
       },
       onUpdate: (t) => {
-        if (!start) return;
+        if (!start || this.viewer.manualControl) return;
         const angle = ((degrees * Math.PI) / 180) * t;
         const offset = start.position.clone().sub(start.target);
         offset.applyAxisAngle(new Vector3(0, 0, 1), angle);
         this.viewer.camera.position.copy(start.target).add(offset);
         this.viewer.controls.target.copy(start.target);
         this.viewer.camera.lookAt(start.target);
+        this.last = { position: this.viewer.camera.position.clone(), target: start.target.clone() };
       },
       onExit: () => {
-        this.viewer.controls.enabled = true;
         start = null;
       },
     };

@@ -2,7 +2,7 @@ import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { type CellTrace, PointLabel } from "../patchwork/index.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fmt } from "./helpers.ts";
+import { fmt, thickness } from "./helpers.ts";
 
 const GOOD_CELL = "0/0/12";
 /** A plane fitted to a car roof: horizontal, but above the sensor origin. */
@@ -82,9 +82,9 @@ export const stageGle: Stage = {
 
     t.add(1.0, {
       onEnter: () => {
-        cells.wall.nLabel.text = `n<sub>z</sub> = ${wall.gle!.uprightness.toFixed(3)}`;
-        ctx.readout("Test 1 · uprightness", [
-          { label: "normal z", value: wall.gle!.uprightness.toFixed(3) },
+        cells.wall.nLabel.text = `facing up ${wall.gle!.uprightness.toFixed(2)}`;
+        ctx.readout("Test 1 · facing up?", [
+          { label: "facing up (1 = flat)", value: wall.gle!.uprightness.toFixed(3) },
           { label: "threshold", value: `> ${params.uprightnessThr}` },
           { label: "verdict", value: "REJECT", state: "fail" },
         ]);
@@ -93,8 +93,8 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.wall, v),
     });
     t.say(
-      `First test, the cheapest: does the normal point <em>up</em>? n<sub>z</sub> = ${wall.gle!.uprightness.toFixed(3)}, against 0.707 for 45°.`,
-      3.2,
+      "First test, the cheapest: does the plane face <em>up</em>? This one is nearly on edge.",
+      3,
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, ctx.color.nonGround, v) });
     t.wait(0.6);
@@ -103,9 +103,9 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
-        cells.roof.nLabel.text = `n<sub>z</sub> = ${roof.gle!.uprightness.toFixed(3)}`;
-        ctx.readout("Test 1 · uprightness", [
-          { label: "normal z", value: roof.gle!.uprightness.toFixed(3) },
+        cells.roof.nLabel.text = `facing up ${roof.gle!.uprightness.toFixed(2)}`;
+        ctx.readout("Test 1 · facing up?", [
+          { label: "facing up (1 = flat)", value: roof.gle!.uprightness.toFixed(3) },
           { label: "threshold", value: `> ${params.uprightnessThr}` },
           { label: "verdict", value: "PASS", state: "pass" },
         ]);
@@ -113,8 +113,8 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      `Uprightness alone is not enough. This plane passes at n<sub>z</sub> = ${roof.gle!.uprightness.toFixed(3)}, because it is a <em>car roof</em>.`,
-      3.4,
+      "Facing up is not enough on its own. This plane passes easily, because it is a <em>car roof</em>.",
+      3.2,
     );
 
     const sensorDisc = ctx.surface(
@@ -133,9 +133,9 @@ export const stageGle: Stage = {
 
     t.add(1.2, {
       onEnter: () => {
-        ctx.readout("Test 2 · elevation", [
-          { label: "plane mean z", value: `${fmt(roof.gle!.elevation)} m` },
-          { label: "heading n·p̄", value: fmt(roof.gle!.heading), state: "fail" },
+        ctx.readout("Test 2 · how high?", [
+          { label: "patch height", value: `${fmt(roof.gle!.elevation)} m` },
+          { label: "above the sensor by", value: `${fmt(roof.gle!.heading)} m`, state: "fail" },
           { label: "verdict", value: "REJECT", state: "fail" },
         ]);
         ctx.verdict("Rejected — above the sensor", "bad");
@@ -159,11 +159,11 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(good, { distance: 8.5, height: 4.2 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
-        cells.good.nLabel.text = `n<sub>z</sub> = ${good.gle!.uprightness.toFixed(4)}`;
+        cells.good.nLabel.text = `facing up ${good.gle!.uprightness.toFixed(2)}`;
         ctx.readout("All three tests", [
-          { label: "uprightness", value: good.gle!.uprightness.toFixed(4), state: "pass" },
-          { label: "elevation", value: `${fmt(good.gle!.elevation)} m`, state: "pass" },
-          { label: "flatness λ₃", value: good.gle!.flatness.toExponential(2), state: "pass" },
+          { label: "facing up", value: good.gle!.uprightness.toFixed(4), state: "pass" },
+          { label: "height", value: `${fmt(good.gle!.elevation)} m`, state: "pass" },
+          { label: "thickness", value: thickness(good.gle!.flatness), state: "pass" },
           { label: "verdict", value: "GROUND", state: "pass" },
         ]);
         ctx.verdict("Accepted — ground", "good");
@@ -181,13 +181,13 @@ export const stageGle: Stage = {
     );
 
     t.say(
-      `So flatness votes. <em>λ₃</em> is the plane’s thickness: ${good.gle!.flatness.toExponential(2)} m² here, a few millimetres of road texture.`,
-      3.4,
+      `So thickness gets a vote. This patch is <em>${thickness(good.gle!.flatness)}</em> thick: road texture, not an object.`,
+      3.2,
     );
 
     t.say(
-      "Patchwork used an eigenvalue <em>ratio</em>. It moved when cell shape changed, not when the ground did. Raw λ₃ is consistent.",
-      3.8,
+      "Patchwork measured thickness relative to the cell's own size, which moved when the cell shape changed. Patchwork++ measures it outright.",
+      4,
     );
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
@@ -373,7 +373,7 @@ export const stageTgr: Stage = {
     ]);
 
     const heroLabel = ctx.label(
-      `λ₃ = ${hero.gle!.flatness.toExponential(2)}`,
+      `${thickness(hero.gle!.flatness)} thick`,
       ctx.centreOf(hero, hero.gle!.elevation + 1.0),
       "warn",
     );
@@ -398,16 +398,16 @@ export const stageTgr: Stage = {
       });
 
     t.say(
-      "Those thresholds came from <em>hundreds</em> of past frames. Gravel that is rough <em>today</em> always loses.",
-      3.2,
+      "Those thresholds came from <em>hundreds</em> of past frames, so a patch that is rough only today has no chance.",
+      3.4,
     );
 
     t.add(1.4, {
       onEnter: () =>
         ctx.readout("This ring, this frame", [
           { label: "definite ground", value: String(ring.flatnessSamples.length) },
-          { label: "mean λ₃", value: hero.tgr!.ringMean.toExponential(2) },
-          { label: "µ = mean + 1.5σ", value: hero.tgr!.mu.toExponential(2) },
+          { label: "typical for the ring", value: thickness(hero.tgr!.ringMean) },
+          { label: "allowed", value: thickness(hero.tgr!.mu) },
         ]),
       onUpdate: (v) => {
         for (const c of peerCells) c.opacity = v * 0.3;
@@ -422,11 +422,15 @@ export const stageTgr: Stage = {
     t.add(1.4, {
       onEnter: () => {
         ctx.readout("TGR verdict", [
-          { label: "λ₃", value: hero.gle!.flatness.toExponential(2) },
-          { label: "µ", value: verdict.mu.toExponential(2) },
-          { label: "p(flat)", value: verdict.probFlatness.toFixed(3), state: "pass" },
+          { label: "this patch", value: thickness(hero.gle!.flatness) },
+          { label: "allowed", value: thickness(verdict.mu) },
           {
-            label: "λ₁/λ₂",
+            label: "flat enough",
+            value: `${(verdict.probFlatness * 100).toFixed(1)}%`,
+            state: "pass",
+          },
+          {
+            label: "long ÷ wide",
             value: `${hero.gle!.lineVariable.toFixed(1)} ≤ 8`,
             state: "pass",
           },
@@ -450,14 +454,11 @@ export const stageTgr: Stage = {
         heroLabel.variant = verdict.reverted ? "good" : "bad";
       },
     });
-    t.say(
-      `Against its neighbours it is not rough: λ₃ = ${hero.gle!.flatness.toExponential(2)} against µ = ${verdict.mu.toExponential(2)}. Reverted.`,
-      3,
-    );
+    t.say("Against its neighbours it is not rough at all. Reverted to ground.", 2.6);
 
     t.say(
-      "One guard: <em>λ₁/λ₂</em>. A guardrail seen edge-on is thin too, so a ratio above 8 vetoes the revert.",
-      3.2,
+      "One guard first. A guardrail seen edge-on is thin too, so a patch that is long and narrow rather than broad is refused.",
+      3.6,
     );
 
     t.say("Across SemanticKITTI: <em>+0.5% recall</em>, precision unchanged to rounding.", 2.8);

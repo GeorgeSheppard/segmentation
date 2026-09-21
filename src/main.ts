@@ -62,13 +62,17 @@ class App {
       onSpeed: (s) => (this.speed = s),
       onJump: (i) => this.goTo(i),
       onTheme: (id) => this.setTheme(id),
+      onRecentre: () => this.recentre(),
     });
+
+    this.viewer.onManualChange((manual) => this.hud.setManualCamera(manual));
   }
 
   async start(): Promise<void> {
-    // The scan is ~2 MB of raw float32; on a slow connection it is the whole wait.
+    // The scan is ~2 MB of raw float32. Start pulling it straight away, then draw the rest
+    // of the page around the download rather than behind a curtain.
     this.hud.setLoading("Fetching the scan…");
-    const cloud = await loadKittiFrame(HERO_FRAME, ({ received, total }) => {
+    const scan = loadKittiFrame(HERO_FRAME, ({ received, total }) => {
       const mb = (received / 1e6).toFixed(1);
       this.hud.setLoading(
         total
@@ -78,20 +82,14 @@ class App {
       );
     });
 
-    this.hud.setLoading(`Segmenting ${cloud.count.toLocaleString()} points…`, 1);
-    // Yield so the loading text paints before the (synchronous) segmentation runs.
-    await nextFrame();
-    this.frame = segmentGround(cloud, HERO_FRAME, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
-
-    this.cloud = new CloudView(cloud);
-    this.viewer.add(this.cloud.points);
+    this.hud.setBusy(true);
+    this.hud.setChapters(STAGES.map((s) => s.title));
+    this.hud.setTheme(this.theme.id);
+    this.showStageChrome(this.stageFromHash());
     this.viewer.applyPose({
       position: OVERVIEW.position.clone().multiplyScalar(2.2),
       target: OVERVIEW.target.clone(),
     });
-
-    this.hud.setChapters(STAGES.map((s) => s.title));
-    this.hud.setTheme(this.theme.id);
     this.viewer.onFrame((dt) => this.tick(dt));
     this.viewer.start();
 
@@ -100,11 +98,36 @@ class App {
       this.goTo(this.stageFromHash());
     });
 
+    const cloud = await scan;
+
+    this.hud.setLoading(`Segmenting ${cloud.count.toLocaleString()} points…`, 1);
+    // Yield so the loading text paints before the (synchronous) segmentation runs.
+    await nextFrame();
+    this.frame = segmentGround(cloud, HERO_FRAME, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
+
+    this.cloud = new CloudView(cloud);
+    this.viewer.add(this.cloud.points);
+
+    this.hud.setBusy(false);
     this.buildStage(this.stageFromHash());
     this.hud.hideLoading();
+    this.hud.armGestureHint();
+  }
+
+  /**
+   * The titles, rail and chapter list for a stage, without its animation. Used while the
+   * scan is still downloading so the page reads as a page, not as a spinner.
+   */
+  private showStageChrome(index: number): void {
+    const stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
+    this.hud.setStage(index, STAGES.length, stage.title, stage.subtitle);
+    this.hud.setRailSteps(stage.steps);
+    this.hud.setProgress(0);
   }
 
   private tick(dt: number): void {
+    // The render loop runs from first paint, before the scan has landed.
+    if (!this.cloud) return;
     this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
     if (this.timeline) {
       this.timeline.advance(dt * this.speed);
@@ -120,6 +143,9 @@ class App {
   private buildStage(index: number): void {
     this.index = Math.max(0, Math.min(STAGES.length - 1, index));
     const stage = STAGES[this.index];
+
+    // A new stage takes the camera back, whatever the viewer was looking at.
+    this.viewer.releaseManualControl();
 
     this.ctx?.dispose();
     this.hud.setCaption("");
@@ -160,8 +186,19 @@ class App {
     return i >= 0 ? i : 0;
   }
 
+  /** Put the camera back where the tour had it, and let the tour steer again. */
+  private recentre(): void {
+    this.viewer.releaseManualControl();
+    const target = this.rig.lastPose ?? {
+      position: OVERVIEW.position.clone(),
+      target: OVERVIEW.target.clone(),
+    };
+    this.viewer.applyPose(target);
+  }
+
   /** Continue skips to the end of a stage that is still playing, else advances. */
   private onContinue(): void {
+    if (!this.frame) return;
     if (this.timeline && !this.timeline.finished) {
       this.timeline.finish();
       return;
@@ -175,6 +212,13 @@ class App {
 
   private goTo(index: number): void {
     if (index < 0 || index >= STAGES.length) return;
+    if (!this.frame) {
+      // Still downloading: remember where they asked to go, show its titles, and let
+      // `start` build it for real once the points are here.
+      this.showStageChrome(index);
+      this.syncHash(STAGES[index].id);
+      return;
+    }
     this.buildStage(index);
   }
 
@@ -186,7 +230,7 @@ class App {
     this.viewer.setBackground(this.theme.surface);
     this.hud.setTheme(id);
     saveThemeId(id);
-    this.buildStage(this.index);
+    if (this.frame) this.buildStage(this.index);
   }
 }
 

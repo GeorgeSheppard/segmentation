@@ -95,6 +95,17 @@ export function indicesWithLabels(labels: Uint8Array, wanted: number[]): Int32Ar
   return Int32Array.from(out);
 }
 
+/**
+ * A patch's thickness, in millimetres.
+ *
+ * The algorithm carries flatness as a variance along the surface normal (m²). Its square
+ * root is the spread of the points either side of the plane, which is a length a reader can
+ * picture — 28 mm of road texture against 140 mm of car roof.
+ */
+export function thickness(flatness: number): string {
+  return `${(Math.sqrt(Math.max(flatness, 0)) * 1000).toFixed(0)} mm`;
+}
+
 export function fmt(v: number, digits = 2): string {
   if (!Number.isFinite(v)) return "—";
   if (v !== 0 && Math.abs(v) < 1e-2) return v.toExponential(1);

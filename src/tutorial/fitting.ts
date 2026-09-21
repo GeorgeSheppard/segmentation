@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { lerpPlane, type Vec3 } from "../core/linalg.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fmt } from "./helpers.ts";
+import { fmt, thickness } from "./helpers.ts";
 
 /** The cell the seed / R-GPF stages work in: a big, clean, half-road half-car patch. */
 const FIT_CELL = "0/0/12";
@@ -90,7 +90,7 @@ export const stageSeeds: Stage = {
       },
     });
     t.at(t.time - 3.0).say(
-      "Sort the cell by height. <em>O(M log M)</em> inside one cell, not over the whole cloud, which is why Patchwork++ is faster than Patchwork.",
+      "Sort the cell by height. Sorting inside each cell, rather than the whole cloud at once, is most of why Patchwork++ is quick.",
       3.8,
     );
 
@@ -134,8 +134,8 @@ export const stageSeeds: Stage = {
         ]),
     });
     t.say(
-      "It is also the weak point. One phantom point drags the LPR down with it, which is why RNR ran first.",
-      3.2,
+      "It is also the weak point: one phantom point drags the average down, which is why RNR ran first.",
+      3.4,
     );
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
@@ -178,7 +178,7 @@ export const stageRgpf: Stage = {
       { color: ctx.color.plane, label: "fitted plane" },
       { color: ctx.color.ground, label: "within 12.5 cm", note: "kept as ground" },
       { color: ctx.color.nonGround, label: "above the plane", note: "not ground" },
-      { color: ctx.color.normal, label: "surface normal", note: "smallest-eigenvalue direction" },
+      { color: ctx.color.normal, label: "surface normal", note: "the way the patch faces" },
     ]);
 
     const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
@@ -199,7 +199,7 @@ export const stageRgpf: Stage = {
         .add(new Vector3(p.normal[0], p.normal[1], p.normal[2]).multiplyScalar(1.8));
       normalLine.set(base, tip);
       normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.35)));
-      normalLabel.text = `n<sub>z</sub> = ${p.normal[2].toFixed(4)}`;
+      normalLabel.text = `facing up ${p.normal[2].toFixed(2)}`;
     };
     /** Each pass tweens from the fit before it, so the plane is seen to settle. */
     const planeAt = (it: number) => (it < 0 ? bin.rgpf[0].plane : bin.rgpf[it].plane);
@@ -209,7 +209,10 @@ export const stageRgpf: Stage = {
 
     const t = ctx.track();
 
-    t.say("Take the seeds’ covariance and eigen-decompose it. A <em>PCA</em>, not a RANSAC.", 2.8)
+    t.say(
+      "Now lay a plane through the seeds, angled so the seeds sit as close to it as possible.",
+      3.2,
+    )
       .with(2.0, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8, height: 4 })), Ease.cinematic)
       .with(1.0, { onUpdate: (v) => cloud.paint(seeds, ctx.color.seed, v) });
 
@@ -222,14 +225,11 @@ export const stageRgpf: Stage = {
       onEnter: () =>
         ctx.readout("Iteration 1", [
           { label: "seeds", value: bin.seedCount.toLocaleString() },
-          { label: "normal z", value: bin.rgpf[0].plane.normal[2].toFixed(4) },
-          { label: "λ₃ (thickness)", value: bin.rgpf[0].plane.eigenvalues[2].toExponential(2) },
+          { label: "facing up (1 = flat)", value: bin.rgpf[0].plane.normal[2].toFixed(4) },
+          { label: "thickness", value: thickness(bin.rgpf[0].plane.eigenvalues[2]) },
         ]),
     });
-    t.say(
-      "The <em>smallest</em> eigenvalue’s eigenvector points across the thinnest direction. For road, that is straight up: the surface normal.",
-      3.8,
-    );
+    t.say("That gives two things: which way the surface faces, and how thick the patch is.", 3);
 
     // Three refinement passes.
     for (let it = 0; it < params.numIter; it++) {
@@ -253,9 +253,9 @@ export const stageRgpf: Stage = {
       t.add(1.1, {
         onEnter: () =>
           ctx.readout(`Iteration ${it + 1}`, [
-            { label: "normal z", value: plane.normal[2].toFixed(4) },
+            { label: "facing up (1 = flat)", value: plane.normal[2].toFixed(4) },
             { label: "mean z", value: `${fmt(plane.mean[2])} m` },
-            { label: "λ₃", value: plane.eigenvalues[2].toExponential(2) },
+            { label: "thickness", value: thickness(plane.eigenvalues[2]) },
             { label: "kept", value: accepted.length.toLocaleString(), state: "pass" },
           ]),
         onUpdate: (v) => {
@@ -289,8 +289,8 @@ export const stageRgpf: Stage = {
         ctx.readout("Cell result", [
           { label: "ground", value: finalGround.length.toLocaleString(), state: "pass" },
           { label: "not ground", value: finalNon.length.toLocaleString(), state: "fail" },
-          { label: "normal z", value: bin.plane!.normal[2].toFixed(4) },
-          { label: "λ₃", value: bin.plane!.eigenvalues[2].toExponential(2) },
+          { label: "facing up (1 = flat)", value: bin.plane!.normal[2].toFixed(4) },
+          { label: "thickness", value: thickness(bin.plane!.eigenvalues[2]) },
         ]),
       onUpdate: (v) => {
         cloud.restore();
@@ -305,7 +305,7 @@ export const stageRgpf: Stage = {
     );
 
     t.say(
-      "This runs in all 504 cells. The catch: R-GPF <em>always</em> returns a plane, even for a cell holding only a wall.",
+      "This runs in all 504 cells. But R-GPF <em>always</em> returns a plane, even for a cell holding only a wall.",
       3.6,
     );
 
@@ -366,7 +366,7 @@ export const stageRvpf: Stage = {
         .add(new Vector3(normal[0], normal[1], normal[2]).multiplyScalar(1.6));
       normalLine.set(base, tip);
       normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.3)));
-      normalLabel.text = `n<sub>z</sub> = ${normal[2].toFixed(3)}`;
+      normalLabel.text = `facing up ${normal[2].toFixed(2)}`;
     };
 
     const t = ctx.track();
@@ -391,7 +391,7 @@ export const stageRvpf: Stage = {
       onEnter: () => {
         showPlane(first.normal, first.d, first.mean);
         ctx.readout("Fit including the wall", [
-          { label: "normal z", value: first.normal[2].toFixed(3), state: "fail" },
+          { label: "facing up (1 = flat)", value: first.normal[2].toFixed(3), state: "fail" },
           { label: "upright?", value: `needs > ${params.uprightnessThr}`, state: "fail" },
         ]);
       },
@@ -402,8 +402,8 @@ export const stageRvpf: Stage = {
       },
     });
     t.say(
-      `Fit it as-is and the plane stands on edge: <em>n<sub>z</sub> = ${first.normal[2].toFixed(3)}</em>. PCA fits whatever it is given.`,
-      3.4,
+      "Fit it as-is and the plane comes out standing on edge. It fits whatever it is given.",
+      3.2,
     );
 
     t.say("R-VPF fits the <em>wall</em> first, on purpose, and deletes it.", 2.6);
@@ -418,7 +418,7 @@ export const stageRvpf: Stage = {
           onEnter: () => {
             ctx.readout(`R-VPF pass ${i + 1}`, [
               {
-                label: "normal z",
+                label: "facing up (1 = flat)",
                 value: pass.plane.normal[2].toFixed(3),
                 state: pass.peeled ? "fail" : "pass",
               },
@@ -461,8 +461,8 @@ export const stageRvpf: Stage = {
         );
       } else {
         t.say(
-          `Pass ${i + 1}: the plane has <em>stood up</em> (n<sub>z</sub> = ${pass.plane.normal[2].toFixed(3)}). Wall gone, R-VPF stops.`,
-          3,
+          `Pass ${i + 1}: the plane has <em>stood up</em>. The wall is gone, so R-VPF stops.`,
+          2.8,
         );
       }
     });
@@ -473,7 +473,7 @@ export const stageRvpf: Stage = {
         ctx.readout("After R-VPF", [
           { label: "peeled", value: String(idx.length - bin.survivors.length) },
           { label: "ground", value: bin.cellGround.length.toLocaleString(), state: "pass" },
-          { label: "normal z", value: bin.plane!.normal[2].toFixed(3), state: "pass" },
+          { label: "facing up (1 = flat)", value: bin.plane!.normal[2].toFixed(3), state: "pass" },
         ]),
       onUpdate: (v) => {
         const plane = bin.plane!;
@@ -488,10 +488,7 @@ export const stageRvpf: Stage = {
       3.2,
     );
 
-    t.say(
-      "Second effect: without the wall the cell is genuinely planar, so its <em>thickness</em> collapses. Thin cells pass the flatness test.",
-      3.8,
-    );
+    t.say("It also makes the cell genuinely flat, which matters for the next test.", 2.8);
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {

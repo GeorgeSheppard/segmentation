@@ -15,6 +15,8 @@
       <canvas id="view"></canvas>
       <div id="labels"></div>
 
+      <!-- Status for the scan download. A chip, not a curtain: the rest of the page is
+           usable while the points stream in. -->
       <div id="loading">
         <div class="spinner"></div>
         <p id="loading-text">Fetching the scan…</p>
@@ -63,6 +65,10 @@
           <div id="readout" hidden></div>
         </div>
 
+        <p id="gesture-hint" hidden>
+          <b>One finger</b> turns the scene · <b>two fingers</b> zoom and slide it
+        </p>
+
         <div id="caption"><p id="caption-text"></p></div>
 
         <footer id="controls">
@@ -71,6 +77,13 @@
             <button id="btn-prev" class="ghost" title="Previous step (←)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
               <span>Back</span>
+            </button>
+            <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+              </svg>
+              <span>Recentre</span>
             </button>
             <button id="btn-replay" class="ghost" title="Replay this step (R)">
               <svg viewBox="0 0 24 24" aria-hidden="true">

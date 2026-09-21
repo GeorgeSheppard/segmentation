@@ -166,3 +166,57 @@ test.describe("layout", () => {
     }
   });
 });
+
+test.describe("getting around", () => {
+  test("the page is readable while the scan is still downloading", async ({ page }) => {
+    // Hold the scan back so the loading state is observable rather than a flash.
+    await page.route("**/data/*.bin", async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+
+    await page.goto("/");
+
+    // Titles, the pipeline rail and the transport are all there before the points are.
+    await expect(stageTitle(page)).toHaveText("One LiDAR scan");
+    await expect(page.locator("#rail li").first()).toBeVisible();
+    await expect(page.locator("#loading")).not.toHaveClass(/hidden/);
+    await expect(page.locator("#btn-continue")).toBeDisabled();
+
+    await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
+    await expect(page.locator("#btn-continue")).toBeEnabled();
+    await expect(page.locator("#readout")).toContainText("123,924");
+  });
+
+  test("dragging the scene takes the camera, and Recentre hands it back", async ({ page }) => {
+    await open(page);
+    const recentre = page.locator("#btn-recentre");
+    await expect(recentre).toBeHidden();
+
+    // A drag on the scene, mid-stage: it has to reach the orbit controls even while the
+    // tour is flying the camera somewhere.
+    const size = page.viewportSize()!;
+    await page.mouse.move(size.width / 2, size.height * 0.42);
+    await page.mouse.down();
+    await page.mouse.move(size.width / 2 + 60, size.height * 0.42 + 30, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(recentre).toBeVisible();
+    await recentre.click();
+    await expect(recentre).toBeHidden();
+  });
+
+  test("the gesture hint shows where fingers are the input", async ({ page }) => {
+    await open(page);
+    const touch = await page.evaluate(
+      () => window.matchMedia("(hover: none) and (pointer: coarse)").matches,
+    );
+    const hint = page.locator("#gesture-hint");
+    if (touch) {
+      await expect(hint).toBeVisible();
+      await expect(hint).toContainText("two fingers");
+    } else {
+      await expect(hint).toBeHidden();
+    }
+  });
+});

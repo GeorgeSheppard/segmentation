@@ -73,10 +73,11 @@ export const stageRnr: Stage = {
 
     const t = ctx.track();
 
-    t.say(
-      "First, Patchwork++ discards a handful of points. Very few, but they do real damage.",
-      3,
-    ).with(2.1, ctx.rig.flyTo(pose([-52, -40, 8], [10, 2, -5])), Ease.cinematic);
+    t.say("First, Patchwork++ throws a handful of points away.", 2.2).with(
+      2.1,
+      ctx.rig.flyTo(pose([-52, -40, 8], [10, 2, -5])),
+      Ease.cinematic,
+    );
 
     // Blow the noise points up so three points among 124,000 are actually findable.
     t.add(1.4, {
@@ -98,7 +99,7 @@ export const stageRnr: Stage = {
       Ease.cinematic,
     );
     t.add(1.0, { onUpdate: (v) => (heroLabel.opacity = v) });
-    t.say(`This one reads <em>z = ${fmt(heroPos.z)} m</em>. Eight metres under the car.`, 2.6);
+    t.say(`This one reads <em>z = ${fmt(heroPos.z)} m</em>, eight metres under the car.`, 2.6);
 
     t.add(1.2, { onUpdate: (v) => (ray.opacity = v * 0.9) });
     t.say(
@@ -160,7 +161,7 @@ export const stageRnr: Stage = {
         floor.opacity = 0.1 * (1 - v);
       },
     });
-    t.say("Gone. Nothing downstream sees them.", 2);
+    t.say("Removed. The rest of the pipeline never sees them.", 2.2);
 
     t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
       onUpdate: (v) => {
