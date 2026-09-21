@@ -44,8 +44,15 @@ export interface Theme {
   seed: string;
   normal: string;
   grid: string;
-  /** Height ramp for the raw, unclassified scan. */
-  ramp: string[];
+  /**
+   * The unclassified scan: one neutral ink for every point.
+   *
+   * Deliberately a single colour rather than a height ramp. A ramp is a *finding* — it
+   * sorts the scan into bands that look like an answer, which is the one thing the reader
+   * must not have before the algorithm runs. Raw returns get no opinion, only a faint
+   * lightness wobble from return intensity so the surfaces still read in 3D.
+   */
+  raw: string;
 
   /**
    * Opacity for points that are present but not part of the current story. On a dark
@@ -96,7 +103,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     seed: "#fde047",
     normal: "#f0f9ff",
     grid: "#38507a",
-    ramp: ["#12305e", "#1a6aa8", "#2c9ab0", "#7ab86a", "#d7b44a", "#e08a3c"],
+    raw: "#93a7bd",
     contextAlpha: 0.04,
     // ordinal, dark on #070a0f: ΔL gaps clear, light end 2.26:1, hue spread 8°
     zoneRamp: ["#8cc4ee", "#4f9bd1", "#2f72a8", "#1d4d7a"],
@@ -128,7 +135,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     seed: "#fde68a",
     normal: "#f5f3ff",
     grid: "#4c3f7a",
-    ramp: ["#1e1b4b", "#4338ca", "#7c5cd6", "#a855f7", "#d0619e", "#e08a3c"],
+    raw: "#a79fc4",
     contextAlpha: 0.05,
     // ordinal, dark on #0a0712: ΔL gaps clear, light end 2.16:1, hue spread 3°
     zoneRamp: ["#b8adf0", "#8d7ad8", "#6754b4", "#4a3c85"],
@@ -162,7 +169,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     seed: "#b45309",
     normal: "#0f172a",
     grid: "#9aa8c0",
-    ramp: ["#1e3a8a", "#2a78d6", "#2c9ab0", "#4f9e3f", "#c08a1a", "#c2410c"],
+    raw: "#55617a",
     contextAlpha: 0.22,
     // ordinal, light on #eef1f6: ΔL gaps clear, light end 2.62:1, hue spread 4°
     zoneRamp: ["#8397b8", "#5c7ba6", "#3a5a8c", "#1d3a66"],

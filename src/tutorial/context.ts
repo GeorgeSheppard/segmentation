@@ -15,6 +15,7 @@ import {
   CellOutline,
   CzmGrid,
   Segment,
+  SensorHead,
   WedgeSurface,
   cellCentre,
   cellFromBin,
@@ -149,6 +150,13 @@ export class StageContext {
     const s = this.own(new Segment(color, opacity, additive));
     this.scratch.add(s.line);
     return s;
+  }
+
+  /** The sensor at the origin, for the stage that explains where the points come from. */
+  sensorHead(color: Color | string = this.color.normal): SensorHead {
+    const h = this.own(new SensorHead(color));
+    this.scratch.add(h.group);
+    return h;
   }
 
   grid(z = this.groundZ): CzmGrid {

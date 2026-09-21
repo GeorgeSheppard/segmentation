@@ -5,9 +5,9 @@ test.describe("tutorial", () => {
   test("loads, segments the scan, and shows the first stage", async ({ page }) => {
     const errors = await open(page);
 
-    await expect(stageTitle(page)).toHaveText("One LiDAR scan");
+    await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#step-num")).toHaveText("1");
-    await expect(page.locator("#step-total")).toHaveText("12");
+    await expect(page.locator("#step-total")).toHaveText("13");
 
     // The caption is fed from the live segmentation, so this asserts the algorithm ran.
     await expect(page.locator("#caption-text")).toContainText("123,924");
@@ -29,6 +29,21 @@ test.describe("tutorial", () => {
     // The last stage's Continue starts over.
     await expect(page.locator("#step-num")).toHaveText("1");
     expect(new Set(titles).size).toBe(total);
+    expect(errors).toEqual([]);
+  });
+
+  test("the opening stage builds the scan out of beams", async ({ page }) => {
+    const errors = await open(page, "sensor");
+
+    await expect(stageTitle(page)).toHaveText("How the scan is made");
+    // The scan is not a given here: it is assembled, so the legend talks about pulses.
+    await expect(page.locator("#legend")).toContainText("laser pulse");
+
+    // The measured range on screen comes from a real return, not from a script.
+    await expect(page.locator("#caption-text")).toContainText("123,924");
+    await finishStage(page);
+    await page.click("#btn-continue");
+    await expect(stageTitle(page)).toHaveText("One LiDAR scan");
     expect(errors).toEqual([]);
   });
 
@@ -56,10 +71,10 @@ test.describe("tutorial", () => {
 
   test("Back steps to the previous stage and is disabled on the first", async ({ page }) => {
     await open(page, "czm");
-    await expect(page.locator("#step-num")).toHaveText("4");
+    await expect(page.locator("#step-num")).toHaveText("5");
 
     await page.click("#btn-prev");
-    await expect(page.locator("#step-num")).toHaveText("3");
+    await expect(page.locator("#step-num")).toHaveText("4");
 
     await open(page);
     await expect(page.locator("#btn-prev")).toBeDisabled();
@@ -187,7 +202,7 @@ test.describe("getting around", () => {
     await page.goto("/");
 
     // Titles, the pipeline rail and the transport are all there before the points are.
-    await expect(stageTitle(page)).toHaveText("One LiDAR scan");
+    await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#rail li").first()).toBeVisible();
     await expect(page.locator("#loading")).not.toHaveClass(/hidden/);
     await expect(page.locator("#btn-continue")).toBeDisabled();

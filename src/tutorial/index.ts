@@ -4,9 +4,11 @@ import type { Stage } from "./context.ts";
 import { stageRgpf, stageRvpf, stageSeeds } from "./fitting.ts";
 import { stageProblem, stageScan } from "./intro.ts";
 import { stageCzm, stageRnr } from "./preprocess.ts";
+import { stageSensor } from "./sensor.ts";
 
 /** The tutorial, in order. */
 export const STAGES: Stage[] = [
+  stageSensor,
   stageScan,
   stageProblem,
   stageRnr,

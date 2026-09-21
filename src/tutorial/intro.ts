@@ -5,21 +5,19 @@ import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fitGlobalPlane } from "./helpers.ts";
 
-/** Step 1 — look at what the sensor actually gives you. */
+/** Step 2 — look at what the sensor actually gives you. */
 export const stageScan: Stage = {
   id: "scan",
   title: "One LiDAR scan",
-  subtitle: "One 360° sweep from a Velodyne HDL-64E, coloured by height.",
+  subtitle: "One finished 360° sweep, exactly as the algorithm receives it.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
 
-    ctx.legend([
-      { color: "#1e3a8a", label: "low", note: "road level and below" },
-      { color: "#22d3ee", label: "mid", note: "cars, hedges" },
-      { color: "#fb923c", label: "high", note: "walls, trees, poles" },
-    ]);
+    // One colour, on purpose: a height ramp here would sort the scan into bands that look
+    // like an answer, and the reader has to start with no answer at all.
+    ctx.legend([{ color: ctx.color.raw, label: "one return", note: "unlabelled, unsorted" }]);
 
     // Sensor frame gizmo: x forward, y left, z up.
     const axisSpec: Array<[Vector3, Color, string, "" | "accent"]> = [
@@ -44,7 +42,7 @@ export const stageScan: Stage = {
     const t = ctx.track();
 
     t.say(
-      `<em>${frame.cloud.count.toLocaleString()} points</em>, ten times a second. No labels.`,
+      `The finished sweep: <em>${frame.cloud.count.toLocaleString()} points</em>, every one of them a surface that sent a pulse back.`,
       2.6,
     ).with(2.3, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
 
@@ -71,7 +69,7 @@ export const stageScan: Stage = {
   },
 };
 
-/** Step 2 — why the obvious approach fails. */
+/** Step 3 — why the obvious approach fails. */
 export const stageProblem: Stage = {
   id: "problem",
   title: "Why one plane is not enough",
@@ -94,7 +92,7 @@ export const stageProblem: Stage = {
     // Zoom to wherever the disagreement is worst, rather than a hard-coded cell.
     const worst = worstBin(ctx, missedArr);
 
-    cloud.setBaseHeightRamp(frame.cloud.xyz, -3.2, 2.2, ctx.theme);
+    cloud.setBaseRaw(ctx.color.raw);
 
     ctx.legend([
       { color: ctx.color.plane, label: "the one plane" },
