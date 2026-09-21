@@ -121,29 +121,13 @@ export const stageRnr: Stage = {
 
     // The three tests.
     t.add(0.8, {
-      onEnter: () =>
-        ctx.readout("RNR tests", [
-          {
-            label: "vertical angle",
-            value: `${fmt(heroAngle, 1)}° < −15°`,
-            state: "pass",
-          },
-          {
-            label: "height",
-            value: `${fmt(heroPos.z)} < ${fmt(-frame.stateBefore.sensorHeight - 0.8)}`,
-            state: "pass",
-          },
-          {
-            label: "intensity",
-            value: `${fmt(heroIntensity, 3)} < 0.2`,
-            state: "pass",
-          },
-        ]),
       onUpdate: (v) => (floor.opacity = v * 0.1),
     });
     t.say(
-      "RNR needs <em>all three</em>: a downward ray, well below the road, and dim. Reflections lose energy on the extra bounce.",
-      3.8,
+      `RNR needs <em>all three</em>: a ray pointing down — this one <em>${fmt(heroAngle, 0)}°</em> below ` +
+        `horizontal — a point well under the road, and a dim return, <em>${(heroIntensity * 100).toFixed(0)}%</em> ` +
+        `here. Reflections lose energy on the extra bounce.`,
+      4.2,
     );
 
     t.say(
@@ -293,17 +277,7 @@ export const stageCzm: Stage = {
         for (const l of zoneLabels) l.opacity = 1 - v;
       },
     });
-    t.add(0.8, {
-      onEnter: () =>
-        ctx.readout("Grid", [
-          { label: "uniform", value: `${uni.czm.numBins.toLocaleString()} bins` },
-          { label: "CZM", value: `${czm.numBins} bins`, state: "pass" },
-          {
-            label: "occupied",
-            value: String(frame.cells.filter((b) => b.indices.length > 0).length),
-          },
-        ]),
-    });
+    t.wait(0.8);
     t.say(
       `<em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()}. Better conditioned and six times cheaper.`,
       3,

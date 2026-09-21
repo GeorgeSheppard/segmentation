@@ -2,14 +2,13 @@ import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import {
   isGroundLabel,
-  PIPELINE_STEPS,
   type PointLabel,
   ringFromConcentric,
   ringRadii,
 } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fitGlobalPlane, fmt, thickness } from "./helpers.ts";
+import { fitGlobalPlane, fmt } from "./helpers.ts";
 
 /** Step 11 — A-GLE: the algorithm tunes its own thresholds from what it just saw. */
 export const stageAgle: Stage = {
@@ -64,13 +63,6 @@ export const stageAgle: Stage = {
       }),
     );
 
-    const thresholdRows = () =>
-      roi.map((r) => ({
-        label: `ring ${r.m}`,
-        value: `${fmt(before.elevationThr[r.m])} → ${fmt(after.elevationThr[r.m])}`,
-        state: "pass" as const,
-      }));
-
     const t = ctx.track();
 
     t.say(
@@ -92,12 +84,6 @@ export const stageAgle: Stage = {
     );
 
     t.add(1.6, {
-      onEnter: () =>
-        ctx.readout("Definite ground", [
-          { label: "cells", value: String(roi.reduce((s, r) => s + r.cells.length, 0)) },
-          { label: "points", value: definite.length.toLocaleString() },
-          { label: "purity (paper)", value: "95.8%", state: "pass" },
-        ]),
       onUpdate: (v) => {
         for (const c of cellSurfaces) c.opacity = v * 0.35;
         cloud.paint(definite, ctx.color.ground, v);
@@ -115,7 +101,6 @@ export const stageAgle: Stage = {
     t.add(
       2.6,
       {
-        onEnter: () => ctx.readout("Elevation threshold", thresholdRows()),
         onUpdate: (v) => {
           for (const r of roi) {
             const z =
@@ -141,33 +126,14 @@ export const stageAgle: Stage = {
     );
     t.wait(1.2);
 
-    t.add(1.4, {
-      onEnter: () =>
-        ctx.readout("Thickness limit", [
-          ...roi.map((r) => ({
-            label: `ring ${r.m}`,
-            value: thickness(after.flatnessThr[r.m]),
-            state: "pass" as const,
-          })),
-        ]),
-    });
+    t.wait(1.4);
     t.say(
       "Flatness is learned the same way, describing how rough <em>this</em> road is rather than roads in general.",
       3.4,
     );
 
     // The sensor height correction, and its effect on RNR.
-    t.add(1.4, {
-      onEnter: () =>
-        ctx.readout("Self-calibration", [
-          { label: "assumed height", value: `${before.sensorHeight.toFixed(3)} m` },
-          { label: "measured", value: `${after.sensorHeight.toFixed(3)} m`, state: "pass" },
-          {
-            label: "RNR floor",
-            value: `${fmt(-after.sensorHeight - 0.8)} m`,
-          },
-        ]),
-    });
+    t.wait(1.4);
     t.say(
       `The innermost ring also measures the <em>sensor height</em>. Told 1.723 m, measured <em>${after.sensorHeight.toFixed(3)} m</em>. RNR’s floor rides on it.`,
       3.8,
@@ -234,13 +200,6 @@ export const stageResult: Stage = {
     )
       .with(2.0, ctx.rig.flyTo(pose([-46, -38, 20], [6, 0, -1.6])), Ease.cinematic)
       .with(1.6, {
-        onEnter: () =>
-          ctx.readout("Patchwork++", [
-            { label: "ground", value: g.length.toLocaleString(), state: "pass" },
-            { label: "not ground", value: n.length.toLocaleString() },
-            { label: "cells fitted", value: String(frame.cells.filter((b) => b.plane).length) },
-            { label: "this run", value: `${frame.elapsedMs.toFixed(0)} ms (JS)` },
-          ]),
         onUpdate: (v) => {
           cloud.paint(g, ctx.color.ground, v);
           cloud.paint(n, ctx.color.nonGround, v);
@@ -261,28 +220,13 @@ export const stageResult: Stage = {
         cloud.paint(rescued, ctx.color.focus, v);
         cloud.sizeTo(rescued, 2.2, v);
       },
-      onEnter: () =>
-        ctx.readout("vs a single plane", [
-          { label: "recovered road", value: rescued.length.toLocaleString(), state: "pass" },
-          { label: "F1 on SemanticKITTI", value: "96.51%" },
-          { label: "reference speed", value: "55 Hz (C++)" },
-        ]),
     });
     t.say(
       `In cyan, the <em>${rescued.length.toLocaleString()} points</em> of road the single plane threw away.`,
       3,
     );
 
-    t.add(4.5, ctx.rig.orbit(65), Ease.inOut).with(1.0, {
-      onEnter: () =>
-        ctx.readout(
-          "Where the time went",
-          PIPELINE_STEPS.filter((step) => step.timed).map((step) => ({
-            label: step.name,
-            value: `${frame.timings[step.id].toFixed(1)} ms`,
-          })),
-        ),
-    });
+    t.add(4.5, ctx.rig.orbit(65), Ease.inOut);
     t.say(
       "<em>RNR</em> drops reflections. <em>CZM</em> sizes the cells. <em>R-VPF</em> peels walls. <em>R-GPF</em> fits. <em>GLE</em> judges. <em>A-GLE</em> learns the thresholds. <em>TGR</em> re-hears the close calls.",
       4.4,

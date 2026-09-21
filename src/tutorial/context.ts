@@ -8,7 +8,7 @@ import {
   type Params,
 } from "../patchwork/index.ts";
 import type { StepId } from "../patchwork/index.ts";
-import type { Hud, LegendItem, ReadoutRow } from "../ui/hud.ts";
+import type { Hud, LegendItem } from "../ui/hud.ts";
 import { CameraRig } from "../viz/cameraRig.ts";
 import type { CloudView } from "../viz/cloud.ts";
 import {
@@ -220,10 +220,6 @@ export class StageContext {
 
   legend(items: LegendItem[] | null): void {
     this.hud.setLegend(items);
-  }
-
-  readout(title: string | null, rows: ReadoutRow[] = []): void {
-    this.hud.setReadout(title, rows);
   }
 
   /**

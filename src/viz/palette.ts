@@ -44,7 +44,7 @@ export function paletteFor(theme: Theme): Palette {
  *
  * Every rejection reason (tilted plane, plane above the sensor, too sparse, above the
  * fitted plane, rejected by TGR) lands on the same colour. The reason is carried by the
- * narration and the readout at the moment it matters, not by a hue the reader has to hold
+ * narration at the moment it matters, not by a hue the reader has to hold
  * in their head for twelve stages.
  */
 export function labelColor(label: PointLabel, palette: Palette): Color {

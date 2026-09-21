@@ -11,7 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { parseKittiBin } from "../src/core/kitti.ts";
+import { decodeQuantizedCloud } from "../src/core/pcq.ts";
 import {
   DEFAULT_PARAMS,
   initialState,
@@ -27,8 +27,10 @@ const overall = createHash("sha256");
 
 for (let frame = 0; frame < 6; frame++) {
   const name = String(frame).padStart(6, "0");
-  const buf = readFileSync(`public/data/${name}.bin`);
-  const cloud = parseKittiBin(
+  // The quantized file, not the raw KITTI scan: the digest has to cover the data the
+  // browser is actually handed.
+  const buf = readFileSync(`public/data/${name}.pcq`);
+  const cloud = decodeQuantizedCloud(
     buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
   );
   const trace = segmentGround(cloud, frame, DEFAULT_PARAMS, state0);

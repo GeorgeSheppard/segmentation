@@ -124,15 +124,7 @@ export const stageSeeds: Stage = {
       3.6,
     );
 
-    t.add(0.9, {
-      onEnter: () =>
-        ctx.readout("Seed selection", [
-          { label: "points", value: idx.length.toLocaleString() },
-          { label: "LPR z", value: `${fmt(bin.lprHeight)} m` },
-          { label: "cutoff", value: `${fmt(bin.seedCutoff)} m` },
-          { label: "seeds", value: bin.seedCount.toLocaleString(), state: "pass" },
-        ]),
-    });
+    t.wait(0.9);
     t.say(
       "It is also the weak point: one phantom point drags the average down, which is why RNR ran first.",
       3.4,
@@ -222,14 +214,12 @@ export const stageRgpf: Stage = {
         normalLine.opacity = v;
         normalLabel.opacity = v;
       },
-      onEnter: () =>
-        ctx.readout("Iteration 1", [
-          { label: "seeds", value: bin.seedCount.toLocaleString() },
-          { label: "facing up (1 = flat)", value: bin.rgpf[0].plane.normal[2].toFixed(4) },
-          { label: "thickness", value: thickness(bin.rgpf[0].plane.eigenvalues[2]) },
-        ]),
     });
-    t.say("That gives two things: which way the surface faces, and how thick the patch is.", 3);
+    t.say(
+      `That gives two things: which way the surface faces, and how thick the patch is — ` +
+        `<em>${thickness(bin.rgpf[0].plane.eigenvalues[2])}</em> on this first pass.`,
+      3.2,
+    );
 
     // Three refinement passes.
     for (let it = 0; it < params.numIter; it++) {
@@ -251,13 +241,6 @@ export const stageRgpf: Stage = {
       );
 
       t.add(1.1, {
-        onEnter: () =>
-          ctx.readout(`Iteration ${it + 1}`, [
-            { label: "facing up (1 = flat)", value: plane.normal[2].toFixed(4) },
-            { label: "mean z", value: `${fmt(plane.mean[2])} m` },
-            { label: "thickness", value: thickness(plane.eigenvalues[2]) },
-            { label: "kept", value: accepted.length.toLocaleString(), state: "pass" },
-          ]),
         onUpdate: (v) => {
           cloud.restore();
           cloud.paint(accepted, ctx.color.ground, v);
@@ -285,13 +268,6 @@ export const stageRgpf: Stage = {
     const finalGround = bin.cellGround;
     const finalNon = bin.cellNonGround;
     t.add(1.2, {
-      onEnter: () =>
-        ctx.readout("Cell result", [
-          { label: "ground", value: finalGround.length.toLocaleString(), state: "pass" },
-          { label: "not ground", value: finalNon.length.toLocaleString(), state: "fail" },
-          { label: "facing up (1 = flat)", value: bin.plane!.normal[2].toFixed(4) },
-          { label: "thickness", value: thickness(bin.plane!.eigenvalues[2]) },
-        ]),
       onUpdate: (v) => {
         cloud.restore();
         cloud.paint(finalGround, ctx.color.ground, 1);
@@ -333,7 +309,7 @@ export const stageRvpf: Stage = {
     "When ground sits on a kerb or a wall, the wall's points are lower, so they win the seeding.",
 
   build(ctx: StageContext) {
-    const { cloud, frame, params } = ctx;
+    const { cloud, frame } = ctx;
     const bin = ctx.bin(VERTICAL_CELL);
     const idx = bin.indices;
 
@@ -390,10 +366,6 @@ export const stageRvpf: Stage = {
     t.add(1.2, {
       onEnter: () => {
         showPlane(first.normal, first.d, first.mean);
-        ctx.readout("Fit including the wall", [
-          { label: "facing up (1 = flat)", value: first.normal[2].toFixed(3), state: "fail" },
-          { label: "upright?", value: `needs > ${params.uprightnessThr}`, state: "fail" },
-        ]);
       },
       onUpdate: (v) => {
         planeSurf.opacity = v * 0.3;
@@ -415,20 +387,6 @@ export const stageRvpf: Stage = {
       t.add(
         1.0,
         {
-          onEnter: () => {
-            ctx.readout(`R-VPF pass ${i + 1}`, [
-              {
-                label: "facing up (1 = flat)",
-                value: pass.plane.normal[2].toFixed(3),
-                state: pass.peeled ? "fail" : "pass",
-              },
-              {
-                label: pass.peeled ? "peeled" : "verdict",
-                value: pass.peeled ? pass.removed.length.toLocaleString() : "upright — stop",
-                state: pass.peeled ? undefined : "pass",
-              },
-            ]);
-          },
           onUpdate: (v) => {
             const p = lerpPlane(from, pass.plane, v);
             showPlane(p.normal, p.d, p.mean);
@@ -469,12 +427,6 @@ export const stageRvpf: Stage = {
 
     // The recovered ground.
     t.add(1.4, {
-      onEnter: () =>
-        ctx.readout("After R-VPF", [
-          { label: "peeled", value: String(idx.length - bin.survivors.length) },
-          { label: "ground", value: bin.cellGround.length.toLocaleString(), state: "pass" },
-          { label: "facing up (1 = flat)", value: bin.plane!.normal[2].toFixed(3), state: "pass" },
-        ]),
       onUpdate: (v) => {
         const plane = bin.plane!;
         showPlane(plane.normal, plane.d, plane.mean);

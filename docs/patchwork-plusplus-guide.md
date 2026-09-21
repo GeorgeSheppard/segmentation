@@ -20,7 +20,7 @@ Primary sources:
 
 Everything below has been cross-checked against the reference C++ implementation and verified
 with an independent NumPy re-implementation run on the six KITTI scans shipped in that repo
-(`data/000000.bin` … `data/000005.bin`). Where the code and the paper differ, both are given.
+(`data/raw/000000.bin` … `data/raw/000005.bin`). Where the code and the paper differ, both are given.
 
 ---
 
@@ -324,7 +324,7 @@ planar, so its `λ_3` (flatness) collapses — which means the GLE flatness test
 accepts it. One fix, two benefits.
 
 > **Measured:** R-VPF is bursty — 0 points on frames 0, 1, 3, 4; then 2,465 points on frame 2
-> and 1,629 on frame 5 of the sample sequence. Exactly the "occasional but fatal" profile.
+> and 1,615 on frame 5 of the sample sequence. Exactly the "occasional but fatal" profile.
 
 ### 6.4 R-GPF: Region-wise Ground Plane Fitting
 

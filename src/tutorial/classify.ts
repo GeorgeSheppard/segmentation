@@ -18,7 +18,7 @@ export const stageGle: Stage = {
   subtitle: "R-GPF always returns a plane. GLE is the veto: uprightness, elevation, flatness.",
 
   build(ctx: StageContext) {
-    const { cloud, frame, params } = ctx;
+    const { cloud, frame } = ctx;
     const good = ctx.bin(GOOD_CELL);
     const roof = ctx.bin(ROOF_CELL);
     const wall = ctx.bin(WALL_CELL);
@@ -83,11 +83,6 @@ export const stageGle: Stage = {
     t.add(1.0, {
       onEnter: () => {
         cells.wall.nLabel.text = `facing up ${wall.gle!.uprightness.toFixed(2)}`;
-        ctx.readout("Test 1 · facing up?", [
-          { label: "facing up (1 = flat)", value: wall.gle!.uprightness.toFixed(3) },
-          { label: "threshold", value: `> ${params.uprightnessThr}` },
-          { label: "verdict", value: "REJECT", state: "fail" },
-        ]);
         ctx.verdict("Rejected — not upright", "bad");
       },
       onUpdate: (v) => reveal(cells.wall, v),
@@ -104,11 +99,6 @@ export const stageGle: Stage = {
     t.add(1.0, {
       onEnter: () => {
         cells.roof.nLabel.text = `facing up ${roof.gle!.uprightness.toFixed(2)}`;
-        ctx.readout("Test 1 · facing up?", [
-          { label: "facing up (1 = flat)", value: roof.gle!.uprightness.toFixed(3) },
-          { label: "threshold", value: `> ${params.uprightnessThr}` },
-          { label: "verdict", value: "PASS", state: "pass" },
-        ]);
       },
       onUpdate: (v) => reveal(cells.roof, v),
     });
@@ -133,11 +123,6 @@ export const stageGle: Stage = {
 
     t.add(1.2, {
       onEnter: () => {
-        ctx.readout("Test 2 · how high?", [
-          { label: "patch height", value: `${fmt(roof.gle!.elevation)} m` },
-          { label: "above the sensor by", value: `${fmt(roof.gle!.heading)} m`, state: "fail" },
-          { label: "verdict", value: "REJECT", state: "fail" },
-        ]);
         ctx.verdict("Rejected — above the sensor", "bad");
       },
       onUpdate: (v) => {
@@ -146,7 +131,8 @@ export const stageGle: Stage = {
       },
     });
     t.say(
-      "Second test: where does the plane <em>sit</em>? Ground passes below the sensor. This sits above it.",
+      `Second test: where does the plane <em>sit</em>? Ground passes below the sensor. This one ` +
+        `sits <em>${fmt(roof.gle!.heading)} m</em> above it.`,
       3.2,
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.nonGround, v) });
@@ -160,12 +146,6 @@ export const stageGle: Stage = {
     t.add(1.0, {
       onEnter: () => {
         cells.good.nLabel.text = `facing up ${good.gle!.uprightness.toFixed(2)}`;
-        ctx.readout("All three tests", [
-          { label: "facing up", value: good.gle!.uprightness.toFixed(4), state: "pass" },
-          { label: "height", value: `${fmt(good.gle!.elevation)} m`, state: "pass" },
-          { label: "thickness", value: thickness(good.gle!.flatness), state: "pass" },
-          { label: "verdict", value: "GROUND", state: "pass" },
-        ]);
         ctx.verdict("Accepted — ground", "good");
       },
       onUpdate: (v) => {
@@ -301,15 +281,7 @@ export const stageSweep: Stage = {
     t.say("No training data, no per-scene tuning, no random sampling.", 2.6);
 
     t.at(Math.max(t.time, 2.6 + ringOrder.length * perRing + 0.4));
-    t.add(1.2, {
-      onEnter: () =>
-        ctx.readout("This scan", [
-          { label: "ground", value: frame.groundCount.toLocaleString(), state: "pass" },
-          { label: "not ground", value: frame.nonGroundCount.toLocaleString() },
-          { label: "undecided", value: candidateIdx.length.toLocaleString(), state: "fail" },
-          { label: "compute", value: `${frame.elapsedMs.toFixed(0)} ms` },
-        ]),
-    });
+    t.wait(1.2);
     t.say(
       "Nearly all decided. The amber points sit in cells GLE could not call. This scan has <em>one</em>.",
       3,
@@ -403,12 +375,6 @@ export const stageTgr: Stage = {
     );
 
     t.add(1.4, {
-      onEnter: () =>
-        ctx.readout("This ring, this frame", [
-          { label: "definite ground", value: String(ring.flatnessSamples.length) },
-          { label: "typical for the ring", value: thickness(hero.tgr!.ringMean) },
-          { label: "allowed", value: thickness(hero.tgr!.mu) },
-        ]),
       onUpdate: (v) => {
         for (const c of peerCells) c.opacity = v * 0.3;
       },
@@ -421,25 +387,6 @@ export const stageTgr: Stage = {
     const verdict = hero.tgr!;
     t.add(1.4, {
       onEnter: () => {
-        ctx.readout("TGR verdict", [
-          { label: "this patch", value: thickness(hero.gle!.flatness) },
-          { label: "allowed", value: thickness(verdict.mu) },
-          {
-            label: "flat enough",
-            value: `${(verdict.probFlatness * 100).toFixed(1)}%`,
-            state: "pass",
-          },
-          {
-            label: "long ÷ wide",
-            value: `${hero.gle!.lineVariable.toFixed(1)} ≤ 8`,
-            state: "pass",
-          },
-          {
-            label: "verdict",
-            value: verdict.reverted ? "REVERT" : "REJECT",
-            state: verdict.reverted ? "pass" : "fail",
-          },
-        ]);
         ctx.verdict(
           verdict.reverted ? "Reverted to ground" : "Final reject",
           verdict.reverted ? "good" : "bad",

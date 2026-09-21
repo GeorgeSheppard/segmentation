@@ -1,29 +1,8 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  // Must match the Worker service the Cloudflare project is connected to. Workers Builds
-  // runs `wrangler versions upload` from this config, so a different name here would
-  // upload a version of some other Worker and the connected service would never get a
-  // preview URL.
   "name": "segmentation",
   "compatibility_date": "2026-09-20",
-
-  // A static site: no Worker script, just the Vite build served from Cloudflare's edge.
-  // The build itself is the Cloudflare project's build command (`pnpm build`), so this
-  // config deliberately has no `build.command` — that would build a second time inside
-  // `wrangler deploy`.
   "assets": {
     "directory": "./dist",
-    // One HTML entry point and no client-side router, so any unknown path should still
-    // land on the tutorial rather than a bare 404.
     "not_found_handling": "single-page-application",
-  },
-
-  // What serves per-branch and per-PR previews: a version is uploaded without being
-  // promoted, and reachable at <version>-segmentation.<subdomain>.workers.dev.
-  "workers_dev": true,
-  "preview_urls": true,
-
-  "observability": {
-    "enabled": true,
   },
 }

@@ -38,7 +38,7 @@
   box-sizing: border-box;
 }
 
-/* The mobile rules below set display on #legend/#readout by id, which would otherwise
+/* The mobile rules below set display on #legend by id, which would otherwise
    out-specify the [hidden] attribute and leave empty panels on screen. */
 [hidden] {
   display: none !important;
@@ -62,9 +62,9 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  /* top band, step rail, then everything else — the bottom band pins to the bottom of it.
-     The canvas, labels and loading screen are absolutely positioned and out of flow. */
-  grid-template-rows: auto auto 1fr;
+  /* top band, step rail, legend, then everything else — the bottom band pins to the bottom
+     of it. The canvas, labels and status chip are absolutely positioned and out of flow. */
+  grid-template-rows: auto auto auto 1fr;
   /* Pin the column to the viewport. Without this the column takes its min-content width
      from the step rail, which is wider than a phone, and every band overflows. */
   grid-template-columns: minmax(0, 1fr);
@@ -73,6 +73,7 @@ body {
 
 #top,
 #rail,
+#legend,
 #bottom {
   min-width: 0;
 }
@@ -298,7 +299,7 @@ body {
 /* ---------------------------------------------------------------- bottom band */
 
 #bottom {
-  grid-row: 3;
+  grid-row: 4;
   align-self: end;
   position: relative;
   z-index: 20;
@@ -314,44 +315,40 @@ body {
   pointer-events: auto;
 }
 
-#panels {
-  width: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  pointer-events: none;
-}
-#panels > * {
-  pointer-events: auto;
-}
-
-.panel {
-  background: var(--panel);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
 /* ---------------------------------------------------------------- legend */
 
+/* A strip under the step rail: what the colours mean, read before the scene rather than
+   found afterwards in a corner. Nothing in it is clickable, so drags pass straight to the
+   scene underneath. */
 #legend {
+  grid-row: 3;
+  justify-self: center;
+  margin-top: 10px;
+  max-width: calc(100% - 2 * (var(--gutter) + var(--safe-l)));
   display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 11px 13px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 8px 15px;
   font-size: 12.5px;
-  max-width: 280px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 15;
 }
 #legend .row {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
+  white-space: nowrap;
   color: var(--text-dim);
+}
+#legend .row i {
+  font-style: normal;
+  color: var(--text-faint);
 }
 #legend .swatch {
   width: 11px;
@@ -363,43 +360,6 @@ body {
 #legend .row strong {
   color: var(--text);
   font-weight: 560;
-}
-
-/* ---------------------------------------------------------------- readout */
-
-#readout {
-  padding: 11px 13px;
-  font-family: var(--mono);
-  font-size: 12px;
-  min-width: 210px;
-  background: var(--panel);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-#readout .row {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 3px 0;
-  color: var(--text-dim);
-}
-#readout .row b {
-  color: var(--text);
-  font-weight: 560;
-}
-#readout .row.pass b {
-  color: var(--ground);
-}
-#readout .row.fail b {
-  color: var(--non-ground);
-}
-#readout .title {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 6px;
 }
 
 /* ---------------------------------------------------------------- caption */
@@ -776,12 +736,7 @@ button.primary.pulse {
   #titles {
     max-width: min(420px, 50vw);
   }
-  #readout {
-    min-width: 178px;
-    font-size: 11.5px;
-  }
   #legend {
-    max-width: 230px;
     font-size: 11.5px;
   }
 }
@@ -844,50 +799,15 @@ button.primary.pulse {
     padding-bottom: calc(var(--safe-b) + 10px);
   }
 
-  /* Evidence becomes one horizontally scrollable strip instead of two side panels. */
-  #panels {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
+  /* One line on a phone: swatch and name, with the explanations dropped. */
   #legend {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    max-width: none;
-    gap: 14px;
-    padding: 8px 11px;
+    margin-top: 8px;
+    gap: 4px 12px;
+    padding: 7px 12px;
     font-size: 11.5px;
   }
-  #legend::-webkit-scrollbar {
+  #legend .row i {
     display: none;
-  }
-  #legend .row {
-    white-space: nowrap;
-  }
-  #readout {
-    min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding: 8px 11px;
-  }
-  #readout::-webkit-scrollbar {
-    display: none;
-  }
-  #readout .title {
-    margin: 0;
-    flex: none;
-  }
-  #readout .row {
-    flex-direction: column;
-    gap: 1px;
-    padding: 0;
-    flex: none;
-    align-items: flex-start;
   }
 
   #caption-text {
@@ -928,12 +848,11 @@ button.primary.pulse {
   }
 }
 
-/* Short landscape phones: drop the panels entirely, the canvas needs the room. */
+/* Short landscape phones: drop the side matter entirely, the canvas needs the room. */
 @media (max-height: 460px) and (max-width: 900px) {
   #stage-subtitle,
   #rail,
-  #legend,
-  #readout {
+  #legend {
     display: none;
   }
   #caption-text {

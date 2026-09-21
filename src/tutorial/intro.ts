@@ -20,11 +20,6 @@ export const stageScan: Stage = {
       { color: "#22d3ee", label: "mid", note: "cars, hedges" },
       { color: "#fb923c", label: "high", note: "walls, trees, poles" },
     ]);
-    ctx.readout("Scan", [
-      { label: "points", value: frame.cloud.count.toLocaleString() },
-      { label: "range", value: "≤ 80 m" },
-      { label: "rate", value: "10 Hz" },
-    ]);
 
     // Sensor frame gizmo: x forward, y left, z up.
     const axisSpec: Array<[Vector3, Color, string, "" | "accent"]> = [
@@ -126,12 +121,6 @@ export const stageProblem: Stage = {
     ).with(2.0, ctx.rig.flyTo(pose([-66, -48, 24], [6, 0, -1.6])), Ease.cinematic);
 
     t.add(1.6, {
-      onEnter: () =>
-        ctx.readout("Single plane (GPF)", [
-          { label: "facing up (1 = flat)", value: plane.normal[2].toFixed(4) },
-          { label: "ground", value: ground.length.toLocaleString() },
-          { label: "obstacles", value: nonGround.length.toLocaleString() },
-        ]),
       onUpdate: (v) => {
         lid.opacity = v * 0.16;
         cloud.paint(ground, ctx.color.ground, v);
@@ -144,18 +133,6 @@ export const stageProblem: Stage = {
     t.say("Further out, the road curves away from the plane.", 2.4);
 
     t.add(1.4, {
-      onEnter: () =>
-        ctx.readout("Disagreement", [
-          {
-            label: "road thrown away",
-            value: missedArr.length.toLocaleString(),
-            state: "fail",
-          },
-          {
-            label: "of true ground",
-            value: `${((100 * missedArr.length) / Math.max(1, frame.groundCount)).toFixed(1)}%`,
-          },
-        ]),
       onUpdate: (v) => {
         cloud.paint(missedArr, "#38bdf8", v);
         cloud.sizeTo(missedArr, 1.9, v);

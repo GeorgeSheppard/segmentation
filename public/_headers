@@ -1,6 +1,6 @@
 # Cloudflare static-asset headers.
 
-# The KITTI scans never change; let the browser and the edge keep them.
+# The quantized scans never change; let the browser and the edge keep them.
 /data/*
   Cache-Control: public, max-age=31536000, immutable
 

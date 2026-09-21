@@ -76,10 +76,15 @@ bar and remembered per browser.
 
 ## On a phone
 
-Yes. The three bands (title + step rail, scene, evidence + narration + transport) reflow:
-the legend and readout become horizontally scrollable strips, the primary action gets its own
-full-width row, and the camera trades vertical field of view for horizontal on portrait
-aspects — without that, poses framed for a wide screen crop the subject off the sides.
+Yes. The bands (title, step rail, legend, scene, narration, transport) reflow: the legend
+keeps its swatches and drops its explanations to stay one line, the primary action gets its
+own full-width row, and the camera trades vertical field of view for horizontal on portrait
+aspects — without that, poses framed for a wide screen crop the subject off the sides. The
+rendered frame is also lifted on portrait, so the subject sits where the bands do not cover.
+
+One finger turns the scene, two fingers zoom and slide it, and touch devices are told so
+once. Scripted camera moves stand down the moment you take hold of the scene; **Recentre**
+hands the camera back to the tour.
 
 ## The algorithm
 
@@ -141,11 +146,17 @@ to be behaviour-neutral and that number moves, it was not.
 
 ## Data
 
-`public/data/*.bin` are six KITTI Velodyne scans, redistributed from the
+`data/raw/*.bin` are six KITTI Velodyne scans, redistributed from the
 [Patchwork++ reference implementation](https://github.com/url-kaist/patchwork-plusplus)
 (BSD-2-Clause), which ships them as demo data. Raw little-endian `float32`, four values per
 point — `x, y, z, intensity` — in the sensor frame: x forward, y left, z up. See
-`public/data/README.md` for attribution.
+`data/raw/README.md` for attribution.
+
+They are not served. What ships is `public/data/*.pcq`, the same scans quantized by
+`pnpm run data:quantize`: 16-bit fixed-point positions at 2.5 mm and one byte of intensity,
+7 bytes a point against KITTI's 16. That is 1.99 MB → 0.87 MB per scan for a worst-case
+position error of 1.25 mm, an eighth of what the sensor itself resolves. The verification
+script hashes the quantized files, so the digest covers exactly what the browser is handed.
 
 The tutorial runs on frame 5, which is the one that exercises every module from a cold start:
 it contains reflected noise, a cell where the ground sits on a structure, and a cell that only
@@ -165,7 +176,8 @@ pnpm preview:upload  # upload a version — preview URL, production untouched
 ```
 
 The Cloudflare project (**Workers & Pages → segmentation**) is connected to this repo and
-owns the build, so there is no token in CI and no deploy step in the workflows:
+owns the build, so there is no token in CI and no deploy step in the workflows — the same
+setup as the other sites in this account:
 
 | Setting           | Value                                        |
 | ----------------- | -------------------------------------------- |
@@ -175,13 +187,11 @@ owns the build, so there is no token in CI and no deploy step in the workflows:
 | Production branch | `main`, with non-production branch builds on |
 
 Because the project runs the build itself, `wrangler.jsonc` deliberately has **no**
-`build.command`; that would build a second time inside `wrangler deploy`. `workers_dev` and
-`preview_urls` are on, which is what makes the version command's upload reachable at
-`<version>-segmentation.<subdomain>.workers.dev`.
+`build.command`; that would build a second time inside `wrangler deploy`. The config is the
+three keys the other repos use — name, compatibility date, assets — and nothing else.
 
-Workers Builds reports that URL in the **check run summary**, not as a PR comment (commenting
-is a Pages behaviour). `.github/workflows/preview-comment.yml` mirrors it into a comment so
-the link sits on the conversation tab instead of two clicks into the build.
+Workers Builds reports each preview URL in the **check run summary** on the PR, not as a
+comment (commenting is a Pages behaviour).
 
 ## Development
 
@@ -199,11 +209,12 @@ pnpm format        # prettier
 `tests/tutorial.spec.ts` drives the real app in a real browser — it is a WebGL page, so
 there is no useful unit-level substitute. It runs under two projects, desktop and a
 390×844 phone, and covers: the app loading and actually segmenting the scan (asserted via
-the live point count in the readout), walking all twelve stages with zero console errors,
+the live point count in the caption), walking all twelve stages with zero console errors,
 Continue's finish-then-advance behaviour, Replay, Back, the speed control, deep links, the
 step rail lighting the right steps, theme switching and persistence, every theme keeping its
-three slots distinct, nothing overflowing the viewport, and the transport staying on screen
-with tappable targets.
+three slots distinct, nothing overflowing the viewport, the transport staying on screen with
+tappable targets, the page being usable while the scan is still downloading, a drag taking
+the camera from the tour, the gesture hint, and the legend sitting above the scene.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, format check and the algorithm digest in one
 job, and the two Playwright projects in a matrix. If a sandbox already ships a Chromium, set

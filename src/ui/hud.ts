@@ -2,19 +2,13 @@ import { Color } from "three";
 import { PIPELINE_STEPS, type StepId } from "../patchwork/index.ts";
 import { THEME_ORDER, THEMES, type ThemeId } from "../viz/themes.ts";
 
-/** All DOM outside the canvas: titles, step rail, legend, readout, caption, transport. */
+/** All DOM outside the canvas: titles, step rail, legend, caption, transport. */
 
 export interface LegendItem {
   /** A CSS colour, or the scene Color the swatch must match exactly. */
   color: string | Color;
   label: string;
   note?: string;
-}
-
-export interface ReadoutRow {
-  label: string;
-  value: string;
-  state?: "pass" | "fail";
 }
 
 export interface HudCallbacks {
@@ -40,7 +34,6 @@ export class Hud {
   private readonly subtitle = byId("stage-subtitle");
   private readonly captionText = byId("caption-text");
   private readonly legend = byId("legend");
-  private readonly readout = byId("readout");
   private readonly progressBar = byId("progress-bar");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
@@ -331,29 +324,11 @@ export class Hud {
       const row = document.createElement("div");
       row.className = "row";
       const css = toCss(item.color);
+      // The note is its own element so a phone can drop it and keep the strip to one line.
       row.innerHTML =
         `<span class="swatch" style="background:${css};color:${css}"></span>` +
-        `<span><strong>${item.label}</strong>${item.note ? ` — ${item.note}` : ""}</span>`;
+        `<strong>${item.label}</strong>${item.note ? `<i>— ${item.note}</i>` : ""}`;
       this.legend.appendChild(row);
-    }
-  }
-
-  setReadout(title: string | null, rows: ReadoutRow[] = []): void {
-    if (!title) {
-      this.readout.hidden = true;
-      return;
-    }
-    this.readout.hidden = false;
-    this.readout.replaceChildren();
-    const head = document.createElement("div");
-    head.className = "title";
-    head.textContent = title;
-    this.readout.appendChild(head);
-    for (const r of rows) {
-      const row = document.createElement("div");
-      row.className = `row${r.state ? ` ${r.state}` : ""}`;
-      row.innerHTML = `<span>${r.label}</span><b>${r.value}</b>`;
-      this.readout.appendChild(row);
     }
   }
 

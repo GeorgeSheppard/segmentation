@@ -14,7 +14,7 @@ import type { TgrVerdict } from "./steps/tgr.ts";
  *
  * The tutorial reads this and never recomputes anything: the seeds it draws are the seeds
  * that were used, the plane it animates is the plane that was fitted, the numbers in the
- * readouts are the numbers the classifier tested.
+ * captions are the numbers the classifier tested.
  */
 
 /** One CZM cell, and every intermediate result produced inside it. */

@@ -39,7 +39,7 @@ export interface GleVerdict {
   isFlat: boolean;
 
   decision: "ground" | "nonground" | "candidate";
-  /** Human-readable reason, for the tutorial's readouts. */
+  /** Human-readable reason, for the tutorial's narration. */
   reason: string;
   /** Contributed to Dₘ, the set A-GLE learns its thresholds from. */
   isDefiniteGround: boolean;

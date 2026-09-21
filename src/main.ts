@@ -69,8 +69,8 @@ class App {
   }
 
   async start(): Promise<void> {
-    // The scan is ~2 MB of raw float32. Start pulling it straight away, then draw the rest
-    // of the page around the download rather than behind a curtain.
+    // Start pulling the scan straight away, then draw the rest of the page around the
+    // download rather than behind a curtain.
     this.hud.setLoading("Fetching the scan…");
     const scan = loadKittiFrame(HERO_FRAME, ({ received, total }) => {
       const mb = (received / 1e6).toFixed(1);
@@ -100,9 +100,8 @@ class App {
 
     const cloud = await scan;
 
-    this.hud.setLoading(`Segmenting ${cloud.count.toLocaleString()} points…`, 1);
-    // Yield so the loading text paints before the (synchronous) segmentation runs.
-    await nextFrame();
+    // Segmenting 124,000 points takes about a tenth of a second, so it needs no state of
+    // its own — it runs in the gap between the last byte arriving and the first stage.
     this.frame = segmentGround(cloud, HERO_FRAME, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
 
     this.cloud = new CloudView(cloud);
@@ -150,7 +149,6 @@ class App {
     this.ctx?.dispose();
     this.hud.setCaption("");
     this.hud.setLegend(null);
-    this.hud.setReadout(null);
     this.hud.showVerdict(null);
     this.cloud.sizeBoost = 1;
 
@@ -232,10 +230,6 @@ class App {
     saveThemeId(id);
     if (this.frame) this.buildStage(this.index);
   }
-}
-
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 new App().start().catch((err) => {

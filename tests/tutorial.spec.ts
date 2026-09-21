@@ -9,8 +9,8 @@ test.describe("tutorial", () => {
     await expect(page.locator("#step-num")).toHaveText("1");
     await expect(page.locator("#step-total")).toHaveText("12");
 
-    // The readout is fed from the live segmentation, so this asserts the algorithm ran.
-    await expect(page.locator("#readout")).toContainText("123,924");
+    // The caption is fed from the live segmentation, so this asserts the algorithm ran.
+    await expect(page.locator("#caption-text")).toContainText("123,924");
     expect(errors).toEqual([]);
   });
 
@@ -157,20 +157,29 @@ test.describe("layout", () => {
     }
   });
 
-  test("empty panels are not rendered", async ({ page }) => {
-    // The scan stage has no legend of its own until the first beat sets one.
-    await open(page, "problem");
-    const readout = page.locator("#readout");
-    if (await readout.isHidden()) {
-      await expect(readout).toHaveCSS("display", "none");
-    }
+  test("the legend sits above the scene, not over the controls", async ({ page }) => {
+    await open(page);
+    const legend = page.locator("#legend");
+    await expect(legend).toBeVisible();
+
+    const strip = (await legend.boundingBox())!;
+    const controls = (await page.locator("#controls").boundingBox())!;
+    expect(strip.y + strip.height).toBeLessThan(controls.y);
+    // Above the halfway line: it belongs to the header, not to the bottom stack.
+    expect(strip.y).toBeLessThan(page.viewportSize()!.height / 2);
+  });
+
+  test("an empty legend is not rendered", async ({ page }) => {
+    await open(page, "sweep");
+    const legend = page.locator("#legend");
+    if (await legend.isHidden()) await expect(legend).toHaveCSS("display", "none");
   });
 });
 
 test.describe("getting around", () => {
   test("the page is readable while the scan is still downloading", async ({ page }) => {
     // Hold the scan back so the loading state is observable rather than a flash.
-    await page.route("**/data/*.bin", async (route) => {
+    await page.route("**/data/*.pcq", async (route) => {
       await new Promise((r) => setTimeout(r, 2500));
       await route.continue();
     });
@@ -185,7 +194,7 @@ test.describe("getting around", () => {
 
     await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
     await expect(page.locator("#btn-continue")).toBeEnabled();
-    await expect(page.locator("#readout")).toContainText("123,924");
+    await expect(page.locator("#caption-text")).toContainText("123,924");
   });
 
   test("dragging the scene takes the camera, and Recentre hands it back", async ({ page }) => {
