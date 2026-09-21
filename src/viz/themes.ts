@@ -54,6 +54,16 @@ export interface Theme {
    */
   contextAlpha: number;
 
+  /**
+   * The four CZM zones, inner to outer.
+   *
+   * Zone order is a radial sequence, so this is an ORDINAL encoding, not a categorical
+   * one: a single hue with monotone lightness steps, so the ordering is visible in the
+   * colour. Each ramp passes the ordinal checks (monotone L, adjacent ΔL ≥ 0.06,
+   * light-end contrast ≥ 2:1, single hue) on its own surface.
+   */
+  zoneRamp: [string, string, string, string];
+
   /** UI chrome. */
   ui: {
     panel: string;
@@ -88,6 +98,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     grid: "#38507a",
     ramp: ["#12305e", "#1a6aa8", "#2c9ab0", "#7ab86a", "#d7b44a", "#e08a3c"],
     contextAlpha: 0.04,
+    // ordinal, dark on #070a0f: ΔL gaps clear, light end 2.26:1, hue spread 8°
+    zoneRamp: ["#8cc4ee", "#4f9bd1", "#2f72a8", "#1d4d7a"],
     ui: {
       panel: "rgba(13, 19, 30, 0.82)",
       border: "rgba(148, 163, 184, 0.18)",
@@ -118,6 +130,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     grid: "#4c3f7a",
     ramp: ["#1e1b4b", "#4338ca", "#7c5cd6", "#a855f7", "#d0619e", "#e08a3c"],
     contextAlpha: 0.05,
+    // ordinal, dark on #0a0712: ΔL gaps clear, light end 2.16:1, hue spread 3°
+    zoneRamp: ["#b8adf0", "#8d7ad8", "#6754b4", "#4a3c85"],
     ui: {
       panel: "rgba(19, 14, 33, 0.84)",
       border: "rgba(167, 155, 208, 0.20)",
@@ -150,6 +164,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     grid: "#9aa8c0",
     ramp: ["#1e3a8a", "#2a78d6", "#2c9ab0", "#4f9e3f", "#c08a1a", "#c2410c"],
     contextAlpha: 0.22,
+    // ordinal, light on #eef1f6: ΔL gaps clear, light end 2.62:1, hue spread 4°
+    zoneRamp: ["#8397b8", "#5c7ba6", "#3a5a8c", "#1d3a66"],
     ui: {
       panel: "rgba(252, 252, 251, 0.88)",
       border: "rgba(15, 23, 42, 0.14)",

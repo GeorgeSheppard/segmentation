@@ -1,5 +1,6 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
+import { lerpPlane, type Vec3 } from "../core/linalg.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt } from "./helpers.ts";
 
@@ -194,8 +195,7 @@ export const stageRgpf: Stage = {
     const normalLabel = ctx.label("", new Vector3(), "accent");
     normalLabel.opacity = 0;
 
-    const showPlane = (it: number) => {
-      const p = bin.rgpf[it].plane;
+    const showPlane = (p: { normal: Vec3; d: number; mean: Vec3 }) => {
       planeSurf.layOnPlane(p.normal, p.d);
       slabSurf.layOnPlane(p.normal, p.d - params.thDist);
       const base = new Vector3(p.mean[0], p.mean[1], p.mean[2]);
@@ -206,7 +206,9 @@ export const stageRgpf: Stage = {
       normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.35)));
       normalLabel.text = `n<sub>z</sub> = ${p.normal[2].toFixed(4)}`;
     };
-    showPlane(0);
+    /** Each pass tweens from the fit before it, so the plane is seen to settle. */
+    const planeAt = (it: number) => (it < 0 ? bin.rgpf[0].plane : bin.rgpf[it].plane);
+    showPlane(planeAt(0));
 
     const seeds = idx.subarray(0, bin.seedCount);
 
@@ -243,13 +245,18 @@ export const stageRgpf: Stage = {
       const accepted = pass.ground;
       const plane = pass.plane;
 
-      t.add(0.9, {
-        onEnter: () => showPlane(it),
-        onUpdate: (v) => {
-          planeSurf.opacity = 0.32;
-          slabSurf.opacity = v * 0.14;
+      const from = planeAt(it - 1);
+      t.add(
+        0.9,
+        {
+          onUpdate: (v) => {
+            showPlane(lerpPlane(from, plane, v));
+            planeSurf.opacity = 0.32;
+            slabSurf.opacity = v * 0.14;
+          },
         },
-      });
+        Ease.inOut,
+      );
 
       t.add(1.1, {
         onEnter: () =>
@@ -419,27 +426,33 @@ export const stageRvpf: Stage = {
     // Peel, iteration by iteration.
     let removedSoFar: number[] = [];
     bin.rvpf.forEach((pass, i) => {
-      t.add(1.0, {
-        onEnter: () => {
-          showPlane(pass.plane.normal, pass.plane.d, pass.plane.mean);
-          ctx.readout(`R-VPF pass ${i + 1}`, [
-            {
-              label: "normal z",
-              value: pass.plane.normal[2].toFixed(3),
-              state: pass.peeled ? "fail" : "pass",
-            },
-            {
-              label: pass.peeled ? "peeled" : "verdict",
-              value: pass.peeled ? pass.removed.length.toLocaleString() : "upright — stop",
-              state: pass.peeled ? undefined : "pass",
-            },
-          ]);
+      const from = bin.rvpf[i - 1]?.plane ?? pass.plane;
+      t.add(
+        1.0,
+        {
+          onEnter: () => {
+            ctx.readout(`R-VPF pass ${i + 1}`, [
+              {
+                label: "normal z",
+                value: pass.plane.normal[2].toFixed(3),
+                state: pass.peeled ? "fail" : "pass",
+              },
+              {
+                label: pass.peeled ? "peeled" : "verdict",
+                value: pass.peeled ? pass.removed.length.toLocaleString() : "upright — stop",
+                state: pass.peeled ? undefined : "pass",
+              },
+            ]);
+          },
+          onUpdate: (v) => {
+            const p = lerpPlane(from, pass.plane, v);
+            showPlane(p.normal, p.d, p.mean);
+            planeSurf.opacity = 0.3;
+            normalLine.opacity = 1;
+          },
         },
-        onUpdate: () => {
-          planeSurf.opacity = 0.3;
-          normalLine.opacity = 1;
-        },
-      });
+        Ease.inOut,
+      );
 
       if (pass.peeled) {
         const snapshot = [...removedSoFar];

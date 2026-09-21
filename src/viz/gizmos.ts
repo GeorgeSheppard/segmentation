@@ -231,6 +231,11 @@ export class CzmGrid {
   readonly zones: Group[] = [];
   private readonly materials: LineBasicMaterial[] = [];
 
+  /** Per zone: the ring polylines and the single LineSegments holding its spokes. */
+  private readonly rings: Line[][] = [];
+  private readonly spokes: LineSegments[] = [];
+  private readonly sectorCounts: number[] = [];
+
   constructor(czm: CzmGeometry, params: Params, z: number, zoneTints: Color[]) {
     for (let zone = 0; zone < params.numZones; zone++) {
       const material = new LineBasicMaterial({
@@ -240,11 +245,13 @@ export class CzmGrid {
       });
       this.materials.push(material);
       const g = new Group();
+      const zoneRings: Line[] = [];
 
-      // Ring boundaries: one circle per ring edge.
+      // Ring boundaries: one circle per ring edge, wound from theta = 0 so that a partial
+      // draw range reads as an arc swept anticlockwise from straight ahead.
       for (let ring = 0; ring <= params.numRingsEachZone[zone]; ring++) {
         const r = czm.minRanges[zone] + ring * czm.ringSizes[zone];
-        const segs = Math.max(48, Math.round(r * 3));
+        const segs = Math.max(96, Math.round(r * 4));
         const verts: number[] = [];
         for (let i = 0; i <= segs; i++) {
           const a = (2 * Math.PI * i) / segs;
@@ -252,10 +259,13 @@ export class CzmGrid {
         }
         const geom = new BufferGeometry();
         geom.setAttribute("position", new BufferAttribute(new Float32Array(verts), 3));
-        g.add(new Line(geom, material));
+        const line = new Line(geom, material);
+        zoneRings.push(line);
+        g.add(line);
       }
 
-      // Sector boundaries: radial spokes spanning the zone.
+      // Sector boundaries: radial spokes spanning the zone, in ascending angle so the
+      // draw range reveals them in sweep order.
       const verts: number[] = [];
       const inner = czm.minRanges[zone];
       const outer = czm.maxRanges[zone];
@@ -266,11 +276,43 @@ export class CzmGrid {
       }
       const geom = new BufferGeometry();
       geom.setAttribute("position", new BufferAttribute(new Float32Array(verts), 3));
-      g.add(new LineSegments(geom, material));
+      const seg = new LineSegments(geom, material);
+
+      this.rings.push(zoneRings);
+      this.spokes.push(seg);
+      this.sectorCounts.push(params.numSectorsEachZone[zone]);
+      g.add(seg);
 
       this.zones.push(g);
       this.group.add(g);
     }
+    this.setSweep(1);
+  }
+
+  /**
+   * How much of a zone has been drawn, as a fraction of one revolution.
+   *
+   * The grid is polar because the sensor is, so it is built the way the sensor builds a
+   * scan: a hand sweeps round from straight ahead, the ring arcs trail behind it, and each
+   * spoke appears as the sweep crosses it. At 1 the zone is whole.
+   */
+  setZoneSweep(zone: number, t: number): void {
+    const sweep = Math.max(0, Math.min(1, t));
+    for (const line of this.rings[zone] ?? []) {
+      const total = line.geometry.getAttribute("position").count;
+      line.geometry.setDrawRange(0, Math.round(total * sweep));
+    }
+    const seg = this.spokes[zone];
+    if (seg) {
+      const n = this.sectorCounts[zone];
+      // A spoke at angle s * (2pi / n) is drawn once the sweep has passed it.
+      const revealed = Math.min(n, Math.floor(sweep * n + 1e-6) + (sweep > 0 ? 1 : 0));
+      seg.geometry.setDrawRange(0, revealed * 2);
+    }
+  }
+
+  setSweep(t: number): void {
+    for (let i = 0; i < this.zones.length; i++) this.setZoneSweep(i, t);
   }
 
   setZoneOpacity(zone: number, v: number): void {

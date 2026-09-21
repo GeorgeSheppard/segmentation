@@ -243,6 +243,30 @@ export function planeDistance(xyz: Float32Array, index: number, normal: Vec3, d:
   return normal[0] * xyz[o] + normal[1] * xyz[o + 1] + normal[2] * xyz[o + 2] + d;
 }
 
+/**
+ * Interpolate between two fitted planes.
+ *
+ * Used by the tutorial so a refit visibly *settles* instead of snapping: the normal is
+ * interpolated and renormalised, the offset linearly. `t` is eased by the caller.
+ */
+export function lerpPlane(
+  a: { normal: Vec3; d: number; mean: Vec3 },
+  b: { normal: Vec3; d: number; mean: Vec3 },
+  t: number,
+): { normal: Vec3; d: number; mean: Vec3 } {
+  const normal = normalize([
+    a.normal[0] + (b.normal[0] - a.normal[0]) * t,
+    a.normal[1] + (b.normal[1] - a.normal[1]) * t,
+    a.normal[2] + (b.normal[2] - a.normal[2]) * t,
+  ]);
+  const mean: Vec3 = [
+    a.mean[0] + (b.mean[0] - a.mean[0]) * t,
+    a.mean[1] + (b.mean[1] - a.mean[1]) * t,
+    a.mean[2] + (b.mean[2] - a.mean[2]) * t,
+  ];
+  return { normal, d: a.d + (b.d - a.d) * t, mean };
+}
+
 export function meanStdev(values: ArrayLike<number>): { mean: number; stdev: number } {
   const n = values.length;
   if (n === 0) return { mean: 0, stdev: 0 };

@@ -248,18 +248,45 @@ export const stageCzm: Stage = {
       3.6,
     );
 
-    // Build the zones one at a time, outward.
+    // Build the zones one at a time, outward — drawn, not faded in. A hand sweeps round
+    // from straight ahead the way the sensor does, the ring arcs trail behind it, and each
+    // spoke appears as the sweep crosses it.
+    // Focus colour, not the grid colour — otherwise the hand looks like just another spoke.
+    const hand = ctx.segment(ctx.color.focus, 0, true);
+    const sweepTo = (zone: number, turn: number) => {
+      grid.setZoneSweep(zone, turn);
+      const angle = turn * Math.PI * 2;
+      const inner = czm.minRanges[zone];
+      const outer = czm.maxRanges[zone];
+      hand.set(
+        [Math.cos(angle) * inner, Math.sin(angle) * inner, ctx.groundZ],
+        [Math.cos(angle) * outer, Math.sin(angle) * outer, ctx.groundZ],
+      );
+    };
+
     for (let z = 0; z < 4; z++) {
-      t.add(0.9, {
-        onUpdate: (v) => {
-          grid.setZoneOpacity(z, v * 0.75);
-          zoneLabels[z].opacity = v;
+      grid.setZoneSweep(z, 0);
+      t.add(
+        1.25,
+        {
+          onEnter: () => grid.setZoneOpacity(z, 0.78),
+          onUpdate: (v) => {
+            sweepTo(z, v);
+            // The hand fades out as it closes the loop, leaving the finished zone behind.
+            hand.opacity = 0.9 * Math.min(1, (1 - v) * 4);
+            zoneLabels[z].opacity = Math.min(1, v * 2.2);
+          },
+          onExit: () => {
+            grid.setZoneSweep(z, 1);
+            hand.opacity = 0;
+          },
         },
-      });
-      t.wait(0.35);
+        Ease.inOut,
+      );
+      t.wait(0.2);
     }
 
-    t.at(t.time - 5).say(
+    t.at(t.time - 5.8).say(
       "<em>Z1</em> is deliberately coarse — cells small enough to fit the kerb would give a meaningless normal.",
       2.6,
     );

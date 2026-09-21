@@ -35,6 +35,12 @@ Each stage zooms into a real cell, narrates what happens there, and pulls back t
 scene. A **step rail** across the top stays on screen the whole time with the live pipeline
 step lit, so "where are we" never has to be inferred.
 
+Structures are _built_, not faded in. The Concentric Zone Model is drawn the way the sensor
+draws a scan: a hand sweeps round from straight ahead, the ring arcs trail behind it, and each
+sector spoke appears as the sweep crosses it — zone by zone, inner to outer. Plane fits tween
+between iterations, so R-GPF is seen to settle onto the road and R-VPF's plane is seen to
+stand up as the wall is peeled away, rather than cutting between states.
+
 **Continue** advances (and skips to the end of a stage still playing), **Replay** rebuilds the
 current stage from scratch, and the speed control scales the whole timeline. Keyboard:
 `→`/`space` continue, `←` back, `R` replay. Drag to orbit at any time. Every stage is

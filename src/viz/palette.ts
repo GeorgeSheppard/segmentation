@@ -69,12 +69,11 @@ export function heightColor(t: number, theme: Theme, out: Color = scratch): Colo
 }
 
 /**
- * Zone tints for the CZM grid.
+ * Zone tints for the CZM grid — the theme's ordinal ramp, inner zone to outer.
  *
- * Scaffolding, not identity: four quiet steps of the same hue, so the zones are
- * distinguishable without competing with the three meaning-carrying colours.
+ * Scaffolding, not identity: one hue in stepped lightness, so the radial ordering is
+ * legible without competing with the three meaning-carrying colours.
  */
 export function zoneColors(theme: Theme): Color[] {
-  const base = new Color(theme.grid);
-  return [0, 1, 2, 3].map((i) => base.clone().offsetHSL(0, -0.05 * i, 0.055 * i));
+  return theme.zoneRamp.map((hex) => new Color(hex));
 }
