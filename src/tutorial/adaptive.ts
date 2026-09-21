@@ -157,7 +157,7 @@ export const stageAgle: Stage = {
   },
 };
 
-/** Step 12 — the result, against the strawman from step 2. */
+/** Step 12 — the result, against the one-plane strawman it replaces. */
 export const stageResult: Stage = {
   id: "result",
   title: "The result",
@@ -189,7 +189,7 @@ export const stageResult: Stage = {
         label: "not ground",
         note: `${n.length.toLocaleString()} points`,
       },
-      { color: ctx.color.focus, label: "the single plane missed these" },
+      { color: ctx.color.focus, label: "one plane would miss these" },
     ]);
 
     const t = ctx.track();
@@ -222,8 +222,8 @@ export const stageResult: Stage = {
       },
     });
     t.say(
-      `In cyan, the <em>${rescued.length.toLocaleString()} points</em> of road the single plane threw away.`,
-      3,
+      `Fit <em>one</em> plane to the whole scan instead, and <em>${rescued.length.toLocaleString()} points</em> of that road — the camber, the far end, the rise onto the verge — come back as obstacles.`,
+      3.6,
     );
 
     t.add(4.5, ctx.rig.orbit(65), Ease.inOut);

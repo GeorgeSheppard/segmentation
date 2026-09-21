@@ -7,7 +7,7 @@ test.describe("tutorial", () => {
 
     await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#step-num")).toHaveText("1");
-    await expect(page.locator("#step-total")).toHaveText("13");
+    await expect(page.locator("#step-total")).toHaveText("12");
 
     // The caption is fed from the live segmentation, so this asserts the algorithm ran.
     await expect(page.locator("#caption-text")).toContainText("123,924");
@@ -71,10 +71,10 @@ test.describe("tutorial", () => {
 
   test("Back steps to the previous stage and is disabled on the first", async ({ page }) => {
     await open(page, "czm");
-    await expect(page.locator("#step-num")).toHaveText("5");
+    await expect(page.locator("#step-num")).toHaveText("4");
 
     await page.click("#btn-prev");
-    await expect(page.locator("#step-num")).toHaveText("4");
+    await expect(page.locator("#step-num")).toHaveText("3");
 
     await open(page);
     await expect(page.locator("#btn-prev")).toBeDisabled();

@@ -1,9 +1,7 @@
 import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
-import { type CellTrace, isGroundLabel, type PointLabel } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fitGlobalPlane } from "./helpers.ts";
 
 /** Step 2 — look at what the sensor actually gives you. */
 export const stageScan: Stage = {
@@ -63,112 +61,11 @@ export const stageScan: Stage = {
     );
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
-    t.wait(0.3);
+    t.say(
+      "One plane cannot do it — a real road has camber, kerbs and hills. So Patchwork++ fits <em>hundreds of small ones</em> and checks each.",
+      3.0,
+    );
 
     return t.build();
   },
 };
-
-/** Step 3 — why the obvious approach fails. */
-export const stageProblem: Stage = {
-  id: "problem",
-  title: "Why one plane is not enough",
-  subtitle:
-    "Fit one plane to the whole scan and the road's curvature turns real ground into obstacles.",
-
-  build(ctx: StageContext) {
-    const { cloud, frame } = ctx;
-    const { plane, ground, nonGround } = fitGlobalPlane(frame.cloud, ctx.params);
-
-    // Where the single plane and Patchwork++ disagree: real road the plane throws away.
-    const singleIsGround = new Uint8Array(frame.cloud.count);
-    for (const i of ground) singleIsGround[i] = 1;
-    const missed: number[] = [];
-    for (let i = 0; i < frame.cloud.count; i++) {
-      if (!singleIsGround[i] && isGroundLabel(frame.labels[i] as PointLabel)) missed.push(i);
-    }
-    const missedArr = Int32Array.from(missed);
-
-    // Zoom to wherever the disagreement is worst, rather than a hard-coded cell.
-    const worst = worstBin(ctx, missedArr);
-
-    cloud.setBaseRaw(ctx.color.raw);
-
-    ctx.legend([
-      { color: ctx.color.plane, label: "the one plane" },
-      { color: ctx.color.ground, label: "kept as ground" },
-      { color: ctx.color.nonGround, label: "called an obstacle" },
-      { color: "#38bdf8", label: "road, thrown away", note: "under-segmentation" },
-    ]);
-
-    const lid = ctx.surface(
-      ctx.params.minRange,
-      ctx.params.maxRange,
-      0,
-      Math.PI * 2,
-      ctx.color.plane,
-      0,
-    );
-    lid.layOnPlane(plane.normal, plane.d);
-
-    const t = ctx.track();
-
-    t.say(
-      "The obvious approach: fit <em>one</em> plane to the lowest points. Anything near it is ground.",
-      3,
-    ).with(2.0, ctx.rig.flyTo(pose([-66, -48, 24], [6, 0, -1.6])), Ease.cinematic);
-
-    t.add(1.6, {
-      onUpdate: (v) => {
-        lid.opacity = v * 0.16;
-        cloud.paint(ground, ctx.color.ground, v);
-        cloud.paint(nonGround, ctx.color.nonGround, v * 0.85);
-      },
-    });
-    t.say("Near the car it works. The fit is anchored there.", 2.2);
-
-    t.add(2.6, ctx.rig.flyTo(ctx.binPose(worst, { distance: 22, height: 11 })), Ease.cinematic);
-    t.say("Further out, the road curves away from the plane.", 2.4);
-
-    t.add(1.4, {
-      onUpdate: (v) => {
-        cloud.paint(missedArr, "#38bdf8", v);
-        cloud.sizeTo(missedArr, 1.9, v);
-      },
-    });
-    t.say(
-      `<em>${missedArr.length.toLocaleString()} points</em> of road, labelled obstacle. Clustering turns those into walls that are not there.`,
-      3.4,
-    );
-
-    t.add(2.7, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
-    t.say("So fit <em>hundreds of small planes</em> instead, and check each one.", 2.8);
-
-    return t.build();
-  },
-};
-
-/** The bin holding the most disagreement — where the single-plane failure is easiest to see. */
-function worstBin(ctx: StageContext, missed: Int32Array): CellTrace {
-  const inBin = new Map<string, number>();
-  const index = new Map<number, string>();
-  for (const bin of ctx.frame.cells) {
-    for (const i of bin.indices) index.set(i, bin.key);
-  }
-  for (const i of missed) {
-    const key = index.get(i);
-    if (key) inBin.set(key, (inBin.get(key) ?? 0) + 1);
-  }
-  let bestKey = "";
-  let best = -1;
-  for (const [key, n] of inBin) {
-    const bin = ctx.frame.cellsByKey.get(key)!;
-    // Prefer the mid/far field: that is where the flat-world assumption actually breaks.
-    if (bin.zone < 2) continue;
-    if (n > best) {
-      best = n;
-      bestKey = key;
-    }
-  }
-  return ctx.frame.cellsByKey.get(bestKey) ?? ctx.frame.cells.find((b) => b.zone === 2)!;
-}

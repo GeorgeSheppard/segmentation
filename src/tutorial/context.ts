@@ -263,7 +263,7 @@ export interface Stage {
    * Which pipeline steps this stage covers — drives the step rail, so the reader can always
    * see where in the algorithm they are. Most stages name one; the full-sweep stage names
    * the per-cell steps it runs end to end. Stages that frame the problem rather than
-   * explain a step (the raw scan, the strawman, the result) leave it empty.
+   * explain a step (how a scan is made, the raw scan, the result) leave it empty.
    */
   steps?: StepId[];
   build(ctx: StageContext): import("../anim/timeline.ts").Timeline;
