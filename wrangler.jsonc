@@ -3,8 +3,14 @@
   "name": "patchworkpp-tutorial",
   "compatibility_date": "2026-09-20",
 
+  // Cloudflare's Git integration runs `wrangler deploy` on its own build machine, so the
+  // build has to be part of the deploy rather than something CI did beforehand. This makes
+  // a bare `wrangler deploy` produce ./dist first, with no dashboard build command needed.
+  "build": {
+    "command": "pnpm run build",
+  },
+
   // A static site: no Worker script, just the Vite build served from Cloudflare's edge.
-  // `wrangler deploy` uploads ./dist; run `pnpm build` first (the deploy script does).
   "assets": {
     "directory": "./dist",
     // One HTML entry point and no client-side router, so any unknown path should still
@@ -12,8 +18,8 @@
     "not_found_handling": "single-page-application",
   },
 
-  // Needed for per-PR preview URLs: `wrangler versions upload` publishes a version without
-  // promoting it, served at <alias|version>-<name>.<subdomain>.workers.dev.
+  // What serves per-branch and per-PR previews: a version is uploaded without being
+  // promoted, and reachable at <version>-<name>.<subdomain>.workers.dev.
   "workers_dev": true,
   "preview_urls": true,
 
