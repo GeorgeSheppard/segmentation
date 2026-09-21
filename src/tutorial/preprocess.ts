@@ -20,7 +20,7 @@ export const stageRnr: Stage = {
 
     ctx.legend([
       { color: ctx.color.focus, label: "reflected noise", note: "removed by RNR" },
-      { color: ctx.color.plane, label: "RNR floor", note: "−sensorHeight − 0.8 m" },
+      { color: ctx.color.plane, label: "RNR floor", note: "well below the road surface" },
     ]);
 
     const noise = frame.noiseIndices;
@@ -34,7 +34,7 @@ export const stageRnr: Stage = {
     const heroRange = Math.hypot(heroPos.x, heroPos.y);
     const heroAngle = (Math.atan2(heroPos.z, heroRange) * 180) / Math.PI;
 
-    // The ray that produced it: straight out from the sensor, through the virtual point.
+    // The ray that produced it: straight out from the sensor, through the phantom point.
     const ray = ctx.segment(ctx.color.focus, 0, true);
     ray.set(new Vector3(0, 0, 0), heroPos);
     // Where that ray crosses the road — roughly where the reflective surface must be.
@@ -59,7 +59,7 @@ export const stageRnr: Stage = {
     floor.layFlat(-frame.stateBefore.sensorHeight - 0.8);
 
     const heroLabel = ctx.label(
-      "virtual point",
+      "phantom point",
       heroPos.clone().add(new Vector3(0, 0, -1.3)),
       "warn",
     );
@@ -99,7 +99,7 @@ export const stageRnr: Stage = {
       Ease.cinematic,
     );
     t.add(1.0, { onUpdate: (v) => (heroLabel.opacity = v) });
-    t.say(`This one reads <em>z = ${fmt(heroPos.z)} m</em>, eight metres under the car.`, 2.6);
+    t.say(`This one sits <em>${fmt(heroPos.z)} m</em> down, eight metres under the car.`, 2.6);
 
     t.add(1.2, { onUpdate: (v) => (ray.opacity = v * 0.9) });
     t.say(
@@ -159,13 +159,15 @@ export const stageRnr: Stage = {
   },
 };
 
-/** Step 4 — CZM: the polar grid whose cells are sized to the sensor's density falloff. */
+/** Names for the four zones, closest to farthest — plain words, not the paper's Z1..Z4. */
+const BAND_NAMES = ["closest band", "band 2", "band 3", "farthest band"];
+
+/** Step 4 — CZM: the grid whose cells are sized to the sensor's density falloff. */
 export const stageCzm: Stage = {
   id: "czm",
   steps: ["czm"],
   title: "CZM — the Concentric Zone Model",
-  subtitle:
-    "504 polar cells in four zones, sized against sparsity far out and over-resolution up close.",
+  subtitle: "504 cells in four bands, each sized to match how crowded that distance is.",
 
   build(ctx: StageContext) {
     const { cloud, czm, params } = ctx;
@@ -174,10 +176,10 @@ export const stageCzm: Stage = {
     ctx.legend(
       zoneColors(ctx.theme).map((c, i) => ({
         color: `#${c.getHexString()}`,
-        label: ["Z1 central", "Z2 quarter", "Z3 half", "Z4 outer"][i],
+        label: BAND_NAMES[i],
         note: `${czm.minRanges[i].toFixed(1)}–${czm.maxRanges[i].toFixed(1)} m · ${
           params.numRingsEachZone[i]
-        }×${params.numSectorsEachZone[i]}`,
+        } rings, ${params.numSectorsEachZone[i]} wedges`,
       })),
     );
 
@@ -193,7 +195,7 @@ export const stageCzm: Stage = {
     const zoneLabels = [0, 1, 2, 3].map((z) => {
       const r = (czm.minRanges[z] + czm.maxRanges[z]) / 2;
       const l = ctx.label(
-        `Z${z + 1} · ${params.numRingsEachZone[z]} rings × ${params.numSectorsEachZone[z]} sectors`,
+        `Band ${z + 1} · ${params.numRingsEachZone[z]} rings, ${params.numSectorsEachZone[z]} wedges`,
         new Vector3(r * Math.cos(Math.PI * 0.32), r * Math.sin(Math.PI * 0.32), ctx.groundZ + 0.4),
         "accent",
       );
@@ -207,11 +209,10 @@ export const stageCzm: Stage = {
 
     const t = ctx.track();
 
-    t.say("From above. Density falls off as <em>1/r²</em>.", 2.2).with(
-      2.3,
-      ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])),
-      Ease.cinematic,
-    );
+    t.say(
+      "From above. The further out, the fewer points land in the same patch of road.",
+      2.4,
+    ).with(2.3, ctx.rig.flyTo(pose([-4, -6, 96], [0, 0, -1.7])), Ease.cinematic);
 
     t.add(1.4, { onUpdate: (v) => uniGrid.setOpacity(v * 0.5) }).with(1.4, {
       onUpdate: (v) => cloud.fadeAllTo(0.35, v),
@@ -222,9 +223,12 @@ export const stageCzm: Stage = {
     );
 
     t.add(1.6, { onUpdate: (v) => uniGrid.setOpacity(0.5 * (1 - v)) });
-    t.say("The Concentric Zone Model sizes cells to the data. Four zones, four resolutions.", 2.8);
+    t.say(
+      "The Concentric Zone Model sizes each cell to match its distance. Four bands, four cell sizes.",
+      3,
+    );
 
-    // Build the zones one at a time, outward — drawn, not faded in. A hand sweeps round
+    // Build the bands one at a time, outward — drawn, not faded in. A hand sweeps round
     // from straight ahead the way the sensor does, the ring arcs trail behind it, and each
     // spoke appears as the sweep crosses it.
     // Focus colour, not the grid colour — otherwise the hand looks like just another spoke.
@@ -248,7 +252,7 @@ export const stageCzm: Stage = {
           onEnter: () => grid.setZoneOpacity(z, 0.78),
           onUpdate: (v) => {
             sweepTo(z, v);
-            // The hand fades out as it closes the loop, leaving the finished zone behind.
+            // The hand fades out as it closes the loop, leaving the finished band behind.
             hand.opacity = 0.9 * Math.min(1, (1 - v) * 4);
             zoneLabels[z].opacity = Math.min(1, v * 2.2);
           },
@@ -263,14 +267,14 @@ export const stageCzm: Stage = {
     }
 
     t.at(t.time - 5.8).say(
-      "<em>Z1</em> is deliberately coarse. Cells small enough to fit the kerb give a meaningless normal.",
-      3,
+      "<em>Band 1</em> is deliberately coarse. Cells small enough to fit the kerb would be too noisy to trust.",
+      3.2,
     );
     t.say(
-      "<em>Z2</em> and <em>Z3</em> hold the dense middle field, so cells get finer. Z3 takes 54 sectors.",
-      3,
+      "<em>Bands 2 and 3</em> hold the dense middle field, so cells get finer. Band 3 alone has 54 wedges.",
+      3.2,
     );
-    t.say("<em>Z4</em> coarsens again. Past 41 m there is barely any data to fit.", 2.6);
+    t.say("<em>Band 4</em> coarsens again. Past 41 m there is barely any data to work with.", 2.6);
 
     t.add(0.8, {
       onUpdate: (v) => {
@@ -279,7 +283,7 @@ export const stageCzm: Stage = {
     });
     t.wait(0.8);
     t.say(
-      `<em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()}. Better conditioned and six times cheaper.`,
+      `<em>${czm.numBins} cells</em> instead of ${uni.czm.numBins.toLocaleString()}. More reliable, and six times cheaper to compute.`,
       3,
     );
 

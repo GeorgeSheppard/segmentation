@@ -51,6 +51,11 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  /* #view already opts out of native touch gestures so a two-finger drag reaches
+     OrbitControls instead of the browser. Without this on the page root too, a pinch that
+     starts a few pixels off-canvas — over the caption, the legend, the transport — zooms the
+     whole page instead, and nothing in the app can undo that once it happens. */
+  touch-action: none;
   background: var(--surface);
   color: var(--text);
   font-family: var(--sans);

@@ -2,7 +2,7 @@ import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { type CellTrace, PointLabel } from "../patchwork/index.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fmt, thickness } from "./helpers.ts";
+import { facingLabel, fmt, thickness } from "./helpers.ts";
 
 const GOOD_CELL = "0/0/12";
 /** A plane fitted to a car roof: horizontal, but above the sensor origin. */
@@ -35,7 +35,7 @@ export const stageGle: Stage = {
 
     ctx.legend([
       { color: ctx.color.ground, label: "passes", note: "accepted as ground" },
-      { color: ctx.color.nonGround, label: "not upright", note: "normal tilted > 45°" },
+      { color: ctx.color.nonGround, label: "not upright", note: "tilted more than 45°" },
       { color: ctx.color.nonGround, label: "above the sensor", note: "roof or bonnet" },
     ]);
 
@@ -82,7 +82,7 @@ export const stageGle: Stage = {
 
     t.add(1.0, {
       onEnter: () => {
-        cells.wall.nLabel.text = `facing up ${wall.gle!.uprightness.toFixed(2)}`;
+        cells.wall.nLabel.text = facingLabel(wall.gle!.uprightness);
         ctx.verdict("Rejected — not upright", "bad");
       },
       onUpdate: (v) => reveal(cells.wall, v),
@@ -98,7 +98,7 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
-        cells.roof.nLabel.text = `facing up ${roof.gle!.uprightness.toFixed(2)}`;
+        cells.roof.nLabel.text = facingLabel(roof.gle!.uprightness);
       },
       onUpdate: (v) => reveal(cells.roof, v),
     });
@@ -118,7 +118,7 @@ export const stageGle: Stage = {
       3,
     );
     sensorDisc.layFlat(0);
-    const originLabel = ctx.label("sensor height — z = 0", new Vector3(3, 0, 0.35), "accent");
+    const originLabel = ctx.label("level with the sensor", new Vector3(3, 0, 0.35), "accent");
     originLabel.opacity = 0;
 
     t.add(1.2, {
@@ -137,7 +137,7 @@ export const stageGle: Stage = {
     );
     t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.nonGround, v) });
     t.say(
-      "Elevation only discriminates near the sensor. Far out a high patch may be a hill, so past <em>17 m</em> the test is off.",
+      "Elevation only helps close to the sensor. Far out, a high patch might just be a hill, so past <em>17 m</em> the test is switched off.",
       3.6,
     );
 
@@ -145,7 +145,7 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(good, { distance: 8.5, height: 4.2 })), Ease.cinematic);
     t.add(1.0, {
       onEnter: () => {
-        cells.good.nLabel.text = `facing up ${good.gle!.uprightness.toFixed(2)}`;
+        cells.good.nLabel.text = facingLabel(good.gle!.uprightness);
         ctx.verdict("Accepted — ground", "good");
       },
       onUpdate: (v) => {
@@ -166,7 +166,7 @@ export const stageGle: Stage = {
     );
 
     t.say(
-      "Patchwork measured thickness relative to the cell's own size, which moved when the cell shape changed. Patchwork++ measures it outright.",
+      "Patchwork measured thickness relative to the cell's own size, which changed whenever the cell shape did. Patchwork++ measures actual millimetres instead, so it means the same thing everywhere.",
       4,
     );
 
@@ -408,7 +408,10 @@ export const stageTgr: Stage = {
       3.6,
     );
 
-    t.say("Across SemanticKITTI: <em>+0.5% recall</em>, precision unchanged to rounding.", 2.8);
+    t.say(
+      "Across SemanticKITTI: <em>+0.5%</em> more real ground caught, with no extra mistakes let in.",
+      3,
+    );
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {

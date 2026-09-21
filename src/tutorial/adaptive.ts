@@ -42,11 +42,11 @@ export const stageAgle: Stage = {
       // Each ring's label gets its own bearing, or they stack on top of each other.
       const bearing = 1.15 - m * 0.42;
       const label = ctx.label(
-        `ring ${m}`,
+        `ring ${m + 1}`,
         new Vector3(((r0 + r1) / 2) * Math.cos(bearing), ((r0 + r1) / 2) * Math.sin(bearing), 0.5),
         "accent",
       );
-      label.text = `ring ${m} · ${fmt(before.elevationThr[m])} m`;
+      label.text = `ring ${m + 1} · ${fmt(before.elevationThr[m])} m`;
       label.opacity = 0;
       return { m, r0, r1, disc, cells, label, bearing };
     });
@@ -107,7 +107,7 @@ export const stageAgle: Stage = {
               before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v;
             r.disc.layFlat(z);
             r.disc.opacity = 0.14 + 0.1 * v;
-            r.label.text = `ring ${r.m} · ${fmt(z)} m`;
+            r.label.text = `ring ${r.m + 1} · ${fmt(z)} m`;
             r.label.setPosition(
               new Vector3(
                 ((r.r0 + r.r1) / 2) * Math.cos(r.bearing),

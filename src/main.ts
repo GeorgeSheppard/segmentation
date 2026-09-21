@@ -187,10 +187,18 @@ class App {
   /** Put the camera back where the tour had it, and let the tour steer again. */
   private recentre(): void {
     this.viewer.releaseManualControl();
-    const target = this.rig.lastPose ?? {
-      position: OVERVIEW.position.clone(),
-      target: OVERVIEW.target.clone(),
-    };
+    // While a stage is still mid-flight, "where the tour had it" can be one of the close
+    // beats — a single cell, the sensor head a few metres away — and handing that straight
+    // back strands the reader exactly where they were trying to escape from. Once the stage
+    // has finished, `lastPose` is already the overview (every stage's last clip flies
+    // there), so this only changes behaviour for a still-running one.
+    const target =
+      this.timeline && !this.timeline.finished
+        ? { position: OVERVIEW.position.clone(), target: OVERVIEW.target.clone() }
+        : (this.rig.lastPose ?? {
+            position: OVERVIEW.position.clone(),
+            target: OVERVIEW.target.clone(),
+          });
     this.viewer.applyPose(target);
   }
 

@@ -106,6 +106,20 @@ export function thickness(flatness: number): string {
   return `${(Math.sqrt(Math.max(flatness, 0)) * 1000).toFixed(0)} mm`;
 }
 
+/**
+ * Which way a fitted plane leans, in plain words.
+ *
+ * The algorithm carries this as `n_z` — the vertical component of the plane's unit normal,
+ * i.e. the cosine of how far it leans from pointing straight up. Read as raw decimal
+ * ("facing up 0.98") it means nothing without doing trigonometry in your head; converted to
+ * a tilt angle, it is the same number a reader would reach for unprompted — "tilted 8°".
+ */
+export function facingLabel(uprightVector: number): string {
+  const deg = (Math.acos(Math.max(-1, Math.min(1, uprightVector))) * 180) / Math.PI;
+  if (deg < 3) return "dead flat";
+  return `tilted ${deg.toFixed(0)}°`;
+}
+
 export function fmt(v: number, digits = 2): string {
   if (!Number.isFinite(v)) return "—";
   if (v !== 0 && Math.abs(v) < 1e-2) return v.toExponential(1);
