@@ -182,9 +182,10 @@ a colour byte triple and a mask byte saying which points the camera actually saw
 `data/raw/scenes/README.md` for how the four were picked — scored for road grade and curve
 against the flat, straight frame the tutorial otherwise runs on — and what's in each one.
 
-**`pnpm run dev` / `pnpm run build`, then open `/compare.html`** to look at all four,
-coloured, and decide which (if any) should replace the tutorial's own frame 5. It is a
-standalone page — a shared `Viewer`/`CloudView`, no stage timeline — built for that one
+**`pnpm run dev`, then open `/compare.html`** — or on the deployed site, `/compare`; Cloudflare's
+static-asset server redirects the `.html` away, so that's the link worth sharing — to look at
+all four, coloured, and decide which (if any) should replace the tutorial's own frame 5. It is
+a standalone page — a shared `Viewer`/`CloudView`, no stage timeline — built for that one
 decision, not a permanent feature of the tour.
 
 ## Deploying
