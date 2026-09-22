@@ -1,4 +1,3 @@
-import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import {
   isGroundLabel,
@@ -8,7 +7,7 @@ import {
 } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fitGlobalPlane, fmt } from "./helpers.ts";
+import { fitGlobalPlane } from "./helpers.ts";
 
 /** Step 11 — A-GLE: the algorithm tunes its own thresholds from what it just saw. */
 export const stageAgle: Stage = {
@@ -39,16 +38,7 @@ export const stageAgle: Stage = {
       const disc = ctx.surface(r0, r1, 0, Math.PI * 2, ctx.color.plane, 0, 72, 2);
       disc.layFlat(0);
       const cells = frame.cells.filter((b) => b.concentricIdx === m && b.gle?.isDefiniteGround);
-      // Each ring's label gets its own bearing, or they stack on top of each other.
-      const bearing = 1.15 - m * 0.42;
-      const label = ctx.label(
-        `ring ${m}`,
-        new Vector3(((r0 + r1) / 2) * Math.cos(bearing), ((r0 + r1) / 2) * Math.sin(bearing), 0.5),
-        "accent",
-      );
-      label.text = `ring ${m} · ${fmt(before.elevationThr[m])} m`;
-      label.opacity = 0;
-      return { m, r0, r1, disc, cells, label, bearing };
+      return { m, r0, r1, disc, cells };
     });
 
     const definiteIdx: number[] = [];
@@ -72,10 +62,7 @@ export const stageAgle: Stage = {
 
     t.add(1.4, {
       onUpdate: (v) => {
-        for (const r of roi) {
-          r.disc.opacity = v * 0.14;
-          r.label.opacity = v;
-        }
+        for (const r of roi) r.disc.opacity = v * 0.14;
       },
     });
     t.say(
@@ -107,14 +94,6 @@ export const stageAgle: Stage = {
               before.elevationThr[r.m] + (after.elevationThr[r.m] - before.elevationThr[r.m]) * v;
             r.disc.layFlat(z);
             r.disc.opacity = 0.14 + 0.1 * v;
-            r.label.text = `ring ${r.m} · ${fmt(z)} m`;
-            r.label.setPosition(
-              new Vector3(
-                ((r.r0 + r.r1) / 2) * Math.cos(r.bearing),
-                ((r.r0 + r.r1) / 2) * Math.sin(r.bearing),
-                z + 0.5,
-              ),
-            );
           }
         },
       },
@@ -144,10 +123,7 @@ export const stageAgle: Stage = {
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
         cloud.fadeAllTo(1, v);
-        for (const r of roi) {
-          r.disc.opacity = 0.24 * (1 - v);
-          r.label.opacity = 1 - v;
-        }
+        for (const r of roi) r.disc.opacity = 0.24 * (1 - v);
         for (const c of cellSurfaces) c.opacity = 0.35 * (1 - v);
       },
     });

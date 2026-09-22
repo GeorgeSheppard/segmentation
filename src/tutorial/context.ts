@@ -20,7 +20,6 @@ import {
   cellCentre,
   cellFromBin,
 } from "../viz/gizmos.ts";
-import { SceneLabel } from "../viz/labels.ts";
 import { paletteFor, zoneColors, type Palette } from "../viz/palette.ts";
 import type { Theme } from "../viz/themes.ts";
 import type { CameraPose, Viewer } from "../viz/viewer.ts";
@@ -38,7 +37,6 @@ interface Disposable {
 export class StageContext {
   readonly scratch = new Group();
   private readonly owned: Disposable[] = [];
-  private readonly labels: SceneLabel[] = [];
 
   /** The three meaning-carrying colours plus scaffolding, for the active theme. */
   readonly color: Palette;
@@ -95,17 +93,6 @@ export class StageContext {
   }
 
   // ---------------------------------------------------------------- factories
-
-  label(
-    text: string,
-    position: Vector3 | [number, number, number],
-    variant: "" | "accent" | "warn" | "good" | "bad" = "",
-  ): SceneLabel {
-    const l = new SceneLabel(text, variant).setPosition(position);
-    this.labels.push(l);
-    this.scratch.add(l.object);
-    return l;
-  }
 
   /** A free-form annular-sector surface, not tied to a bin. */
   surface(
@@ -241,7 +228,6 @@ export class StageContext {
   // ---------------------------------------------------------------- teardown
 
   dispose(): void {
-    for (const l of this.labels) l.dispose();
     for (const o of this.owned) o.dispose();
     this.viewer.remove(this.scratch);
     this.scratch.clear();

@@ -8,14 +8,7 @@ import { STAGES } from "./tutorial/index.ts";
 import { Hud } from "./ui/hud.ts";
 import { CameraRig } from "./viz/cameraRig.ts";
 import { CloudView } from "./viz/cloud.ts";
-import {
-  applyThemeToCss,
-  loadThemeId,
-  saveThemeId,
-  THEMES,
-  type Theme,
-  type ThemeId,
-} from "./viz/themes.ts";
+import { applyThemeToCss, THEME } from "./viz/themes.ts";
 import { Viewer, type CameraPose } from "./viz/viewer.ts";
 
 /**
@@ -37,32 +30,27 @@ class App {
   private cloud!: CloudView;
   private frame!: FrameTrace;
 
-  private theme: Theme;
   private ctx: StageContext | null = null;
   private timeline: Timeline | null = null;
   private index = 0;
-  private speed = 1;
   private wasFinished = false;
   private ignoreHashChange = false;
 
   constructor() {
     const canvas = document.getElementById("view") as HTMLCanvasElement;
-    const labels = document.getElementById("labels") as HTMLElement;
 
-    this.theme = THEMES[loadThemeId()];
-    applyThemeToCss(this.theme);
+    applyThemeToCss(THEME);
 
-    this.viewer = new Viewer(canvas, labels);
-    this.viewer.setBackground(this.theme.surface);
+    this.viewer = new Viewer(canvas);
+    this.viewer.setBackground(THEME.surface);
     this.rig = new CameraRig(this.viewer);
     this.hud = new Hud({
       onContinue: () => this.onContinue(),
       onPrev: () => this.goTo(this.index - 1),
       onReplay: () => this.buildStage(this.index),
-      onSpeed: (s) => (this.speed = s),
       onJump: (i) => this.goTo(i),
-      onTheme: (id) => this.setTheme(id),
       onRecentre: () => this.recentre(),
+      onRestart: () => this.exitExplore(),
     });
 
     this.viewer.onManualChange((manual) => this.hud.setManualCamera(manual));
@@ -84,7 +72,6 @@ class App {
 
     this.hud.setBusy(true);
     this.hud.setChapters(STAGES.map((s) => s.title));
-    this.hud.setTheme(this.theme.id);
     this.showStageChrome(this.stageFromHash());
     this.viewer.applyPose({
       position: OVERVIEW.position.clone().multiplyScalar(2.2),
@@ -129,7 +116,7 @@ class App {
     if (!this.cloud) return;
     this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
     if (this.timeline) {
-      this.timeline.advance(dt * this.speed);
+      this.timeline.advance(dt);
       this.hud.setProgress(this.timeline.progress);
       if (this.timeline.finished !== this.wasFinished) {
         this.wasFinished = this.timeline.finished;
@@ -159,7 +146,7 @@ class App {
       this.hud,
       this.frame,
       { position: OVERVIEW.position.clone(), target: OVERVIEW.target.clone() },
-      this.theme,
+      THEME,
     );
     this.timeline = stage.build(this.ctx);
     this.wasFinished = false;
@@ -187,10 +174,18 @@ class App {
   /** Put the camera back where the tour had it, and let the tour steer again. */
   private recentre(): void {
     this.viewer.releaseManualControl();
-    const target = this.rig.lastPose ?? {
-      position: OVERVIEW.position.clone(),
-      target: OVERVIEW.target.clone(),
-    };
+    // While a stage is still mid-flight, "where the tour had it" can be one of the close
+    // beats — a single cell, the sensor head a few metres away — and handing that straight
+    // back strands the reader exactly where they were trying to escape from. Once the stage
+    // has finished, `lastPose` is already the overview (every stage's last clip flies
+    // there), so this only changes behaviour for a still-running one.
+    const target =
+      this.timeline && !this.timeline.finished
+        ? { position: OVERVIEW.position.clone(), target: OVERVIEW.target.clone() }
+        : (this.rig.lastPose ?? {
+            position: OVERVIEW.position.clone(),
+            target: OVERVIEW.target.clone(),
+          });
     this.viewer.applyPose(target);
   }
 
@@ -202,10 +197,25 @@ class App {
       return;
     }
     if (this.index === STAGES.length - 1) {
-      this.goTo(0);
+      this.enterExplore();
       return;
     }
     this.goTo(this.index + 1);
+  }
+
+  /**
+   * The tour is over. Rather than looping back to the start, hand the finished scene over:
+   * every band fades out and dragging it is the only thing left to do, until Restart is
+   * pressed.
+   */
+  private enterExplore(): void {
+    this.viewer.releaseManualControl();
+    this.hud.setExploring(true);
+  }
+
+  private exitExplore(): void {
+    this.hud.setExploring(false);
+    this.goTo(0);
   }
 
   private goTo(index: number): void {
@@ -218,17 +228,6 @@ class App {
       return;
     }
     this.buildStage(index);
-  }
-
-  /** Swapping the theme rebuilds the current stage, since colours are baked at build time. */
-  private setTheme(id: ThemeId): void {
-    if (id === this.theme.id) return;
-    this.theme = THEMES[id];
-    applyThemeToCss(this.theme);
-    this.viewer.setBackground(this.theme.surface);
-    this.hud.setTheme(id);
-    saveThemeId(id);
-    if (this.frame) this.buildStage(this.index);
   }
 }
 

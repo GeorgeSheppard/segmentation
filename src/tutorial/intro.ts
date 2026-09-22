@@ -11,29 +11,24 @@ export const stageScan: Stage = {
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
-    cloud.setBaseRaw(ctx.color.raw);
-
     // One colour, on purpose: a height ramp here would sort the scan into bands that look
     // like an answer, and the reader has to start with no answer at all.
-    ctx.legend([{ color: ctx.color.raw, label: "one return", note: "unlabelled, unsorted" }]);
+    cloud.setBaseRaw(ctx.color.raw);
 
-    // Sensor frame gizmo: x forward, y left, z up.
-    const axisSpec: Array<[Vector3, Color, string, "" | "accent"]> = [
-      [new Vector3(7, 0, 0), ctx.color.nonGround, "x — forward", ""],
-      [new Vector3(0, 7, 0), ctx.color.ground, "y — left", ""],
-      [new Vector3(0, 0, 4.5), ctx.color.plane, "z — up", "accent"],
+    // Sensor frame gizmo: three arrows, coloured rather than labelled — the caption names
+    // them as they appear, and the road running out ahead already says which one is forward.
+    const axisSpec: Array<[Vector3, Color]> = [
+      [new Vector3(7, 0, 0), ctx.color.nonGround],
+      [new Vector3(0, 7, 0), ctx.color.ground],
+      [new Vector3(0, 0, 4.5), ctx.color.plane],
     ];
     const axisLines = axisSpec.map(([v, c]) => {
       const s = ctx.segment(c, 0);
       s.set(new Vector3(0, 0, 0), v);
       return s;
     });
-    const axisLabels = axisSpec.map(([v, , text, variant]) =>
-      ctx.label(text, v.clone().multiplyScalar(1.14), variant),
-    );
     const setAxes = (v: number) => {
       for (const a of axisLines) a.opacity = v;
-      for (const l of axisLabels) l.opacity = v;
     };
     setAxes(0);
 
@@ -45,7 +40,7 @@ export const stageScan: Stage = {
     ).with(2.3, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
 
     t.say(
-      "Sensor at the origin, <em>1.72 m</em> above the road. <code>x</code> forward, <code>y</code> left, <code>z</code> up.",
+      "Sensor at the origin, <em>1.72 m</em> above the road. Three directions: forward, left, and up.",
       3.2,
     ).with(1.4, { onUpdate: setAxes });
 

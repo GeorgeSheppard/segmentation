@@ -29,8 +29,12 @@ export const stageSeeds: Stage = {
     cloud.captureBase();
 
     ctx.legend([
-      { color: ctx.color.focus, label: "LPR", note: `${params.numLPR} lowest points` },
-      { color: ctx.color.seed, label: "seeds", note: "z < LPR + 0.125 m" },
+      {
+        color: ctx.color.focus,
+        label: "floor",
+        note: `average of the ${params.numLPR} lowest points`,
+      },
+      { color: ctx.color.seed, label: "seeds", note: "within 12.5 cm of the floor" },
       { color: "#64748b", label: "the rest of the cell" },
     ]);
 
@@ -42,20 +46,6 @@ export const stageSeeds: Stage = {
     lprPlane.layFlat(bin.lprHeight);
     const cutPlane = ctx.wedge(bin, ctx.color.seed, 0);
     cutPlane.layFlat(bin.seedCutoff);
-
-    const centre = ctx.centreOf(bin, 0);
-    const lprLabel = ctx.label(
-      `LPR   z = ${fmt(bin.lprHeight)} m`,
-      new Vector3(centre.x, centre.y, bin.lprHeight - 0.45),
-      "bad",
-    );
-    const cutLabel = ctx.label(
-      `LPR + 0.125 = ${fmt(bin.seedCutoff)} m`,
-      new Vector3(centre.x, centre.y, bin.seedCutoff + 0.55),
-      "warn",
-    );
-    lprLabel.opacity = 0;
-    cutLabel.opacity = 0;
 
     const lpr = idx.subarray(bin.lprStart, bin.lprStart + params.numLPR);
     const seeds = idx.subarray(0, bin.seedCount);
@@ -99,28 +89,26 @@ export const stageSeeds: Stage = {
         cloud.paint(lpr, ctx.color.focus, v);
         cloud.sizeTo(lpr, 4.5, v);
         lprPlane.opacity = v * 0.3;
-        lprLabel.opacity = v;
       },
     });
     t.say(
-      `Average the <em>${params.numLPR} lowest</em> heights. That is the <em>Lowest Point Representative</em>: ${fmt(bin.lprHeight)} m.`,
+      `Average the <em>${params.numLPR} lowest</em> heights. Call that the cell's floor: ${fmt(bin.lprHeight)} m.`,
       3.2,
     );
 
     t.add(1.2, {
       onUpdate: (v) => {
         cutPlane.opacity = v * 0.24;
-        cutLabel.opacity = v;
         cloud.paint(seeds, ctx.color.seed, v);
       },
     });
     t.say(
-      `Points within <code>th_seeds = 0.125 m</code> of it are <em>seeds</em>: ${bin.seedCount.toLocaleString()} of ${idx.length.toLocaleString()}.`,
+      `Points within <em>12.5 cm</em> of the floor are <em>seeds</em>: ${bin.seedCount.toLocaleString()} of ${idx.length.toLocaleString()}.`,
       3,
     );
 
     t.say(
-      "No sampling, no RANSAC. The seed set is <em>deterministic</em>, which is what makes 500 fits per scan affordable.",
+      "No randomness involved — the same cell always produces the same seeds, which is what makes 500 fits per scan affordable.",
       3.6,
     );
 
@@ -136,8 +124,6 @@ export const stageSeeds: Stage = {
         prism.opacity = 0.8 * (1 - v);
         lprPlane.opacity = 0.3 * (1 - v);
         cutPlane.opacity = 0.24 * (1 - v);
-        lprLabel.opacity = 1 - v;
-        cutLabel.opacity = 1 - v;
       },
     });
     t.wait(0.3);
@@ -146,13 +132,13 @@ export const stageSeeds: Stage = {
   },
 };
 
-/** Step 6 — R-GPF: three PCA refinements turn the seed set into a ground plane. */
+/** Step 6 — R-GPF: three refinements turn the seed set into a ground plane. */
 export const stageRgpf: Stage = {
   id: "rgpf",
   steps: ["rgpf"],
   title: "R-GPF — fit, re-select, repeat",
   subtitle:
-    "PCA on the seeds gives a plane. Points within 12.5 cm become the next seed set. Three times.",
+    "Fit a flat surface through the seeds. Points within 12.5 cm of it become the next seed set. Three times.",
 
   build(ctx: StageContext) {
     const { cloud, params } = ctx;
@@ -170,7 +156,7 @@ export const stageRgpf: Stage = {
       { color: ctx.color.plane, label: "fitted plane" },
       { color: ctx.color.ground, label: "within 12.5 cm", note: "kept as ground" },
       { color: ctx.color.nonGround, label: "above the plane", note: "not ground" },
-      { color: ctx.color.normal, label: "surface normal", note: "the way the patch faces" },
+      { color: ctx.color.normal, label: "facing direction", note: "the way the patch tilts" },
     ]);
 
     const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
@@ -179,8 +165,6 @@ export const stageRgpf: Stage = {
     const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
     const slabSurf = ctx.wedge(bin, ctx.color.ground, 0);
     const normalLine = ctx.segment(ctx.color.normal, 0);
-    const normalLabel = ctx.label("", new Vector3(), "accent");
-    normalLabel.opacity = 0;
 
     const showPlane = (p: { normal: Vec3; d: number; mean: Vec3 }) => {
       planeSurf.layOnPlane(p.normal, p.d);
@@ -190,8 +174,6 @@ export const stageRgpf: Stage = {
         .clone()
         .add(new Vector3(p.normal[0], p.normal[1], p.normal[2]).multiplyScalar(1.8));
       normalLine.set(base, tip);
-      normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.35)));
-      normalLabel.text = `facing up ${p.normal[2].toFixed(2)}`;
     };
     /** Each pass tweens from the fit before it, so the plane is seen to settle. */
     const planeAt = (it: number) => (it < 0 ? bin.rgpf[0].plane : bin.rgpf[it].plane);
@@ -212,7 +194,6 @@ export const stageRgpf: Stage = {
       onUpdate: (v) => {
         planeSurf.opacity = v * 0.32;
         normalLine.opacity = v;
-        normalLabel.opacity = v;
       },
     });
     t.say(
@@ -249,7 +230,7 @@ export const stageRgpf: Stage = {
 
       if (it === 0) {
         t.at(t.time - 2.0).say(
-          "Now measure every point against that plane. Within <code>th_dist = 0.125 m</code>, or below it, counts as ground.",
+          "Now measure every point against that plane. Within <em>12.5 cm</em> of it, or below it, counts as ground.",
           3.4,
         );
         t.say(
@@ -290,7 +271,6 @@ export const stageRgpf: Stage = {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.32 * (1 - v);
         normalLine.opacity = 1 - v;
-        normalLabel.opacity = 1 - v;
         prism.opacity = 0.55 * (1 - v);
       },
     });
@@ -331,8 +311,6 @@ export const stageRvpf: Stage = {
 
     const planeSurf = ctx.wedge(bin, ctx.color.plane, 0);
     const normalLine = ctx.segment(ctx.color.normal, 0);
-    const normalLabel = ctx.label("", new Vector3(), "warn");
-    normalLabel.opacity = 0;
 
     const showPlane = (normal: readonly number[], d: number, mean: readonly number[]) => {
       planeSurf.layOnPlane(normal as [number, number, number], d, [-2.0, 1.1]);
@@ -341,8 +319,6 @@ export const stageRvpf: Stage = {
         .clone()
         .add(new Vector3(normal[0], normal[1], normal[2]).multiplyScalar(1.6));
       normalLine.set(base, tip);
-      normalLabel.setPosition(tip.clone().add(new Vector3(0, 0, 0.3)));
-      normalLabel.text = `facing up ${normal[2].toFixed(2)}`;
     };
 
     const t = ctx.track();
@@ -370,7 +346,6 @@ export const stageRvpf: Stage = {
       onUpdate: (v) => {
         planeSurf.opacity = v * 0.3;
         normalLine.opacity = v;
-        normalLabel.opacity = v;
       },
     });
     t.say(
@@ -447,7 +422,6 @@ export const stageRvpf: Stage = {
         cloud.fadeAllTo(1, v);
         planeSurf.opacity = 0.3 * (1 - v);
         normalLine.opacity = 1 - v;
-        normalLabel.opacity = 1 - v;
         prism.opacity = 0.55 * (1 - v);
       },
     });

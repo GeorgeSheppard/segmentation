@@ -49,9 +49,15 @@ between iterations, so R-GPF is seen to settle onto the road and R-VPF's plane i
 stand up as the wall is peeled away, rather than cutting between states.
 
 **Continue** advances (and skips to the end of a stage still playing), **Replay** rebuilds the
-current stage from scratch, and the speed control scales the whole timeline. Keyboard:
-`→`/`space` continue, `←` back, `R` replay. Drag to orbit at any time. Every stage is
-linkable — `/#gle` opens Ground Likelihood Estimation directly.
+current stage from scratch. Keyboard: `→`/`space` continue, `←` back, `R` replay. Drag to
+orbit at any time. Every stage is linkable — `/#gle` opens Ground Likelihood Estimation
+directly. The last stage's Continue becomes **Explore**: rather than looping back to the
+start, every band fades out and the finished, fully-classified scene fills the screen, free
+to drag around, until **Restart the tour** is pressed.
+
+Nothing in the scene is a floating label. Whatever a stage needs to say — a measured range,
+a tilt angle, a threshold — is said in the caption or shown as colour, shape and motion; the
+3D view carries no text of its own.
 
 ## Colour, and why there are only three of them
 
@@ -67,21 +73,14 @@ simultaneous hues cannot — measured, not assumed — and the obvious green/red
 ground vs not-ground scored ΔE 7.9 under deuteranopia, the classic red/green trap, on the
 single most important distinction in the whole visualisation.
 
-So each theme is three validated hues, checked for OKLCH lightness band, chroma floor, CVD
+So the theme is three validated hues, checked for OKLCH lightness band, chroma floor, CVD
 separation under simulated protanopia and deuteranopia, normal-vision separation, and contrast
-against its own surface:
+against its own surface — light, surface `#eef1f6`, all-pairs: CVD ΔE 9.2 (deutan,
+orange↔aqua), normal ΔE 27.6, all in band. Its aqua sits at 2.74:1 on that surface; the
+always-visible legend, which names every class in text, is the relief channel that permits
+it. Never colour alone.
 
-| Theme                | Surface     | worst CVD ΔE | worst normal ΔE |
-| -------------------- | ----------- | ------------ | --------------- |
-| **Signal** (default) | near-black  | 9.4          | 24.6            |
-| **Ultraviolet**      | deep violet | 13.2         | 19.3            |
-| **Daylight**         | light       | 9.2          | 27.6 ¹          |
-
-¹ Daylight's aqua sits at 2.74:1 on its surface; the always-visible legend, which names every
-class in text, is the relief channel that permits it. Never colour alone.
-
-The numbers and the reasoning live in `src/viz/themes.ts`. Themes are switched from the top
-bar and remembered per browser.
+The numbers and the reasoning live in `src/viz/themes.ts`.
 
 ## On a phone
 
@@ -219,11 +218,11 @@ pnpm format        # prettier
 there is no useful unit-level substitute. It runs under two projects, desktop and a
 390×844 phone, and covers: the app loading and actually segmenting the scan (asserted via
 the live point count in the caption), walking all twelve stages with zero console errors,
-Continue's finish-then-advance behaviour, Replay, Back, the speed control, deep links, the
-step rail lighting the right steps, theme switching and persistence, every theme keeping its
-three slots distinct, nothing overflowing the viewport, the transport staying on screen with
-tappable targets, the page being usable while the scan is still downloading, a drag taking
-the camera from the tour, the gesture hint, and the legend sitting above the scene.
+Continue's finish-then-advance behaviour and its hand-off into Explore, Replay, Back, deep
+links, the step rail lighting the right steps, the theme's three slots staying distinct,
+nothing overflowing the viewport, the transport staying on screen with tappable targets, the
+page being usable while the scan is still downloading, a drag taking the camera from the
+tour, the gesture hint, and the legend sitting above the scene.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, format check and the algorithm digest in one
 job, and the two Playwright projects in a matrix. If a sandbox already ships a Chromium, set

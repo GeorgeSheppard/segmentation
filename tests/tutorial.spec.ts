@@ -14,20 +14,32 @@ test.describe("tutorial", () => {
     expect(errors).toEqual([]);
   });
 
-  test("walks every stage without error and ends where it started", async ({ page }) => {
+  test("walks every stage without error, then offers to explore", async ({ page }) => {
     const errors = await open(page);
     const total = Number(await page.locator("#step-total").textContent());
     const titles: string[] = [];
 
-    for (let i = 0; i < total; i++) {
+    for (let i = 0; i < total - 1; i++) {
       await expect(page.locator("#step-num")).toHaveText(String(i + 1));
       titles.push((await stageTitle(page).textContent()) ?? "");
       await finishStage(page);
       await page.click("#btn-continue");
     }
+    await expect(page.locator("#step-num")).toHaveText(String(total));
+    titles.push((await stageTitle(page).textContent()) ?? "");
+    await finishStage(page);
 
-    // The last stage's Continue starts over.
+    // The last stage's Continue does not loop back to the start — it hands the finished
+    // scene over, chrome and all, until Restart is pressed.
+    await page.click("#btn-continue");
+    await expect(page.locator("#app")).toHaveClass(/exploring/);
+    await expect(page.locator("#btn-restart")).toBeVisible();
+    await expect(page.locator("#top")).toBeHidden();
+
+    await page.click("#btn-restart");
+    await expect(page.locator("#app")).not.toHaveClass(/exploring/);
     await expect(page.locator("#step-num")).toHaveText("1");
+
     expect(new Set(titles).size).toBe(total);
     expect(errors).toEqual([]);
   });
@@ -36,9 +48,8 @@ test.describe("tutorial", () => {
     const errors = await open(page, "sensor");
 
     await expect(stageTitle(page)).toHaveText("How the scan is made");
-    // The scan is not a given here: it is assembled, so the legend talks about pulses.
-    await expect(page.locator("#legend")).toContainText("laser pulse");
-
+    // The scan is built up on screen with nothing labelled in 3D — no legend needed either.
+    await expect(page.locator("#legend")).toBeHidden();
     // The measured range on screen comes from a real return, not from a script.
     await expect(page.locator("#caption-text")).toContainText("123,924");
     await finishStage(page);
@@ -80,13 +91,6 @@ test.describe("tutorial", () => {
     await expect(page.locator("#btn-prev")).toBeDisabled();
   });
 
-  test("speed control applies and stays selected", async ({ page }) => {
-    await open(page);
-    await page.click('#speed button[data-speed="2"]');
-    await expect(page.locator('#speed button[data-speed="2"]')).toHaveClass(/active/);
-    await expect(page.locator('#speed button[data-speed="1"]')).not.toHaveClass(/active/);
-  });
-
   test("deep links open a named stage and the URL follows navigation", async ({ page }) => {
     await open(page, "tgr");
     await expect(stageTitle(page)).toContainText("TGR");
@@ -115,32 +119,14 @@ test.describe("the step rail", () => {
   });
 });
 
-test.describe("themes", () => {
-  test("switching theme repaints the scene and persists across a reload", async ({ page }) => {
+test.describe("theme", () => {
+  test("keeps ground, non-ground and focus distinct", async ({ page }) => {
     await open(page);
-
-    await page.click("#theme-toggle");
-    await page.click('#themes button[data-theme="daylight"]');
-
-    await expect(page.locator("#theme-name")).toHaveText("Daylight");
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "daylight");
-
-    await page.reload();
-    await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "daylight");
-  });
-
-  test("every theme keeps ground, non-ground and focus distinct", async ({ page }) => {
-    await open(page);
-    for (const theme of ["signal", "ultraviolet", "daylight"]) {
-      await page.click("#theme-toggle");
-      await page.click(`#themes button[data-theme="${theme}"]`);
-      const vars = await page.evaluate(() => {
-        const s = getComputedStyle(document.documentElement);
-        return ["--ground", "--non-ground", "--focus"].map((n) => s.getPropertyValue(n).trim());
-      });
-      expect(new Set(vars).size, `${theme} reuses a colour`).toBe(3);
-    }
+    const vars = await page.evaluate(() => {
+      const s = getComputedStyle(document.documentElement);
+      return ["--ground", "--non-ground", "--focus"].map((n) => s.getPropertyValue(n).trim());
+    });
+    expect(new Set(vars).size, "the theme reuses a colour").toBe(3);
   });
 });
 
@@ -173,7 +159,7 @@ test.describe("layout", () => {
   });
 
   test("the legend sits above the scene, not over the controls", async ({ page }) => {
-    await open(page);
+    await open(page, "rnr");
     const legend = page.locator("#legend");
     await expect(legend).toBeVisible();
 

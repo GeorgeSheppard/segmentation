@@ -23,8 +23,6 @@ const ELEV_MAX = (3 * Math.PI) / 180;
 const ELEV_MIN = (-26 * Math.PI) / 180;
 
 const ORIGIN = new Vector3(0, 0, 0);
-/** Speed of light, for the one number on screen that is not measured from the scan. */
-const C = 299_792_458;
 
 export const stageSensor: Stage = {
   id: "sensor",
@@ -40,12 +38,6 @@ export const stageSensor: Stage = {
     // reaches them.
     cloud.setBaseRaw(ctx.color.raw, 0);
 
-    ctx.legend([
-      { color: ctx.color.plane, label: "laser pulse", note: "outbound" },
-      { color: ctx.color.seed, label: "the echo", note: "what actually gets timed" },
-      { color: ctx.color.raw, label: "one return", note: "direction × range" },
-    ]);
-
     const head = ctx.sensorHead();
     const beams = Array.from({ length: BEAMS }, () => ctx.segment(ctx.color.plane, 0));
     const echo = ctx.segment(ctx.color.seed, 0);
@@ -56,10 +48,6 @@ export const stageSensor: Stage = {
     const heroPoint = new Vector3(xyz[hero * 3], xyz[hero * 3 + 1], xyz[hero * 3 + 2]);
     const heroRange = heroPoint.length();
     const heroDir = heroPoint.clone().normalize();
-    // Above the hit, not beyond it: a label on the ray's far end sits on top of the very
-    // point it is naming.
-    const heroLabel = ctx.label("", heroPoint.clone().add(new Vector3(0, 0, 1.6)), "accent");
-    heroLabel.opacity = 0;
 
     // Both close-ups watch from the side, at a distance scaled off the hero ray rather
     // than hard-coded, so the shot holds whichever return this scan happens to offer. The
@@ -142,13 +130,9 @@ export const stageSensor: Stage = {
       `Time the round trip, halve it, multiply by the speed of light: <em>${heroRange.toFixed(1)} m</em>. That range and that direction are <em>one point</em>.`,
       3.6,
     ).with(1.2, {
-      onEnter: () => {
-        heroLabel.text = `${heroRange.toFixed(1)} m · ${((2 * heroRange * 1e9) / C).toFixed(0)} ns`;
-      },
       onUpdate: (v) => {
         cloud.setAlpha([hero], v);
         cloud.setSize([hero], 1 + 5 * v);
-        heroLabel.opacity = v;
       },
     });
 
@@ -161,7 +145,6 @@ export const stageSensor: Stage = {
       .with(1.6, {
         onUpdate: (v) => {
           aimFan(0, Math.ceil(v * BEAMS), 0.85);
-          heroLabel.opacity = 1 - v;
         },
         onExit: () => {
           cloud.setSize([hero], 1);
