@@ -89,7 +89,7 @@ export const stageRnr: Stage = {
 
     t.add(1.2, { onUpdate: (v) => (ray.opacity = v * 0.9) });
     t.say(
-      "It is a reflection. The beam bounced off something mirror-like — a bonnet, a roof, glass — and returned late, so the point lands far out along the outgoing ray.",
+      "It's a reflection: the beam bounced off something mirror-like — a bonnet, a roof, glass — and came back late, landing the point far out along the ray.",
       4.0,
     );
     t.add(1.0, { onUpdate: (v) => (incidenceMark.opacity = v) });

@@ -53,7 +53,7 @@ export const stageSeeds: Stage = {
     const t = ctx.track();
 
     t.say(
-      `One cell, <em>${idx.length.toLocaleString()} points</em>. Mostly road, but something is standing on part of it — and height alone can't say where one ends and the other begins.`,
+      `One cell, <em>${idx.length.toLocaleString()} points</em>. Mostly road, but something stands on part of it. Height alone can't tell them apart.`,
       3,
     )
       .with(2.1, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8.5, height: 4.2 })), Ease.cinematic)
@@ -114,7 +114,7 @@ export const stageSeeds: Stage = {
 
     t.wait(0.9);
     t.say(
-      "It is also the weak point: one phantom point drags the average down, which is why RNR ran first.",
+      "It's also the weak point: one phantom point drags the average down. That's why RNR runs first.",
       3.4,
     );
 

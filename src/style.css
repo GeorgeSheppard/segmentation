@@ -182,7 +182,7 @@ body {
   position: relative;
   z-index: 40;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + var(--gutter)) 0
@@ -783,6 +783,12 @@ button.primary.pulse {
   }
   button.ghost span {
     display: none;
+  }
+  /* Back and Replay are always on screen, so icon-only keeps the row compact. Recentre
+     only appears once the reader has dragged the scene themselves, and a bare crosshair
+     icon reads as unlabelled chrome — keep its word so it is obvious what tapping it does. */
+  #btn-recentre span {
+    display: inline;
   }
   button.ghost {
     padding: 8px 11px;

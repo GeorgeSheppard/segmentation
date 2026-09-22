@@ -53,14 +53,22 @@ export const stageSensor: Stage = {
     // than hard-coded, so the shot holds whichever return this scan happens to offer. The
     // fan beat stays near the head on purpose: what it has to show is the *spread* of the
     // beams, and the long ones are free to run off the edge of the frame.
+    //
+    // The camera looks at the ray's midpoint, so each endpoint (the head, the hero return)
+    // sits at roughly half the ray's length off-axis. At the raw out/up offsets that angle
+    // is close enough to the vertical FOV's edge that a phone's narrower frame — which gets
+    // only some of that back by widening the FOV — clips an endpoint out of frame entirely.
+    // Pulling the camera back a third further costs some of the close-up's tightness but
+    // keeps both ends on screen everywhere.
+    const REACH = 1.35;
     const side = new Vector3(-heroDir.y, heroDir.x, 0).normalize();
     const alongRay = (lead: number, out: number, up: number) => {
       const target = heroDir.clone().multiplyScalar(heroRange * lead);
       return {
         position: target
           .clone()
-          .addScaledVector(side, heroRange * out)
-          .add(new Vector3(0, 0, heroRange * up)),
+          .addScaledVector(side, heroRange * out * REACH)
+          .add(new Vector3(0, 0, heroRange * up * REACH)),
         target,
       };
     };
@@ -93,7 +101,7 @@ export const stageSensor: Stage = {
     const t = ctx.track();
 
     t.say(
-      `<em>${count.toLocaleString()} points</em>, ten times a second. They come from one spinning head — a <em>Velodyne HDL-64E</em> on the car roof.`,
+      `<em>${count.toLocaleString()} points</em>, ten times a second, from a <em>Velodyne HDL-64E</em> spinning on the car roof.`,
       3.4,
     )
       .with(2.6, ctx.rig.flyTo(pose([-3.4, -2.9, 1.6], [0.5, 0.1, -0.2])), Ease.cinematic)
@@ -127,7 +135,7 @@ export const stageSensor: Stage = {
     });
 
     t.say(
-      `Time the round trip, halve it, multiply by the speed of light: <em>${heroRange.toFixed(1)} m</em>. That range and that direction are <em>one point</em>.`,
+      `Time the round trip, halve it, multiply by the speed of light: <em>${heroRange.toFixed(1)} m</em>. Range plus direction gives <em>one point</em>.`,
       3.6,
     ).with(1.2, {
       onUpdate: (v) => {
@@ -138,7 +146,7 @@ export const stageSensor: Stage = {
 
     // ---- the vertical fan
     t.say(
-      "<em>64 lasers</em> are stacked in a vertical fan, each aimed at its own angle — so one shot measures a whole slice of the world.",
+      "<em>64 lasers</em>, stacked in a fan, each aimed at its own angle. One pulse measures a whole vertical slice.",
       3.6,
     )
       .with(2.2, ctx.rig.flyTo(alongRay(0.5, 1.1, 0.15)), Ease.cinematic)
@@ -174,7 +182,7 @@ export const stageSensor: Stage = {
     ).with(7.0, ctx.rig.flyTo(pose([-48, -42, 36], [6, -1, -1.6])), Ease.cinematic);
 
     t.say(
-      "Near the car the rings are packed tight. Far out they are metres apart — the same 64 lasers, spread over a much bigger circle.",
+      "Near the car the rings are packed tight. Farther out, the same 64 lasers are spread over a much bigger circle.",
       3.6,
     ).with(1.2, {
       onUpdate: (v) => {

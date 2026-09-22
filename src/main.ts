@@ -119,9 +119,12 @@ class App {
     if (this.timeline) {
       this.timeline.advance(dt);
       this.hud.setProgress(this.timeline.progress);
-      if (this.timeline.finished !== this.wasFinished) {
-        this.wasFinished = this.timeline.finished;
-        this.hud.setFinished(this.wasFinished);
+      // The button invites a tap whenever the clock is holding for the reader — at the end
+      // of a line as much as at the end of the stage.
+      const waiting = this.timeline.paused || this.timeline.finished;
+      if (waiting !== this.wasFinished) {
+        this.wasFinished = waiting;
+        this.hud.setFinished(waiting);
       }
     }
     this.cloud.commit();
@@ -190,11 +193,16 @@ class App {
     this.viewer.applyPose(target);
   }
 
-  /** Continue skips to the end of a stage that is still playing, else advances. */
+  /**
+   * Continue steps one line at a time: while a line is still playing out it jumps to the
+   * end of that line, and once the clock is holding there it releases the next one. Only
+   * once every line in the stage has been read does it move to the next stage.
+   */
   private onContinue(): void {
     if (!this.frame) return;
     if (this.timeline && !this.timeline.finished) {
-      this.timeline.finish();
+      if (this.timeline.paused) this.timeline.release();
+      else this.timeline.skipToCheckpoint();
       return;
     }
     if (this.index === STAGES.length - 1) {

@@ -35,7 +35,7 @@ export const stageScan: Stage = {
     const t = ctx.track();
 
     t.say(
-      `The finished sweep: <em>${frame.cloud.count.toLocaleString()} points</em>, every one of them a surface that sent a pulse back.`,
+      `The finished sweep: <em>${frame.cloud.count.toLocaleString()} points</em>, each one a returned pulse.`,
       2.6,
     ).with(2.3, ctx.rig.flyTo(pose([-66, -62, 62], [8, -2, -1.6])), Ease.cinematic);
 
@@ -57,7 +57,7 @@ export const stageScan: Stage = {
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic);
     t.say(
-      "One plane cannot do it — a real road has camber, kerbs and hills. So Patchwork++ fits <em>hundreds of small ones</em> and checks each.",
+      "One plane can't do it: real roads have camber, kerbs, hills. Patchwork++ fits <em>hundreds of small ones</em> instead, and checks each.",
       3.0,
     );
 

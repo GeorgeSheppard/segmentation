@@ -94,7 +94,7 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      `Facing up is not enough on its own — a plane also has to <em>sit</em> below the sensor. This is the closest call anywhere in the scan, and it still clears with room to spare.`,
+      `Facing up isn't enough — the plane also has to <em>sit</em> below the sensor. This is the closest call in the scan, and it still clears.`,
       3.4,
     );
 
@@ -148,7 +148,7 @@ export const stageGle: Stage = {
     );
 
     t.say(
-      `So thickness gets a vote. This patch is <em>${thickness(good.gle!.flatness)}</em> thick: road texture, not an object.`,
+      `Thickness gets a vote too. This patch is <em>${thickness(good.gle!.flatness)}</em> thick: road texture, not an object.`,
       3.2,
     );
 
