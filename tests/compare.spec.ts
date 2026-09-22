@@ -18,7 +18,7 @@ test.describe("scene comparison page", () => {
     await expect(page.locator("#cmp-stats")).toContainText("% seen by the camera");
 
     const buttons = page.locator("#cmp-strip button");
-    await expect(buttons).toHaveCount(4);
+    await expect(buttons).toHaveCount(6);
     await expect(buttons.first()).toHaveClass(/active/);
 
     const firstDesc = await page.locator("#cmp-desc").textContent();

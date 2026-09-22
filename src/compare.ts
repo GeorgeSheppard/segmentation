@@ -6,17 +6,20 @@ import { CloudView } from "./viz/cloud.ts";
 import { Viewer, pose } from "./viz/viewer.ts";
 
 /**
- * A standalone comparison page: real camera colour, four candidate KITTI-360 frames,
- * nothing else. It shares the tutorial's Viewer and CloudView so what you see here is
- * exactly what the tutorial would render, but skips the stage/timeline machinery entirely
- * — the point is to look at a scene and decide, not to walk through the algorithm on all
- * four at once.
+ * A standalone comparison page: real camera colour, candidate KITTI-360 frames, nothing
+ * else. It shares the tutorial's Viewer and CloudView so what you see here is exactly what
+ * the tutorial would render, but skips the stage/timeline machinery entirely — the point is
+ * to look at a scene and decide, not to walk through the algorithm on all of them at once.
  *
  * These are KITTI-360 frames, not the original KITTI odometry ones: KITTI-360's two
  * sideways fisheye cameras plus its two forward perspective cameras between them see
  * essentially the entire lidar sweep, instead of just the ~15-20% a single forward
  * dash-cam can reach. See `scripts/colorize-scenes-360.ts` and
  * `data/raw/scenes360/README.md` for how and why.
+ *
+ * The first two entries (10925, 11100) aren't new picks — they're the same street as
+ * 11000, a little further along, tried because 11000's immediate surroundings turned out
+ * too open to demonstrate R-VPF (peeling a wall out from under the ground plane).
  */
 interface Scene {
   id: string;
@@ -26,9 +29,22 @@ interface Scene {
 
 const SCENES: Scene[] = [
   {
+    id: "02-010925",
+    label: "02 / 10925",
+    description:
+      "Same street, ~75 frames before 11000 — a junction with houses either side. Has a real kerb close to the sensor, unlike 11000.",
+  },
+  {
+    id: "02-011100",
+    label: "02 / 11100",
+    description:
+      "Same street, ~100 frames after 11000 — a tree and hedge-lined stretch. Also has a real kerb close to the sensor.",
+  },
+  {
     id: "02-011000",
     label: "02 / 11000",
-    description: "A hillside road curving past a junction — 7.2% grade, 143° of turn.",
+    description:
+      "The pick so far — a hillside road curving past a junction. Its near field turned out too open for the R-VPF stage, which is why 10925 and 11100 are here.",
   },
   {
     id: "02-016139",
