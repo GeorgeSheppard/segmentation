@@ -53,14 +53,22 @@ export const stageSensor: Stage = {
     // than hard-coded, so the shot holds whichever return this scan happens to offer. The
     // fan beat stays near the head on purpose: what it has to show is the *spread* of the
     // beams, and the long ones are free to run off the edge of the frame.
+    //
+    // The camera looks at the ray's midpoint, so each endpoint (the head, the hero return)
+    // sits at roughly half the ray's length off-axis. At the raw out/up offsets that angle
+    // is close enough to the vertical FOV's edge that a phone's narrower frame — which gets
+    // only some of that back by widening the FOV — clips an endpoint out of frame entirely.
+    // Pulling the camera back a third further costs some of the close-up's tightness but
+    // keeps both ends on screen everywhere.
+    const REACH = 1.35;
     const side = new Vector3(-heroDir.y, heroDir.x, 0).normalize();
     const alongRay = (lead: number, out: number, up: number) => {
       const target = heroDir.clone().multiplyScalar(heroRange * lead);
       return {
         position: target
           .clone()
-          .addScaledVector(side, heroRange * out)
-          .add(new Vector3(0, 0, heroRange * up)),
+          .addScaledVector(side, heroRange * out * REACH)
+          .add(new Vector3(0, 0, heroRange * up * REACH)),
         target,
       };
     };
