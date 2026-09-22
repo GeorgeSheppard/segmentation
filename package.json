@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json && tsc --noEmit -p tsconfig.tests.json",
     "verify": "node --experimental-strip-types scripts/verify-port.ts",
     "data:quantize": "node --experimental-strip-types scripts/quantize-frames.ts",
-    "data:colorize": "node --experimental-strip-types scripts/colorize-scenes.ts",
+    "data:colorize": "node --experimental-strip-types scripts/colorize-scenes-360.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy",

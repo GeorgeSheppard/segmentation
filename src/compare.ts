@@ -6,10 +6,17 @@ import { CloudView } from "./viz/cloud.ts";
 import { Viewer, pose } from "./viz/viewer.ts";
 
 /**
- * A standalone comparison page: real camera colour, four candidate KITTI frames, nothing
- * else. It shares the tutorial's Viewer and CloudView so what you see here is exactly what
- * the tutorial would render, but skips the stage/timeline machinery entirely — the point is
- * to look at a scene and decide, not to walk through the algorithm on all four at once.
+ * A standalone comparison page: real camera colour, four candidate KITTI-360 frames,
+ * nothing else. It shares the tutorial's Viewer and CloudView so what you see here is
+ * exactly what the tutorial would render, but skips the stage/timeline machinery entirely
+ * — the point is to look at a scene and decide, not to walk through the algorithm on all
+ * four at once.
+ *
+ * These are KITTI-360 frames, not the original KITTI odometry ones: KITTI-360's two
+ * sideways fisheye cameras plus its two forward perspective cameras between them see
+ * essentially the entire lidar sweep, instead of just the ~15-20% a single forward
+ * dash-cam can reach. See `scripts/colorize-scenes-360.ts` and
+ * `data/raw/scenes360/README.md` for how and why.
  */
 interface Scene {
   id: string;
@@ -19,34 +26,34 @@ interface Scene {
 
 const SCENES: Scene[] = [
   {
-    id: "00-003433",
-    label: "00 / 3433",
-    description: "A residential street bending past a corner house — 7.2% grade, 45° of turn.",
+    id: "02-011000",
+    label: "02 / 11000",
+    description: "A hillside road curving past a junction — 7.2% grade, 143° of turn.",
   },
   {
-    id: "02-003406",
-    label: "02 / 3406",
-    description: "A walled junction under autumn hedgerow — 7.5% grade, 49° of turn.",
+    id: "02-016139",
+    label: "02 / 16139",
+    description: "A row of garages, a red car parked outside — 8.2% grade, 122° of turn.",
   },
   {
-    id: "09-000297",
-    label: "09 / 297",
-    description: "A visibly cresting, curving suburban road — 12.2% grade, 18° of turn.",
+    id: "09-008242",
+    label: "09 / 8242",
+    description: "A tree-lined street, vans and cars parked along it — 1.1% grade, 135° of turn.",
   },
   {
-    id: "10-000865",
-    label: "10 / 865",
-    description: "A tight bend squeezed between apartment buildings — 10.1% grade, 59° of turn.",
+    id: "06-003489",
+    label: "06 / 3489",
+    description: "A house and garden behind a low hedge — 2.7% grade, 128° of turn.",
   },
 ];
 
 /**
- * Every scene shares this pose: a driver's-eye three-quarter view looking down the camera's
- * own forward cone, close enough that the real colour reads as colour and not a smudge.
- * Hand-tuned per-scene poses looked worse — each one is centred at the origin with the same
- * forward axis, so one good angle on that cone works for all four.
+ * Every scene shares this pose: a pulled-back, elevated three-quarter view over the origin.
+ * KITTI-360's fisheye pair colours the *whole* sweep, not just a forward cone, so unlike the
+ * old KITTI odometry candidates there's no single direction worth favouring — an overview
+ * that takes in the full ~80 m radius reads better than framing on any one side.
  */
-const DEFAULT_VIEW = pose([-9, -5, 5], [20, 2, -1.5]);
+const DEFAULT_VIEW = pose([-22, -19, 19], [0, 0, -2]);
 
 class ComparePage {
   private readonly viewer: Viewer;
@@ -100,8 +107,8 @@ class ComparePage {
     this.loadingText.textContent = `Fetching ${scene.label}…`;
     this.info.hidden = true;
 
-    const res = await fetch(`${import.meta.env.BASE_URL}data/scene-${scene.id}.pcq`);
-    if (!res.ok) throw new Error(`Failed to load scene-${scene.id}.pcq: ${res.status}`);
+    const res = await fetch(`${import.meta.env.BASE_URL}data/scene360-${scene.id}.pcq`);
+    if (!res.ok) throw new Error(`Failed to load scene360-${scene.id}.pcq: ${res.status}`);
     const buffer = await res.arrayBuffer();
     // A late click while a fetch is in flight should not paint the wrong scene.
     if (this.current !== scene.id) return;
@@ -115,7 +122,7 @@ class ComparePage {
     this.cloud = new CloudView(points);
     // A little larger than the tutorial's own points: nothing here is measuring a plane fit,
     // and real colour reads better as a visible patch than as a scatter of pinpricks.
-    this.cloud.worldSize = 0.09;
+    this.cloud.worldSize = 0.14;
     this.cloud.setBaseCaptured(THEME.raw);
     this.viewer.add(this.cloud.points);
     // Only reset the camera on the very first load — switching scenes afterwards keeps

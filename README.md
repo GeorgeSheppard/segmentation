@@ -172,15 +172,19 @@ TGR resolves.
 
 ### Coloured candidate scenes
 
-`data/raw/scenes/<id>/` holds four more frames — this time fetched directly from KITTI's own
-odometry release rather than redistributed demo data, each with the matching left colour
-camera image and calibration alongside the scan. `pnpm run data:colorize` projects every
-point through that calibration (`P2 · Tr`), samples real RGB wherever it lands inside the
-photo, and quantizes the result to `public/data/scene-<id>.pcq` — PCQ2, the same format plus
-a colour byte triple and a mask byte saying which points the camera actually saw (usually
-15–20% of a full sweep; the rest renders as the usual neutral ink). See
-`data/raw/scenes/README.md` for how the four were picked — scored for road grade and curve
-against the flat, straight frame the tutorial otherwise runs on — and what's in each one.
+`data/raw/scenes360/<id>/` holds four more frames — this time from
+[KITTI-360](https://www.cvlibs.net/datasets/kitti-360/), fetched directly from its own open
+S3 bucket rather than redistributed demo data, each with all four of its camera frames and
+the vehicle's calibration alongside the scan. KITTI-360 carries two forward perspective
+cameras and two sideways fisheye cameras (~185° each); between the four of them a ground-level
+lidar sweep typically gets covered completely, unlike a single forward dash-cam's ~15–20%
+ceiling. `pnpm run data:colorize` projects every point through the real calibration — pinhole
+for the perspective pair, the MEI omnidirectional model for the fisheye pair — samples real
+RGB wherever it lands inside one of the four photos, and quantizes the result to
+`public/data/scene360-<id>.pcq` — PCQ2, the same format plus a colour byte triple and a mask
+byte saying which points a camera actually saw. See `data/raw/scenes360/README.md` for how
+the four were picked — scored for road grade and curve against the flat, straight frame the
+tutorial otherwise runs on — and what's in each one.
 
 **`pnpm run dev`, then open `/compare.html`** — or on the deployed site, `/compare`; Cloudflare's
 static-asset server redirects the `.html` away, so that's the link worth sharing — to look at
