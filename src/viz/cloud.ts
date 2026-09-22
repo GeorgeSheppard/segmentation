@@ -66,6 +66,9 @@ export class CloudView {
 
   /** Return strength per point, kept for the raw-scan shading. */
   private readonly intensity: Float32Array;
+  /** Real camera colour, and which points actually have it — undefined for scans with none. */
+  private readonly captured?: Float32Array;
+  private readonly capturedMask?: Uint8Array;
 
   private readonly baseColor: Float32Array;
   private readonly baseAlpha: Float32Array;
@@ -78,6 +81,8 @@ export class CloudView {
   constructor(cloud: PointCloud) {
     this.count = cloud.count;
     this.intensity = cloud.intensity;
+    this.captured = cloud.color;
+    this.capturedMask = cloud.colorMask;
     this.color = new Float32Array(cloud.count * 3);
     this.alpha = new Float32Array(cloud.count).fill(1);
     this.size = new Float32Array(cloud.count).fill(1);
@@ -141,6 +146,39 @@ export class CloudView {
       this.baseColor[i * 3] = Math.min(1, c.r * k);
       this.baseColor[i * 3 + 1] = Math.min(1, c.g * k);
       this.baseColor[i * 3 + 2] = Math.min(1, c.b * k);
+    }
+    this.baseAlpha.fill(alpha);
+    this.baseSize.fill(1);
+    this.restore();
+  }
+
+  /** Whether this cloud carries real camera colour at all. */
+  get hasCapturedColor(): boolean {
+    return !!(this.captured && this.capturedMask);
+  }
+
+  /**
+   * The scan in real colour, where a camera actually saw it — the rest falls back to the
+   * same neutral ink as `setBaseRaw`. A scan's cone of colour is never the whole 360°: only
+   * a camera's field of view, so most of the sweep still reads as an unclassified return.
+   */
+  setBaseCaptured(fallback: Color | string, alpha = 1): void {
+    if (!this.captured || !this.capturedMask) {
+      this.setBaseRaw(fallback, alpha);
+      return;
+    }
+    const fb = fallback instanceof Color ? fallback : scratch.set(fallback as string);
+    for (let i = 0; i < this.count; i++) {
+      if (this.capturedMask[i]) {
+        this.baseColor[i * 3] = this.captured[i * 3];
+        this.baseColor[i * 3 + 1] = this.captured[i * 3 + 1];
+        this.baseColor[i * 3 + 2] = this.captured[i * 3 + 2];
+      } else {
+        const k = 0.8 + 0.4 * Math.min(1, this.intensity[i]);
+        this.baseColor[i * 3] = Math.min(1, fb.r * k);
+        this.baseColor[i * 3 + 1] = Math.min(1, fb.g * k);
+        this.baseColor[i * 3 + 2] = Math.min(1, fb.b * k);
+      }
     }
     this.baseAlpha.fill(alpha);
     this.baseSize.fill(1);

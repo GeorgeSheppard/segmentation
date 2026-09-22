@@ -17,9 +17,15 @@ importers:
       "@types/node":
         specifier: ^22.0.0
         version: 22.20.4
+      "@types/pngjs":
+        specifier: ^6.0.5
+        version: 6.0.5
       "@types/three":
         specifier: ^0.186.0
         version: 0.186.0
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
       prettier:
         specifier: ^3.9.8
         version: 3.9.8
@@ -1127,6 +1133,12 @@ packages:
         integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==,
       }
 
+  "@types/pngjs@6.0.5":
+    resolution:
+      {
+        integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==,
+      }
+
   "@types/stats.js@0.17.4":
     resolution:
       {
@@ -1281,6 +1293,13 @@ packages:
       }
     engines: { node: ">=20" }
     hasBin: true
+
+  pngjs@7.0.0:
+    resolution:
+      {
+        integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==,
+      }
+    engines: { node: ">=14.19.0" }
 
   postcss@8.5.28:
     resolution:
@@ -1888,6 +1907,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  "@types/pngjs@6.0.5":
+    dependencies:
+      "@types/node": 22.20.4
+
   "@types/stats.js@0.17.4": {}
 
   "@types/three@0.186.0":
@@ -2008,6 +2031,8 @@ snapshots:
   playwright@1.63.0:
     dependencies:
       playwright-core: 1.63.0
+
+  pngjs@7.0.0: {}
 
   postcss@8.5.28:
     dependencies:

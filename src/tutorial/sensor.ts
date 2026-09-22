@@ -6,7 +6,7 @@ import { type Stage, type StageContext } from "./context.ts";
 /**
  * Step 1 — where the points come from.
  *
- * Every later stage treats the scan as a given. It is not: it is 124,000 time-of-flight
+ * Every later stage treats the scan as a given. It is not: it is ~120,000 time-of-flight
  * measurements taken by a head that turns ten times a second, and the shape
  * of the scan — dense near the car, sparse far out, polar rather than gridded — is the
  * reason the rest of the algorithm looks the way it does. So the scan is built on screen

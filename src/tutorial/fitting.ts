@@ -4,10 +4,10 @@ import { lerpPlane, type Vec3 } from "../core/linalg.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt, thickness } from "./helpers.ts";
 
-/** The cell the seed / R-GPF stages work in: a big, clean, half-road half-car patch. */
+/** The cell the seed / R-GPF stages work in: a big, clean cell with something on part of it. */
 const FIT_CELL = "0/0/12";
 /** A cell where the ground sits on top of a vertical structure. */
-const VERTICAL_CELL = "0/1/14";
+const VERTICAL_CELL = "0/0/11";
 
 /** Step 5 — sorting a cell by height and picking the seed points. */
 export const stageSeeds: Stage = {
@@ -53,7 +53,7 @@ export const stageSeeds: Stage = {
     const t = ctx.track();
 
     t.say(
-      `One cell, <em>${idx.length.toLocaleString()} points</em>. Part road, part parked car, and nothing says which.`,
+      `One cell, <em>${idx.length.toLocaleString()} points</em>. Mostly road, but something is standing on part of it — and height alone can't say where one ends and the other begins.`,
       3,
     )
       .with(2.1, ctx.rig.flyTo(ctx.binPose(bin, { distance: 8.5, height: 4.2 })), Ease.cinematic)

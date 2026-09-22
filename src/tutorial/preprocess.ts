@@ -66,7 +66,7 @@ export const stageRnr: Stage = {
       Ease.cinematic,
     );
 
-    // Blow the noise points up so three points among 124,000 are actually findable.
+    // Blow the noise points up so a handful of points among ~120,000 are actually findable.
     t.add(1.4, {
       onUpdate: (v) => {
         cloud.paint(noise, ctx.color.focus, v);

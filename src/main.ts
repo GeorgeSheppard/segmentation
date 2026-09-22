@@ -12,11 +12,12 @@ import { applyThemeToCss, THEME } from "./viz/themes.ts";
 import { Viewer, type CameraPose } from "./viz/viewer.ts";
 
 /**
- * The scan the tutorial runs on. Frame 5 of the KITTI sample sequence is the one that
- * exercises every module from a cold start — it has reflected noise, a cell where the
- * ground sits on a structure, and a cell that only TGR can resolve.
+ * The scan the tutorial runs on: KITTI-360 sequence 02, frame 10880 — a residential street
+ * with a steep grade, real camera colour over the whole sweep (see `data/raw/scenes360/`).
+ * It exercises every module from a cold start — it has reflected noise, a cell where the
+ * ground sits on a structure, and cells that only TGR can resolve.
  */
-const HERO_FRAME = 5;
+const HERO_FRAME = "scene360-02-010880";
 
 const OVERVIEW: CameraPose = {
   position: new Vector3(-62, -58, 58),
@@ -87,9 +88,9 @@ class App {
 
     const cloud = await scan;
 
-    // Segmenting 124,000 points takes about a tenth of a second, so it needs no state of
+    // Segmenting ~120,000 points takes about a tenth of a second, so it needs no state of
     // its own — it runs in the gap between the last byte arriving and the first stage.
-    this.frame = segmentGround(cloud, HERO_FRAME, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
+    this.frame = segmentGround(cloud, 0, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
 
     this.cloud = new CloudView(cloud);
     this.viewer.add(this.cloud.points);

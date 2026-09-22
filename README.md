@@ -16,20 +16,20 @@ pnpm dev
 
 ## What it covers
 
-| #   | Stage                | What you see                                                                 |
-| --- | -------------------- | ---------------------------------------------------------------------------- |
-| 1   | How the scan is made | One pulse timed to a real return, then the fan, then a full turn             |
-| 2   | One LiDAR scan       | 123,924 points from a Velodyne HDL-64E, unlabelled and unsorted              |
-| 3   | RNR                  | Reflected noise: the mirror-image points hiding below the road               |
-| 4   | CZM                  | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff |
-| 5   | Seeds                | Sorting a cell by height, the Lowest Point Representative, the seed band     |
-| 6   | R-GPF                | Three PCA refinements turning seeds into a ground plane                      |
-| 7   | R-VPF                | Peeling a vertical structure away so the ground on top of it survives        |
-| 8   | GLE                  | Uprightness, elevation and flatness, each shown on a cell that fails it      |
-| 9   | 504 cells            | The whole sweep, judged ring by ring                                         |
-| 10  | TGR                  | A borderline cell getting a second hearing against its own ring              |
-| 11  | A-GLE                | The thresholds — and the sensor height — being measured rather than set      |
-| 12  | The result           | Ground vs not-ground, against the one-plane strawman it replaces             |
+| #   | Stage                | What you see                                                                  |
+| --- | -------------------- | ----------------------------------------------------------------------------- |
+| 1   | How the scan is made | One pulse timed to a real return, then the fan, then a full turn              |
+| 2   | One LiDAR scan       | 123,494 points from a Velodyne HDL-64E, unlabelled and unsorted               |
+| 3   | RNR                  | Reflected noise: the mirror-image points hiding below the road                |
+| 4   | CZM                  | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff  |
+| 5   | Seeds                | Sorting a cell by height, the Lowest Point Representative, the seed band      |
+| 6   | R-GPF                | Three PCA refinements turning seeds into a ground plane                       |
+| 7   | R-VPF                | Peeling a vertical structure away so the ground on top of it survives         |
+| 8   | GLE                  | Uprightness, elevation and flatness — a real cell for each, not always a fail |
+| 9   | 504 cells            | The whole sweep, judged ring by ring                                          |
+| 10  | TGR                  | A borderline cell getting a second hearing against its own ring               |
+| 11  | A-GLE                | The thresholds — and the sensor height — being measured rather than set       |
+| 12  | The result           | Ground vs not-ground, against the one-plane strawman it replaces              |
 
 Each stage zooms into a real cell, narrates what happens there, and pulls back to the whole
 scene. A **step rail** across the top stays on screen the whole time with the live pipeline
@@ -154,21 +154,37 @@ to be behaviour-neutral and that number moves, it was not.
 
 ## Data
 
-`data/raw/*.bin` are six KITTI Velodyne scans, redistributed from the
-[Patchwork++ reference implementation](https://github.com/url-kaist/patchwork-plusplus)
-(BSD-2-Clause), which ships them as demo data. Raw little-endian `float32`, four values per
-point — `x, y, z, intensity` — in the sensor frame: x forward, y left, z up. See
-`data/raw/README.md` for attribution.
+The tutorial runs on a real [KITTI-360](https://www.cvlibs.net/datasets/kitti-360/) scan —
+sequence 02, frame 10880, a residential street with a steep grade — fetched directly from
+KITTI-360's own open S3 bucket, with `data/raw/scenes360/<id>/velodyne.bin` alongside all
+four of its camera frames and the vehicle's calibration. KITTI-360 carries two forward
+perspective cameras and two sideways fisheye cameras (~185° each); between the four of them
+a ground-level lidar sweep typically gets covered completely, unlike a single forward
+dash-cam's ~15–20% ceiling. `pnpm run data:colorize` (`scripts/colorize-scenes-360.ts`)
+projects every point through the real calibration — pinhole for the perspective pair, the
+MEI omnidirectional model for the fisheye pair — samples real RGB wherever it lands inside
+one of the four photos, and quantizes the result to `public/data/scene360-<id>.pcq` — PCQ2,
+16-bit fixed-point positions plus one byte of intensity and a colour byte triple with a mask
+byte saying which points a camera actually saw. See `data/raw/scenes360/README.md` for
+attribution and how the frame was picked — scored for road grade and curve, then checked for
+real reflected noise and a real cell where the ground sits on a structure, since not every
+scan has either.
 
-They are not served. What ships is `public/data/*.pcq`, the same scans quantized by
-`pnpm run data:quantize`: 16-bit fixed-point positions at 2.5 mm and one byte of intensity,
-7 bytes a point against KITTI's 16. That is 1.99 MB → 0.87 MB per scan for a worst-case
-position error of 1.25 mm, an eighth of what the sensor itself resolves. The verification
-script hashes the quantized files, so the digest covers exactly what the browser is handed.
+The main tutorial never shows that captured colour, though — `cloud.setBaseRaw` keeps the
+scan one neutral colour throughout, same as before. A height ramp or true colour would band
+the cloud into road, cars and hedges before step 1, handing the reader the answer the next
+eleven stages are supposed to earn. `scripts/dump-cells.ts` is what made re-pointing the
+tutorial at a new scan tractable: it runs the pipeline headlessly against any `.pcq` and
+reports which cells actually exhibit each of the tutorial's hand-picked teaching moments (a
+mixed cell, a wall, an elevated plane, a peeled vertical structure), instead of picking them
+by trial and error in the browser.
 
-The tutorial runs on frame 5, which is the one that exercises every module from a cold start:
-it contains reflected noise, a cell where the ground sits on a structure, and a cell that only
-TGR resolves.
+`data/raw/*.bin` are six _different_ KITTI (not KITTI-360) Velodyne scans, redistributed from
+the [Patchwork++ reference implementation](https://github.com/url-kaist/patchwork-plusplus)
+(BSD-2-Clause), which ships them as demo data — see `data/raw/README.md`. They are not what
+the tutorial runs on any more, but `pnpm verify` still checks the TypeScript port against
+them and an independent NumPy port of the reference C++, so regressions get caught
+independently of whichever scan the tour itself is showing.
 
 ## Deploying
 

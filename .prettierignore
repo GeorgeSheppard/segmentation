@@ -1,3 +1,4 @@
 dist
 public/data
+data/raw
 package-lock.json
