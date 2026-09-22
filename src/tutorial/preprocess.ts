@@ -171,7 +171,7 @@ export const stageCzm: Stage = {
     uniGrid.setOpacity(0);
     ctx.scratch.add(uniGrid.group);
 
-    const focus = ctx.bin("0/0/13");
+    const focus = ctx.bin("0/0/12");
     const focusOutline = ctx.outline(focus, ctx.groundZ, null, ctx.color.seed);
     focusOutline.opacity = 0;
 

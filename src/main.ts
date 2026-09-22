@@ -12,12 +12,12 @@ import { applyThemeToCss, THEME } from "./viz/themes.ts";
 import { Viewer, type CameraPose } from "./viz/viewer.ts";
 
 /**
- * The scan the tutorial runs on: KITTI-360 sequence 02, frame 10925 — a residential
- * junction with real camera colour over the whole sweep (see `data/raw/scenes360/`). It
- * exercises every module from a cold start — it has reflected noise, a cell where the
+ * The scan the tutorial runs on: KITTI-360 sequence 02, frame 10880 — a residential street
+ * with a steep grade, real camera colour over the whole sweep (see `data/raw/scenes360/`).
+ * It exercises every module from a cold start — it has reflected noise, a cell where the
  * ground sits on a structure, and cells that only TGR can resolve.
  */
-const HERO_FRAME = "scene360-02-010925";
+const HERO_FRAME = "scene360-02-010880";
 
 const OVERVIEW: CameraPose = {
   position: new Vector3(-62, -58, 58),

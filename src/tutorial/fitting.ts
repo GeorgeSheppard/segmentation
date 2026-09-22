@@ -4,10 +4,10 @@ import { lerpPlane, type Vec3 } from "../core/linalg.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { fmt, thickness } from "./helpers.ts";
 
-/** The cell the seed / R-GPF stages work in: a big, clean, half-road half-car patch. */
-const FIT_CELL = "0/0/13";
+/** The cell the seed / R-GPF stages work in: a big, clean cell with something on part of it. */
+const FIT_CELL = "0/0/12";
 /** A cell where the ground sits on top of a vertical structure. */
-const VERTICAL_CELL = "0/1/12";
+const VERTICAL_CELL = "0/0/11";
 
 /** Step 5 — sorting a cell by height and picking the seed points. */
 export const stageSeeds: Stage = {

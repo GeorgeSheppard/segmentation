@@ -4,11 +4,14 @@ import { type CellTrace, PointLabel } from "../patchwork/index.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { facingLabel, fmt, thickness } from "./helpers.ts";
 
-const GOOD_CELL = "0/0/13";
-/** A plane fitted well above the sensor origin — horizontal, but too high to be ground. */
-const ROOF_CELL = "1/1/29";
-/** A wall: the normal is nowhere near vertical. */
-const WALL_CELL = "3/0/4";
+const GOOD_CELL = "0/0/12";
+/**
+ * The closest call in the scan for the elevation test — still comfortably below the
+ * sensor, so it still passes. Nothing here sits high enough to fail it outright.
+ */
+const ROOF_CELL = "0/1/1";
+/** Something upright: the normal is nowhere near vertical. */
+const WALL_CELL = "1/2/15";
 
 /** Step 8 — GLE: the three tests that decide whether a fitted plane is really ground. */
 export const stageGle: Stage = {
@@ -52,7 +55,7 @@ export const stageGle: Stage = {
 
     const cells = {
       good: makeCell(good, ctx.color.ground),
-      roof: makeCell(roof, ctx.color.nonGround),
+      roof: makeCell(roof, ctx.color.ground),
       wall: makeCell(wall, ctx.color.nonGround),
     };
 
@@ -67,11 +70,10 @@ export const stageGle: Stage = {
     const t = ctx.track();
 
     // ---- Test 1: uprightness, shown on the wall cell.
-    t.say("R-GPF fits whatever is in the cell. This one holds a wall.", 2.4).with(
-      2.1,
-      ctx.rig.flyTo(ctx.binPose(wall, { distance: 9, height: 4.5 })),
-      Ease.cinematic,
-    );
+    t.say(
+      "R-GPF fits whatever is in the cell. This one holds something upright — a hedge.",
+      2.4,
+    ).with(2.1, ctx.rig.flyTo(ctx.binPose(wall, { distance: 9, height: 4.5 })), Ease.cinematic);
 
     t.add(1.0, {
       onEnter: () => {
@@ -86,13 +88,13 @@ export const stageGle: Stage = {
     t.add(1.0, { onUpdate: (v) => cloud.paint(wall.cellGround, ctx.color.nonGround, v) });
     t.wait(0.6);
 
-    // ---- Test 2: elevation, shown on the roof cell.
+    // ---- Test 2: elevation, shown on the closest call in this scan.
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      `Facing up is not enough on its own. This one is <em>${facingLabel(roof.gle!.uprightness)}</em> and passes easily — it is the top of a <em>hedge</em>, trimmed flat enough to read as a plane.`,
+      `Facing up is not enough on its own — a plane also has to <em>sit</em> below the sensor. This is the closest call anywhere in the scan, and it still clears with room to spare.`,
       3.4,
     );
 
@@ -110,7 +112,7 @@ export const stageGle: Stage = {
 
     t.add(1.2, {
       onEnter: () => {
-        ctx.verdict("Rejected — above the sensor", "bad");
+        ctx.verdict("Passes — below the sensor", "good");
       },
       onUpdate: (v) => {
         sensorDisc.opacity = v * 0.1;
@@ -118,10 +120,11 @@ export const stageGle: Stage = {
     });
     t.say(
       `Second test: where does the plane <em>sit</em>? Ground passes below the sensor. This one ` +
-        `sits <em>${fmt(roof.gle!.heading)} m</em> above it.`,
-      3.2,
+        `sits <em>${fmt(Math.abs(roof.gle!.heading))} m</em> below it — a roof or a bonnet sitting ` +
+        `<em>above</em> the sensor is what this test is really watching for.`,
+      3.4,
     );
-    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.nonGround, v) });
+    t.add(1.0, { onUpdate: (v) => cloud.paint(roof.cellGround, ctx.color.ground, v) });
     t.say(
       "Elevation only helps close to the sensor. Far out, a high patch might just be a hill, so past <em>17 m</em> the test is switched off.",
       3.6,

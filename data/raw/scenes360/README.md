@@ -1,30 +1,29 @@
-# Candidate coloured scenes (KITTI-360)
+# The tutorial's scan (KITTI-360)
 
-Four real frames from [KITTI-360](https://www.cvlibs.net/datasets/kitti-360/), fetched
-directly from its own open S3 bucket — the Velodyne HDL-64E scan, all four camera frames
-that rode alongside it, and the vehicle's own calibration.
+`02-010880` — sequence 02, frame 10880 — is the real frame the tutorial runs on: a
+residential street with a steep grade, fetched directly from
+[KITTI-360](https://www.cvlibs.net/datasets/kitti-360/)'s own open S3 bucket. The folder
+holds the Velodyne HDL-64E scan, all four camera frames that rode alongside it, and the
+vehicle's own calibration.
 
 KITTI-360 carries two forward perspective cameras plus two sideways fisheye cameras
 (~185° each, one facing left and one right). The fisheye pair overlaps in front of and
 behind the car, so between all four lenses a ground-level lidar sweep typically gets
-covered *completely* — unlike the single forward dash-cam in `data/raw/scenes/` (the
-original KITTI odometry candidates, now superseded), which only ever sees the ~15-20%
-of a sweep in front of it. `scripts/colorize-scenes-360.ts` does the projection: pinhole
-for the two perspective cameras, the MEI omnidirectional model for the two fisheye ones.
+covered *completely* — unlike a single forward dash-cam, which only ever sees the
+~15-20% of a sweep in front of it. `scripts/colorize-scenes-360.ts` does the projection:
+pinhole for the two perspective cameras, the MEI omnidirectional model for the two
+fisheye ones.
 
-Picked the same way as before — scoring every available frame in nine KITTI-360
-sequences for local road grade and heading change over a ~30-sample window — then
-eyeballing the front camera to skip anything where the road itself isn't actually
-visible (thick hedges, etc).
+Picked by scoring every available frame in nine KITTI-360 sequences for local road grade
+and heading change, shortlisting the curviest, then checking each shortlisted frame
+still has two things a flat, straight demo frame wouldn't need to: real reflected noise
+(for the RNR stage) and a real cell where the ground sits on a structure close enough to
+the sensor for R-VPF to peel it — neither is guaranteed just because a road curves.
+`scripts/dump-cells.ts` is what made that check fast: it runs the segmentation pipeline
+headlessly against a `.pcq` and reports every cell that actually exhibits one of the
+tutorial's teaching moments.
 
-| id          | sequence / frame | grade | curve | what's in shot                            |
-| ----------- | ----------------- | ----- | ----- | ------------------------------------------ |
-| `02-011000` | 0002 / 11000       | 7.2%  | 143°  | a hillside road curving past a junction     |
-| `02-016139` | 0002 / 16139       | 8.2%  | 122°  | a row of garages, a red car parked outside  |
-| `09-008242` | 0009 / 8242        | 1.1%  | 135°  | a tree-lined street, vans and cars parked   |
-| `06-003489` | 0006 / 3489        | 2.7%  | 128°  | a house and garden behind a low hedge       |
-
-**Format**, per scene folder:
+**Format**:
 
 - `velodyne.bin` — raw little-endian `float32`, four values per point (`x, y, z,
   intensity`), sensor frame: x forward, y left, z up. Identical layout to `data/raw/*.bin`.
