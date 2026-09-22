@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Scene picker — Patchwork++</title>
+    <meta
+      name="description"
+      content="Compare candidate KITTI scenes — real camera colour, road curve and grade — to pick one for the tutorial."
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/compare.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view"></canvas>
+
+      <div id="loading">
+        <div class="spinner"></div>
+        <p id="loading-text">Fetching the scan…</p>
+      </div>
+
+      <header id="cmp-top">
+        <h1>Which scene?</h1>
+        <p>
+          Four real KITTI frames, coloured from the camera that rode alongside the sensor. Drag to
+          look around; the strip below switches between them.
+        </p>
+      </header>
+
+      <div id="cmp-info" hidden>
+        <p id="cmp-desc"></p>
+        <p id="cmp-stats"></p>
+      </div>
+
+      <nav id="cmp-strip"></nav>
+    </div>
+    <script type="module" src="/src/compare.ts"></script>
+  </body>
+</html>

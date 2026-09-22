@@ -170,6 +170,23 @@ The tutorial runs on frame 5, which is the one that exercises every module from 
 it contains reflected noise, a cell where the ground sits on a structure, and a cell that only
 TGR resolves.
 
+### Coloured candidate scenes
+
+`data/raw/scenes/<id>/` holds four more frames — this time fetched directly from KITTI's own
+odometry release rather than redistributed demo data, each with the matching left colour
+camera image and calibration alongside the scan. `pnpm run data:colorize` projects every
+point through that calibration (`P2 · Tr`), samples real RGB wherever it lands inside the
+photo, and quantizes the result to `public/data/scene-<id>.pcq` — PCQ2, the same format plus
+a colour byte triple and a mask byte saying which points the camera actually saw (usually
+15–20% of a full sweep; the rest renders as the usual neutral ink). See
+`data/raw/scenes/README.md` for how the four were picked — scored for road grade and curve
+against the flat, straight frame the tutorial otherwise runs on — and what's in each one.
+
+**`pnpm run dev` / `pnpm run build`, then open `/compare.html`** to look at all four,
+coloured, and decide which (if any) should replace the tutorial's own frame 5. It is a
+standalone page — a shared `Viewer`/`CloudView`, no stage timeline — built for that one
+decision, not a permanent feature of the tour.
+
 ## Deploying
 
 Cloudflare, as a static site on Workers Static Assets — no Worker script, just the Vite build
