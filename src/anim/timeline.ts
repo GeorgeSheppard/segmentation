@@ -35,18 +35,28 @@ export const Ease = {
 export class Timeline {
   readonly clips: Clip[];
   readonly duration: number;
+  /** Times, one per `say()`, where the clock holds until `release()` is called. */
+  readonly checkpoints: number[];
   time = 0;
 
   private entered = new Set<Clip>();
   private exited = new Set<Clip>();
+  private gateIndex = 0;
 
-  constructor(clips: Clip[]) {
+  constructor(clips: Clip[], checkpoints: number[] = []) {
     this.clips = [...clips].sort((a, b) => a.start - b.start);
     this.duration = this.clips.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+    this.checkpoints = [...new Set(checkpoints)].sort((a, b) => a - b);
   }
 
   get finished(): boolean {
     return this.time >= this.duration;
+  }
+
+  /** True once the clock has caught up with a checkpoint and is holding there. */
+  get paused(): boolean {
+    const gate = this.checkpoints[this.gateIndex];
+    return gate !== undefined && this.time >= gate;
   }
 
   get progress(): number {
@@ -54,7 +64,8 @@ export class Timeline {
   }
 
   advance(dt: number): void {
-    this.time = Math.min(this.duration, this.time + dt);
+    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
+    this.time = Math.min(gate, this.duration, this.time + dt);
     for (const clip of this.clips) {
       if (this.time < clip.start) continue;
       if (this.exited.has(clip)) continue;
@@ -75,15 +86,25 @@ export class Timeline {
     }
   }
 
-  /** Run straight to the end, firing every handler. Used by "skip to the end of this stage". */
-  finish(): void {
-    this.advance(this.duration - this.time + 1e-6);
+  /** Let the clock past the checkpoint it is currently holding at. */
+  release(): void {
+    if (this.paused) this.gateIndex++;
+  }
+
+  /**
+   * Run to the checkpoint the clock is heading for — or to the end, once every checkpoint
+   * has been released. Used when Continue is pressed mid-beat rather than while paused.
+   */
+  skipToCheckpoint(): void {
+    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
+    this.advance(Math.max(0, gate - this.time) + 1e-6);
   }
 }
 
 /** Fluent builder. `add` places a clip at the cursor and advances it; `with` runs in parallel. */
 export class Track {
   private clips: Clip[] = [];
+  private checkpoints: number[] = [];
   private cursor = 0;
   private lastStart = 0;
 
@@ -121,13 +142,19 @@ export class Track {
     return this.add(0, { onEnter: fn });
   }
 
-  /** Show a line of narration for `duration` seconds, then advance. */
+  /**
+   * Show a line of narration for `duration` seconds, then hold: the clock will not pass
+   * this point until the reader presses Continue, so every line gets read at its own pace
+   * rather than on a timer.
+   */
   say(text: string, duration: number): this {
-    return this.add(duration, { onEnter: () => this.caption?.(text) });
+    this.add(duration, { onEnter: () => this.caption?.(text) });
+    this.checkpoints.push(this.cursor);
+    return this;
   }
 
   build(): Timeline {
-    return new Timeline(this.clips);
+    return new Timeline(this.clips, this.checkpoints);
   }
 }
 

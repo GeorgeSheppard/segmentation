@@ -118,7 +118,7 @@ export const stageAgle: Stage = {
       3.8,
     );
 
-    t.say("So the noise filter follows the car downhill rather than cutting into the road.", 3);
+    t.say("The noise filter follows the car downhill instead of cutting into the road.", 3);
 
     t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
       onUpdate: (v) => {
@@ -198,7 +198,7 @@ export const stageResult: Stage = {
       },
     });
     t.say(
-      `Fit <em>one</em> plane to the whole scan instead, and <em>${rescued.length.toLocaleString()} points</em> of that road — the camber, the far end, the rise onto the verge — come back as obstacles.`,
+      `Fit <em>one</em> plane to the whole scan instead, and <em>${rescued.length.toLocaleString()} points</em> of real road come back as obstacles — the camber, the far end, the verge.`,
       3.6,
     );
 

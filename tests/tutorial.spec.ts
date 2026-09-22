@@ -15,6 +15,9 @@ test.describe("tutorial", () => {
   });
 
   test("walks every stage without error, then offers to explore", async ({ page }) => {
+    // Continue now steps one line at a time, so clicking through every line of every stage
+    // is a lot more round trips than the old skip-to-end click — give it the room.
+    test.setTimeout(300_000);
     const errors = await open(page);
     const total = Number(await page.locator("#step-total").textContent());
     const titles: string[] = [];
@@ -58,15 +61,20 @@ test.describe("tutorial", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Continue first finishes a running stage, then advances", async ({ page }) => {
+  test("Continue steps one line at a time, then advances the stage", async ({ page }) => {
     await open(page);
     const width = () => page.locator("#progress-bar").getAttribute("style");
 
     expect(await width()).not.toMatch(/width:\s*100%/);
     await page.click("#btn-continue");
-    await expect(page.locator("#progress-bar")).toHaveAttribute("style", /width:\s*100%/);
+    const afterOneLine = await width();
+    // One line at a time: the first tap does not jump straight to the end of the stage.
+    expect(afterOneLine).not.toMatch(/width:\s*100%/);
+    await page.click("#btn-continue");
+    expect(await width()).not.toEqual(afterOneLine);
     await expect(page.locator("#step-num")).toHaveText("1");
 
+    await finishStage(page);
     await page.click("#btn-continue");
     await expect(page.locator("#step-num")).toHaveText("2");
   });

@@ -285,8 +285,9 @@ export class Hud {
     this.progressBar.style.width = `${Math.round(p * 100)}%`;
   }
 
-  setFinished(finished: boolean): void {
-    this.btnContinue.classList.toggle("pulse", finished);
+  /** Invite a tap: the clock is holding, either at the end of a line or the end of the stage. */
+  setFinished(waiting: boolean): void {
+    this.btnContinue.classList.toggle("pulse", waiting);
   }
 
   // ------------------------------------------------------------------ explore

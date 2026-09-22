@@ -101,7 +101,7 @@ export const stageSensor: Stage = {
     const t = ctx.track();
 
     t.say(
-      `<em>${count.toLocaleString()} points</em>, ten times a second. They come from one spinning head — a <em>Velodyne HDL-64E</em> on the car roof.`,
+      `<em>${count.toLocaleString()} points</em>, ten times a second, from a <em>Velodyne HDL-64E</em> spinning on the car roof.`,
       3.4,
     )
       .with(2.6, ctx.rig.flyTo(pose([-3.4, -2.9, 1.6], [0.5, 0.1, -0.2])), Ease.cinematic)
@@ -135,7 +135,7 @@ export const stageSensor: Stage = {
     });
 
     t.say(
-      `Time the round trip, halve it, multiply by the speed of light: <em>${heroRange.toFixed(1)} m</em>. That range and that direction are <em>one point</em>.`,
+      `Time the round trip, halve it, multiply by the speed of light: <em>${heroRange.toFixed(1)} m</em>. Range plus direction gives <em>one point</em>.`,
       3.6,
     ).with(1.2, {
       onUpdate: (v) => {
@@ -146,7 +146,7 @@ export const stageSensor: Stage = {
 
     // ---- the vertical fan
     t.say(
-      "<em>64 lasers</em> are stacked in a vertical fan, each aimed at its own angle — so one shot measures a whole slice of the world.",
+      "<em>64 lasers</em>, stacked in a fan, each aimed at its own angle. One pulse measures a whole vertical slice.",
       3.6,
     )
       .with(2.2, ctx.rig.flyTo(alongRay(0.5, 1.1, 0.15)), Ease.cinematic)
@@ -182,7 +182,7 @@ export const stageSensor: Stage = {
     ).with(7.0, ctx.rig.flyTo(pose([-48, -42, 36], [6, -1, -1.6])), Ease.cinematic);
 
     t.say(
-      "Near the car the rings are packed tight. Far out they are metres apart — the same 64 lasers, spread over a much bigger circle.",
+      "Near the car the rings are packed tight. Farther out, the same 64 lasers are spread over a much bigger circle.",
       3.6,
     ).with(1.2, {
       onUpdate: (v) => {
