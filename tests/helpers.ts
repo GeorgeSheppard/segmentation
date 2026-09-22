@@ -16,16 +16,23 @@ export async function open(page: Page, stage = ""): Promise<string[]> {
 
 /**
  * Skip to the end of the current stage and wait for the transport to settle. Continue now
- * steps one line at a time, so this clicks it until the stage reports done rather than
- * assuming a single click gets there.
+ * steps one line at a time — one tap to jump to the end of a line, another to release the
+ * next one — so this drives the button directly (skipping Playwright's per-call
+ * actionability wait) until the stage reports done, rather than assuming a single click
+ * gets there.
  */
 export async function finishStage(page: Page): Promise<void> {
-  const bar = page.locator("#progress-bar");
-  for (let i = 0; i < 60; i++) {
-    if ((await bar.getAttribute("style"))?.includes("width: 100%")) break;
-    await page.click("#btn-continue");
+  for (let i = 0; i < 200; i++) {
+    const done = await page.evaluate(() => {
+      if (document.getElementById("progress-bar")?.style.width === "100%") return true;
+      (document.getElementById("btn-continue") as HTMLButtonElement | null)?.click();
+      return false;
+    });
+    if (done) break;
   }
-  await expect(bar).toHaveAttribute("style", /width:\s*100%/, { timeout: 30_000 });
+  await expect(page.locator("#progress-bar")).toHaveAttribute("style", /width:\s*100%/, {
+    timeout: 30_000,
+  });
 }
 
 export function stageTitle(page: Page) {

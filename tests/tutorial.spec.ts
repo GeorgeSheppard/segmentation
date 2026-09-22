@@ -16,8 +16,9 @@ test.describe("tutorial", () => {
 
   test("walks every stage without error, then offers to explore", async ({ page }) => {
     // Continue now steps one line at a time, so clicking through every line of every stage
-    // is a lot more round trips than the old skip-to-end click — give it the room.
-    test.setTimeout(300_000);
+    // is a lot more round trips than the old skip-to-end click — give it the room, especially
+    // under CI's parallel workers sharing one CPU for software-rendered WebGL.
+    test.setTimeout(600_000);
     const errors = await open(page);
     const total = Number(await page.locator("#step-total").textContent());
     const titles: string[] = [];
