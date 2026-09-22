@@ -4,11 +4,11 @@ import { type CellTrace, PointLabel } from "../patchwork/index.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { facingLabel, fmt, thickness } from "./helpers.ts";
 
-const GOOD_CELL = "0/0/12";
-/** A plane fitted to a car roof: horizontal, but above the sensor origin. */
-const ROOF_CELL = "1/0/9";
+const GOOD_CELL = "0/0/13";
+/** A plane fitted well above the sensor origin — horizontal, but too high to be ground. */
+const ROOF_CELL = "1/1/29";
 /** A wall: the normal is nowhere near vertical. */
-const WALL_CELL = "1/0/6";
+const WALL_CELL = "3/0/4";
 
 /** Step 8 — GLE: the three tests that decide whether a fitted plane is really ground. */
 export const stageGle: Stage = {
@@ -36,7 +36,7 @@ export const stageGle: Stage = {
     ctx.legend([
       { color: ctx.color.ground, label: "passes", note: "accepted as ground" },
       { color: ctx.color.nonGround, label: "not upright", note: "tilted more than 45°" },
-      { color: ctx.color.nonGround, label: "above the sensor", note: "roof or bonnet" },
+      { color: ctx.color.nonGround, label: "above the sensor", note: "a roof, a hedge, a bonnet" },
     ]);
 
     const makeCell = (bin: CellTrace, color: Color) => {
@@ -92,7 +92,7 @@ export const stageGle: Stage = {
       onUpdate: (v) => reveal(cells.roof, v),
     });
     t.say(
-      `Facing up is not enough on its own. This one is <em>${facingLabel(roof.gle!.uprightness)}</em> and passes easily — because it is a <em>car roof</em>.`,
+      `Facing up is not enough on its own. This one is <em>${facingLabel(roof.gle!.uprightness)}</em> and passes easily — it is the top of a <em>hedge</em>, trimmed flat enough to read as a plane.`,
       3.4,
     );
 
@@ -202,8 +202,12 @@ export const stageSweep: Stage = {
     const ringOrder = [...byRing.keys()].sort((a, b) => a - b);
 
     const candidateIdx: number[] = [];
+    let candidateCellCount = 0;
     for (const b of frame.cells) {
-      if (b.gle?.decision === "candidate") candidateIdx.push(...b.cellGround);
+      if (b.gle?.decision === "candidate") {
+        candidateIdx.push(...b.cellGround);
+        candidateCellCount++;
+      }
     }
 
     const t = ctx.track();
@@ -267,7 +271,7 @@ export const stageSweep: Stage = {
     t.at(Math.max(t.time, 2.6 + ringOrder.length * perRing + 0.4));
     t.wait(1.2);
     t.say(
-      "Nearly all decided. The amber points sit in cells GLE could not call. This scan has <em>one</em>.",
+      `Nearly all decided. The amber points sit in cells GLE could not call. This scan has <em>${candidateCellCount === 1 ? "one" : candidateCellCount}</em>.`,
       3,
     );
 

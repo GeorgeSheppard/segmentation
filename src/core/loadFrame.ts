@@ -15,10 +15,9 @@ export interface LoadProgress {
  * fast enough to happen between two frames.
  */
 export async function loadKittiFrame(
-  index: number,
+  name: string,
   onProgress?: (p: LoadProgress) => void,
 ): Promise<PointCloud> {
-  const name = String(index).padStart(6, "0");
   const url = `${import.meta.env.BASE_URL}data/${name}.pcq`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);

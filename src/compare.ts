@@ -17,9 +17,12 @@ import { Viewer, pose } from "./viz/viewer.ts";
  * dash-cam can reach. See `scripts/colorize-scenes-360.ts` and
  * `data/raw/scenes360/README.md` for how and why.
  *
- * The first two entries (10925, 11100) aren't new picks — they're the same street as
- * 11000, a little further along, tried because 11000's immediate surroundings turned out
- * too open to demonstrate R-VPF (peeling a wall out from under the ground plane).
+ * All ten are the same street as 11000 (the pick two rounds ago) and 10925 (the pick one
+ * round ago) — 11000 turned out too open for R-VPF, and 10925 turned out to have zero
+ * reflected-noise points for the RNR stage. These ten were found by scanning ~150 frames
+ * along the same street for ones with *both* real R-VPF peeling and real RNR noise, so
+ * every one of them can actually run the whole tutorial — this round is purely "which do
+ * you like the look of."
  */
 interface Scene {
   id: string;
@@ -29,37 +32,57 @@ interface Scene {
 
 const SCENES: Scene[] = [
   {
-    id: "02-010925",
-    label: "02 / 10925",
+    id: "02-010880",
+    label: "02 / 10880",
     description:
-      "Same street, ~75 frames before 11000 — a junction with houses either side. Has a real kerb close to the sensor, unlike 11000.",
+      "A red-flowered hedge along the street, houses beyond — 10.9% grade, the steepest of the ten.",
   },
   {
-    id: "02-011100",
-    label: "02 / 11100",
+    id: "02-010860",
+    label: "02 / 10860",
     description:
-      "Same street, ~100 frames after 11000 — a tree and hedge-lined stretch. Also has a real kerb close to the sensor.",
+      "A sharp-edged modern house at a junction, a flowering shrub by the garage — wide turn.",
   },
   {
-    id: "02-011000",
-    label: "02 / 11000",
+    id: "02-010640",
+    label: "02 / 10640",
+    description: "A modern house behind a curved stone wall, manicured hedges and topiary.",
+  },
+  {
+    id: "02-010600",
+    label: "02 / 10600",
+    description: "A textured stone retaining wall right at the roadside, hedges above it.",
+  },
+  {
+    id: "02-010580",
+    label: "02 / 10580",
+    description: "A stone garden wall and hedge, a car parked in the drive — 3.1% grade.",
+  },
+  {
+    id: "02-011200",
+    label: "02 / 11200",
     description:
-      "The pick so far — a hillside road curving past a junction. Its near field turned out too open for the R-VPF stage, which is why 10925 and 11100 are here.",
+      "A blue delivery truck and a van parked in a driveway, red-roofed houses — 5.2% grade.",
   },
   {
-    id: "02-016139",
-    label: "02 / 16139",
-    description: "A row of garages, a red car parked outside — 8.2% grade, 122° of turn.",
+    id: "02-011220",
+    label: "02 / 11220",
+    description: "The same trucks, much closer — an electrician's van fills half the shot.",
   },
   {
-    id: "09-008242",
-    label: "09 / 8242",
-    description: "A tree-lined street, vans and cars parked along it — 1.1% grade, 135° of turn.",
+    id: "02-011280",
+    label: "02 / 11280",
+    description: "A parked Audi, a graffitied truck, a brick wall and houses — 5.2% grade.",
   },
   {
-    id: "06-003489",
-    label: "06 / 3489",
-    description: "A house and garden behind a low hedge — 2.7% grade, 128° of turn.",
+    id: "02-011300",
+    label: "02 / 11300",
+    description: "A row of garages, a white VW Beetle, red-tiled roofs — 5.4% grade.",
+  },
+  {
+    id: "02-011320",
+    label: "02 / 11320",
+    description: "A brick driveway lined with flowers, garages either side — 4.5% grade.",
   },
 ];
 

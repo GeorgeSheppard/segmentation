@@ -10,7 +10,7 @@ test.describe("tutorial", () => {
     await expect(page.locator("#step-total")).toHaveText("12");
 
     // The caption is fed from the live segmentation, so this asserts the algorithm ran.
-    await expect(page.locator("#caption-text")).toContainText("123,924");
+    await expect(page.locator("#caption-text")).toContainText("123,640");
     expect(errors).toEqual([]);
   });
 
@@ -51,7 +51,7 @@ test.describe("tutorial", () => {
     // The scan is built up on screen with nothing labelled in 3D — no legend needed either.
     await expect(page.locator("#legend")).toBeHidden();
     // The measured range on screen comes from a real return, not from a script.
-    await expect(page.locator("#caption-text")).toContainText("123,924");
+    await expect(page.locator("#caption-text")).toContainText("123,640");
     await finishStage(page);
     await page.click("#btn-continue");
     await expect(stageTitle(page)).toHaveText("One LiDAR scan");
@@ -195,7 +195,7 @@ test.describe("getting around", () => {
 
     await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
     await expect(page.locator("#btn-continue")).toBeEnabled();
-    await expect(page.locator("#caption-text")).toContainText("123,924");
+    await expect(page.locator("#caption-text")).toContainText("123,640");
   });
 
   test("dragging the scene takes the camera, and Recentre hands it back", async ({ page }) => {

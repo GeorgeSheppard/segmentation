@@ -60,13 +60,17 @@
   z-index: 20;
   display: flex;
   gap: 8px;
+  max-width: calc(100vw - 2 * var(--gutter));
   padding: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 999px;
 }
 #cmp-strip button {
+  flex-shrink: 0;
   padding: 9px 16px;
   color: var(--text-dim);
   background: none;
