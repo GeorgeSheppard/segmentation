@@ -171,7 +171,12 @@ test.describe("layout", () => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
     // The legend fills in a row at a time as each colour it names actually appears, so it
-    // starts empty — release the first line to get past that point.
+    // starts empty. The first row lands partway through the second line, not the moment
+    // the first one releases, so release it and let the reveal play out in real time
+    // rather than assuming a fixed number of clicks gets there.
+    await page.waitForFunction(() =>
+      document.getElementById("btn-continue")!.classList.contains("pulse"),
+    );
     await page.click("#btn-continue");
     await expect(legend).toBeVisible();
 
