@@ -49,6 +49,10 @@ export class WedgeSurface {
   private readonly geometry: BufferGeometry;
   private readonly material: MeshBasicMaterial;
   private readonly xy: Float32Array;
+  /** The flat (z = 0) footprint `layOnPlane` drapes, kept untouched so repeated calls —
+   * every frame, as a fit settles — always project from the same footprint rather than
+   * compounding onto whatever the previous call left behind. */
+  private readonly flatXY: Float32Array;
 
   private readonly a0: number;
   private readonly a1: number;
@@ -96,6 +100,7 @@ export class WedgeSurface {
     this.geometry.setAttribute("position", new BufferAttribute(positions, 3));
     this.geometry.setIndex(indices);
     this.xy = positions;
+    this.flatXY = positions.slice();
 
     this.material = new MeshBasicMaterial({
       color: new Color(color),
@@ -118,6 +123,8 @@ export class WedgeSurface {
         const o = (ri * cols + ai) * 3;
         this.xy[o] = Math.cos(a) * r;
         this.xy[o + 1] = Math.sin(a) * r;
+        this.flatXY[o] = this.xy[o];
+        this.flatXY[o + 1] = this.xy[o + 1];
       }
     }
     this.geometry.getAttribute("position").needsUpdate = true;
@@ -129,17 +136,29 @@ export class WedgeSurface {
   }
 
   /**
-   * Drape the surface onto the plane n.p + d = 0.
+   * Drape the surface onto the plane n.p + d = 0, by projecting the flat footprint onto
+   * it along the normal.
    *
-   * `clamp` bounds the resulting heights, which matters for a near-vertical fit: without it
-   * the draped wedge becomes a sheet hundreds of metres tall.
+   * A heightfield (solving z = f(x, y)) is the wrong shape for this: a plane is a function
+   * of (x, y) only when it is not vertical, so a near-vertical fit — exactly the case R-VPF
+   * exists to catch — drove z toward infinity and had to be clamped, which folded the
+   * surface into two flat shelves rather than showing a tilted sheet. Orthogonal projection
+   * has no such singularity: every point moves a bounded distance along the normal,
+   * whatever the plane's orientation. `clamp` bounds that distance, for a fit so far off
+   * that even the projection would dwarf the cell.
    */
   layOnPlane(normal: Vec3, d: number, clamp?: [number, number]): void {
-    const nz = Math.abs(normal[2]) < 1e-4 ? 1e-4 : normal[2];
+    const [nx, ny, nz] = normal;
     for (let i = 0; i < this.xy.length; i += 3) {
-      let z = -(normal[0] * this.xy[i] + normal[1] * this.xy[i + 1] + d) / nz;
-      if (clamp) z = Math.max(clamp[0], Math.min(clamp[1], z));
-      this.xy[i + 2] = z;
+      const x0 = this.flatXY[i];
+      const y0 = this.flatXY[i + 1];
+      // Signed distance from (x0, y0, 0) to the plane; the projection walks back along
+      // the normal by exactly this much.
+      let t = nx * x0 + ny * y0 + d;
+      if (clamp) t = Math.max(clamp[0], Math.min(clamp[1], t));
+      this.xy[i] = x0 - nx * t;
+      this.xy[i + 1] = y0 - ny * t;
+      this.xy[i + 2] = -nz * t;
     }
     this.geometry.getAttribute("position").needsUpdate = true;
   }
