@@ -12,6 +12,7 @@
     "verify": "node --experimental-strip-types scripts/verify-port.ts",
     "data:quantize": "node --experimental-strip-types scripts/quantize-frames.ts",
     "data:colorize": "node --experimental-strip-types scripts/colorize-scenes-360.ts",
+    "data:bake-labels": "node --experimental-strip-types scripts/bake-labels.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy",
