@@ -549,9 +549,7 @@ button.primary {
      waiting on them, so the button says so before it ever needs to animate. The pulse
      below is what makes "now" unmissable; this is what makes "not yet" unambiguous. */
   opacity: 0.5;
-  transition:
-    opacity 0.25s ease,
-    transform 0.15s ease;
+  transition: opacity 0.25s ease;
 }
 button.primary:hover:not(:disabled) {
   filter: brightness(1.1);
@@ -565,14 +563,16 @@ button.primary.pulse {
   opacity: 1;
   animation: pulse 1.4s ease-in-out infinite;
 }
+/* box-shadow only, deliberately: a transform: scale() here would keep the button's
+   bounding box changing every frame forever, which Playwright's click reads as "never
+   stable" and retries against until it times out — the same thing a size-changing hit
+   target would do to anyone driving this by anything other than a mouse. */
 @keyframes pulse {
   0%,
   100% {
-    transform: scale(1);
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
   }
   50% {
-    transform: scale(1.03);
     box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
