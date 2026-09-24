@@ -545,20 +545,35 @@ button.primary {
   color: var(--accent-ink);
   background: var(--accent);
   border: none;
+  /* Muted until it is actually the reader's turn to act — a still-playing line is not
+     waiting on them, so the button says so before it ever needs to animate. The pulse
+     below is what makes "now" unmissable; this is what makes "not yet" unambiguous. */
+  opacity: 0.5;
+  transition:
+    opacity 0.25s ease,
+    transform 0.15s ease;
 }
 button.primary:hover:not(:disabled) {
   filter: brightness(1.1);
 }
+/* The idle 0.5 above is about pacing, not availability — a genuinely disabled button (the
+   scan is still downloading) needs to look more inert than that, regardless of pulse. */
+button.primary:disabled {
+  opacity: 0.35;
+}
 button.primary.pulse {
-  animation: pulse 1.8s ease-in-out infinite;
+  opacity: 1;
+  animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent);
+    transform: scale(1.03);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
