@@ -26,10 +26,17 @@ export const stageAgle: Stage = {
     cloud.fadeAllTo(Math.max(ctx.dim, 0.14), 1);
     cloud.captureBase();
 
-    ctx.legend([
-      { color: ctx.color.ground, label: "definite ground", note: "upright, low and near" },
-      { color: ctx.color.plane, label: "elevation threshold", note: "learned per ring" },
-    ]);
+    // Revealed a row at a time below, as each colour is actually highlighted.
+    const legendThreshold = {
+      color: ctx.color.plane,
+      label: "elevation threshold",
+      note: "learned per ring",
+    };
+    const legendDefinite = {
+      color: ctx.color.ground,
+      label: "definite ground",
+      note: "upright, low and near",
+    };
 
     // The four rings of interest, and the definite-ground cells inside them.
     const roi = Array.from({ length: params.numRingsOfInterest }, (_, m) => {
@@ -64,6 +71,7 @@ export const stageAgle: Stage = {
       onUpdate: (v) => {
         for (const r of roi) r.disc.opacity = v * 0.14;
       },
+      onExit: () => ctx.legend([legendThreshold]),
     });
     t.say(
       `A-GLE measures them instead, from the inner <em>${params.numRingsOfInterest} rings</em>. Past ${czm.minRanges[1].toFixed(0)} m the tests are off anyway.`,
@@ -76,6 +84,7 @@ export const stageAgle: Stage = {
         cloud.paint(definite, ctx.color.ground, v);
         cloud.fadeTo(definite, 1, v);
       },
+      onExit: () => ctx.legend([legendThreshold, legendDefinite]),
     });
     t.say(
       "Cells that passed <em>every</em> test with room to spare: the <em>definite ground</em>. About 96% are road.",
@@ -158,15 +167,18 @@ export const stageResult: Stage = {
 
     cloud.setBaseUniform("#475569", 0.9);
 
-    ctx.legend([
-      { color: ctx.color.ground, label: "ground", note: `${g.length.toLocaleString()} points` },
-      {
-        color: ctx.color.nonGround,
-        label: "not ground",
-        note: `${n.length.toLocaleString()} points`,
-      },
-      { color: ctx.color.focus, label: "one plane would miss these" },
-    ]);
+    // Revealed a row at a time below, as each colour actually lands.
+    const legendGround = {
+      color: ctx.color.ground,
+      label: "ground",
+      note: `${g.length.toLocaleString()} points`,
+    };
+    const legendNonGround = {
+      color: ctx.color.nonGround,
+      label: "not ground",
+      note: `${n.length.toLocaleString()} points`,
+    };
+    const legendMissed = { color: ctx.color.focus, label: "one plane would miss these" };
 
     const t = ctx.track();
 
@@ -180,6 +192,7 @@ export const stageResult: Stage = {
           cloud.paint(g, ctx.color.ground, v);
           cloud.paint(n, ctx.color.nonGround, v);
         },
+        onExit: () => ctx.legend([legendGround, legendNonGround]),
       });
 
     t.add(1.4, {
@@ -196,6 +209,7 @@ export const stageResult: Stage = {
         cloud.paint(rescued, ctx.color.focus, v);
         cloud.sizeTo(rescued, 2.2, v);
       },
+      onExit: () => ctx.legend([legendGround, legendNonGround, legendMissed]),
     });
     t.say(
       `Fit <em>one</em> plane to the whole scan instead, and <em>${rescued.length.toLocaleString()} points</em> of real road come back as obstacles — the camber, the far end, the verge.`,

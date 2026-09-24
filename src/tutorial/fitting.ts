@@ -28,15 +28,18 @@ export const stageSeeds: Stage = {
     cloud.setSize(idx, 2.1);
     cloud.captureBase();
 
-    ctx.legend([
-      {
-        color: ctx.color.focus,
-        label: "floor",
-        note: `average of the ${params.numLPR} lowest points`,
-      },
-      { color: ctx.color.seed, label: "seeds", note: "within 12.5 cm of the floor" },
-      { color: "#64748b", label: "the rest of the cell" },
-    ]);
+    // Revealed a row at a time below, as each colour actually lands on the cell.
+    const legendFloor = {
+      color: ctx.color.focus,
+      label: "floor",
+      note: `average of the ${params.numLPR} lowest points`,
+    };
+    const legendRest = { color: "#64748b", label: "the rest of the cell" };
+    const legendSeeds = {
+      color: ctx.color.seed,
+      label: "seeds",
+      note: "within 12.5 cm of the floor",
+    };
 
     const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
     prism.opacity = 0;
@@ -90,6 +93,7 @@ export const stageSeeds: Stage = {
         cloud.sizeTo(lpr, 4.5, v);
         lprPlane.opacity = v * 0.3;
       },
+      onExit: () => ctx.legend([legendFloor, legendRest]),
     });
     t.say(
       `Average the <em>${params.numLPR} lowest</em> heights. Call that the cell's floor: ${fmt(bin.lprHeight)} m.`,
@@ -101,6 +105,7 @@ export const stageSeeds: Stage = {
         cutPlane.opacity = v * 0.24;
         cloud.paint(seeds, ctx.color.seed, v);
       },
+      onExit: () => ctx.legend([legendFloor, legendSeeds, legendRest]),
     });
     t.say(
       `Points within <em>12.5 cm</em> of the floor are <em>seeds</em>: ${bin.seedCount.toLocaleString()} of ${idx.length.toLocaleString()}.`,
@@ -152,12 +157,23 @@ export const stageRgpf: Stage = {
     cloud.paint(idx, "#64748b", 0.75);
     cloud.captureBase();
 
-    ctx.legend([
-      { color: ctx.color.plane, label: "fitted plane" },
-      { color: ctx.color.ground, label: "within 12.5 cm", note: "kept as ground" },
-      { color: ctx.color.nonGround, label: "above the plane", note: "not ground" },
-      { color: ctx.color.normal, label: "facing direction", note: "the way the patch tilts" },
-    ]);
+    // Revealed a row at a time below, as each colour actually appears on the plane.
+    const legendPlane = { color: ctx.color.plane, label: "fitted plane" };
+    const legendNormal = {
+      color: ctx.color.normal,
+      label: "facing direction",
+      note: "the way the patch tilts",
+    };
+    const legendGround = {
+      color: ctx.color.ground,
+      label: "within 12.5 cm",
+      note: "kept as ground",
+    };
+    const legendAbove = {
+      color: ctx.color.nonGround,
+      label: "above the plane",
+      note: "not ground",
+    };
 
     const prism = ctx.outline(bin, -2.1, 1.0, ctx.color.plane);
     prism.opacity = 0.55;
@@ -195,6 +211,7 @@ export const stageRgpf: Stage = {
         planeSurf.opacity = v * 0.32;
         normalLine.opacity = v;
       },
+      onExit: () => ctx.legend([legendPlane, legendNormal]),
     });
     t.say(
       `That gives two things: which way the surface faces, and how thick the patch is — ` +
@@ -226,6 +243,7 @@ export const stageRgpf: Stage = {
           cloud.restore();
           cloud.paint(accepted, ctx.color.ground, v);
         },
+        onExit: it === 0 ? () => ctx.legend([legendPlane, legendNormal, legendGround]) : undefined,
       });
 
       if (it === 0) {
@@ -255,6 +273,7 @@ export const stageRgpf: Stage = {
         cloud.paint(finalNon, ctx.color.nonGround, v);
         slabSurf.opacity = 0.14 * (1 - v);
       },
+      onExit: () => ctx.legend([legendPlane, legendNormal, legendGround, legendAbove]),
     });
     t.say(
       `Three passes, and the cell splits: <em>${finalGround.length.toLocaleString()} ground</em>, <em>${finalNon.length.toLocaleString()} not</em>.`,
@@ -300,11 +319,14 @@ export const stageRvpf: Stage = {
     cloud.paint(idx, "#64748b", 0.7);
     cloud.captureBase();
 
-    ctx.legend([
-      { color: ctx.color.focus, label: "vertical points", note: "peeled off by R-VPF" },
-      { color: ctx.color.plane, label: "the fit", note: "before peeling: tilted" },
-      { color: ctx.color.ground, label: "ground recovered" },
-    ]);
+    // Revealed a row at a time below, as each colour actually appears.
+    const legendFit = { color: ctx.color.plane, label: "the fit", note: "before peeling: tilted" };
+    const legendVertical = {
+      color: ctx.color.focus,
+      label: "vertical points",
+      note: "peeled off by R-VPF",
+    };
+    const legendGround = { color: ctx.color.ground, label: "ground recovered" };
 
     const prism = ctx.outline(bin, -2.0, 1.1, ctx.color.plane);
     prism.opacity = 0.55;
@@ -347,6 +369,7 @@ export const stageRvpf: Stage = {
         planeSurf.opacity = v * 0.3;
         normalLine.opacity = v;
       },
+      onExit: () => ctx.legend([legendFit]),
     });
     t.say(
       "Fit it as-is and the plane comes out standing on edge. It fits whatever it is given.",
@@ -357,6 +380,7 @@ export const stageRvpf: Stage = {
 
     // Peel, iteration by iteration.
     let removedSoFar: number[] = [];
+    let verticalLegendShown = false;
     bin.rvpf.forEach((pass, i) => {
       const from = bin.rvpf[i - 1]?.plane ?? pass.plane;
       t.add(
@@ -385,6 +409,10 @@ export const stageRvpf: Stage = {
           },
           onExit: () => {
             cloud.fadeTo(batch, Math.max(ctx.dim, 0.12), 1);
+            if (!verticalLegendShown) {
+              verticalLegendShown = true;
+              ctx.legend([legendFit, legendVertical]);
+            }
           },
         });
         removedSoFar = removedSoFar.concat(Array.from(batch));
@@ -409,6 +437,12 @@ export const stageRvpf: Stage = {
         cloud.fadeTo(bin.cellGround, 1, v);
         cloud.sizeTo(bin.cellGround, 2.6, v);
       },
+      onExit: () =>
+        ctx.legend(
+          verticalLegendShown
+            ? [legendFit, legendVertical, legendGround]
+            : [legendFit, legendGround],
+        ),
     });
     t.say(
       `R-GPF now runs on the survivors and recovers <em>${bin.cellGround.length} points</em> Patchwork would have discarded.`,
