@@ -63,9 +63,19 @@ export class Timeline {
     return this.duration > 0 ? Math.min(1, this.time / this.duration) : 1;
   }
 
+  /** Checkpoint times as fractions of the total duration, for drawing markers on a scrubber. */
+  get checkpointFractions(): number[] {
+    if (this.duration <= 0) return [];
+    return this.checkpoints.map((c) => c / this.duration);
+  }
+
+  /** Where the clock is currently headed: the next checkpoint, or the end of the stage. */
+  get nextGate(): number {
+    return this.checkpoints[this.gateIndex] ?? this.duration;
+  }
+
   advance(dt: number): void {
-    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
-    this.time = Math.min(gate, this.duration, this.time + dt);
+    this.time = Math.min(this.nextGate, this.duration, this.time + dt);
     for (const clip of this.clips) {
       if (this.time < clip.start) continue;
       if (this.exited.has(clip)) continue;
@@ -89,15 +99,6 @@ export class Timeline {
   /** Let the clock past the checkpoint it is currently holding at. */
   release(): void {
     if (this.paused) this.gateIndex++;
-  }
-
-  /**
-   * Run to the checkpoint the clock is heading for — or to the end, once every checkpoint
-   * has been released. Used when Continue is pressed mid-beat rather than while paused.
-   */
-  skipToCheckpoint(): void {
-    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
-    this.advance(Math.max(0, gate - this.time) + 1e-6);
   }
 }
 

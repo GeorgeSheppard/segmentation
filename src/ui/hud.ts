@@ -30,6 +30,7 @@ export class Hud {
   private readonly subtitle = byId("stage-subtitle");
   private readonly captionText = byId("caption-text");
   private readonly legend = byId("legend");
+  private readonly progress = byId("progress");
   private readonly progressBar = byId("progress-bar");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
@@ -285,9 +286,37 @@ export class Hud {
     this.progressBar.style.width = `${Math.round(p * 100)}%`;
   }
 
+  /**
+   * Mark where in the stage the clock will hold, the way YouTube marks chapter points on a
+   * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
+   */
+  setCheckpoints(fractions: number[]): void {
+    this.progress.querySelectorAll(".checkpoint").forEach((el) => el.remove());
+    for (const f of fractions) {
+      // A mark right at the very end doesn't tell the reader anything they can't already see.
+      if (f <= 0 || f >= 0.995) continue;
+      const tick = document.createElement("i");
+      tick.className = "checkpoint";
+      tick.style.left = `${f * 100}%`;
+      this.progress.appendChild(tick);
+    }
+  }
+
   /** Invite a tap: the clock is holding, either at the end of a line or the end of the stage. */
   setFinished(waiting: boolean): void {
     this.btnContinue.classList.toggle("pulse", waiting);
+  }
+
+  /**
+   * One distinct beat per press, independent of the idle "waiting" pulse: the reader should
+   * always feel the click land, even when what follows is a fast-forward too small to notice
+   * on its own.
+   */
+  flashContinue(): void {
+    this.btnContinue.classList.remove("flash");
+    // Force a reflow so back-to-back clicks each restart the animation from scratch.
+    void this.btnContinue.offsetWidth;
+    this.btnContinue.classList.add("flash");
   }
 
   // ------------------------------------------------------------------ explore

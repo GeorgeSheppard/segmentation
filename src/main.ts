@@ -24,6 +24,13 @@ const OVERVIEW: CameraPose = {
   target: new Vector3(8, -2, -1.7),
 };
 
+/**
+ * How much faster the clock runs while fast-forwarding to the next checkpoint. Fast, not
+ * instant: pressing Continue mid-line should visibly play through to the hold rather than
+ * snap there, so the click reads as "it did something" instead of a silent jump.
+ */
+const FAST_FORWARD_SPEED = 8;
+
 class App {
   private readonly viewer: Viewer;
   private readonly rig: CameraRig;
@@ -36,6 +43,8 @@ class App {
   private index = 0;
   private wasFinished = false;
   private ignoreHashChange = false;
+  /** True while a Continue click is playing the clock forward to the next checkpoint. */
+  private fastForward = false;
 
   constructor() {
     const canvas = document.getElementById("view") as HTMLCanvasElement;
@@ -110,6 +119,7 @@ class App {
     this.hud.setStage(index, STAGES.length, stage.title, stage.subtitle);
     this.hud.setRailSteps(stage.steps);
     this.hud.setProgress(0);
+    this.hud.setCheckpoints([]);
   }
 
   private tick(dt: number): void {
@@ -117,7 +127,12 @@ class App {
     if (!this.cloud) return;
     this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
     if (this.timeline) {
-      this.timeline.advance(dt);
+      this.timeline.advance(this.fastForward ? dt * FAST_FORWARD_SPEED : dt);
+      // The fast-forward only lasts until it reaches what it was heading for; once there,
+      // playback is back to normal pace for whatever comes after the next Continue.
+      if (this.fastForward && (this.timeline.paused || this.timeline.finished)) {
+        this.fastForward = false;
+      }
       this.hud.setProgress(this.timeline.progress);
       // The button invites a tap whenever the clock is holding for the reader — at the end
       // of a line as much as at the end of the stage.
@@ -154,10 +169,14 @@ class App {
     );
     this.timeline = stage.build(this.ctx);
     this.wasFinished = false;
+    this.fastForward = false;
     this.hud.setFinished(false);
     this.hud.setStage(this.index, STAGES.length, stage.title, stage.subtitle);
     this.hud.setRailSteps(stage.steps);
     this.hud.setProgress(0);
+    // Non-uniform, like YouTube chapter marks: each `say()` in the stage leaves a tick where
+    // the clock will hold, so the reader can see where the next beat is before they get there.
+    this.hud.setCheckpoints(this.timeline.checkpointFractions);
     this.syncHash(stage.id);
   }
 
@@ -200,9 +219,12 @@ class App {
    */
   private onContinue(): void {
     if (!this.frame) return;
+    // Every press gets its own visible beat on the button, whatever it ends up doing —
+    // releasing a hold, fast-forwarding to one, or moving to the next stage.
+    this.hud.flashContinue();
     if (this.timeline && !this.timeline.finished) {
       if (this.timeline.paused) this.timeline.release();
-      else this.timeline.skipToCheckpoint();
+      else this.fastForward = true;
       return;
     }
     if (this.index === STAGES.length - 1) {

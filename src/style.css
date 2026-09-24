@@ -476,10 +476,12 @@ body {
 }
 
 #progress {
+  position: relative;
   height: 3px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--text-faint) 30%, transparent);
-  overflow: hidden;
+  /* Ticks sit half on, half off the bar — the bar itself still needs to clip the fill. */
+  overflow: visible;
   margin-bottom: 11px;
 }
 #progress-bar {
@@ -487,6 +489,20 @@ body {
   width: 0;
   border-radius: 2px;
   background: var(--accent);
+}
+/* Chapter marks, YouTube-style: wherever a `say()` in the stage actually lands, not evenly
+   spaced. They sit above the bar so they stay visible whether or not the fill has reached them. */
+.checkpoint {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 9px;
+  margin-left: -1.5px;
+  border-radius: 1px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--text-faint) 55%, transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .control-row {
@@ -584,6 +600,22 @@ button.primary.pulse {
   }
   50% {
     box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+/* One-shot feedback for the press itself, distinct from the idle `.pulse` invitation above:
+   every click gets this same short ring, whether it releases a hold, fast-forwards to one, or
+   moves the stage on — so "I clicked it" always reads as something happened. Box-shadow only,
+   for the same Playwright/hit-target reason `.pulse` avoids transform: scale(). */
+button.primary.flash {
+  animation: click-flash 0.38s ease-out;
+}
+@keyframes click-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
