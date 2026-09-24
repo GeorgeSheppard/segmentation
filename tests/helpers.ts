@@ -15,34 +15,14 @@ export async function open(page: Page, stage = ""): Promise<string[]> {
 }
 
 /**
- * Skip to the end of the current stage and wait for the transport to settle. Continue now
- * steps one line at a time — one tap to jump to the end of a line, another to release the
- * next one — so this drives the button directly (skipping Playwright's per-call
- * actionability wait) until the stage reports done.
- *
- * The click and the "are we done" check share one animation frame each, rather than
- * racing a tight loop against the render tick: the visible progress bar only updates once
- * a frame, so polling it from back-to-back calls with no pacing can read a stale
- * not-quite-100% value after the click that actually finished the stage, click once more,
- * and roll straight into the next stage — the button does exactly that for a real reader.
+ * Jump straight to the end of the current stage by clicking the far right of the progress
+ * bar — a seek releases every checkpoint it passes over, so this reaches the end in one
+ * step regardless of how many lines the stage has.
  */
 export async function finishStage(page: Page): Promise<void> {
-  for (let i = 0; i < 200; i++) {
-    const done = await page.evaluate(
-      () =>
-        new Promise<boolean>((resolve) => {
-          requestAnimationFrame(() => {
-            if (document.getElementById("progress-bar")?.style.width === "100%") {
-              resolve(true);
-              return;
-            }
-            (document.getElementById("btn-continue") as HTMLButtonElement | null)?.click();
-            resolve(false);
-          });
-        }),
-    );
-    if (done) break;
-  }
+  const bar = await page.locator("#progress").boundingBox();
+  if (!bar) throw new Error("#progress has no box");
+  await page.mouse.click(bar.x + bar.width - 1, bar.y + bar.height / 2);
   await expect(page.locator("#progress-bar")).toHaveAttribute("style", /width:\s*100%/, {
     timeout: 30_000,
   });
@@ -53,16 +33,12 @@ export function stageTitle(page: Page) {
 }
 
 /**
- * Wait for Continue to be paused for the reader (pulsing) again.
- *
- * What a click does next — jump to the end of the current line, or release the next one —
- * depends on whether the clock is already paused, and that depends on real time elapsed
- * since the last click. Reading state (like the progress bar) right after a click without
- * waiting for this is a race: on a release, the clock does not move until the next
- * animation frame, so an immediate read sees the same value as before the click.
+ * Wait for the transport to read "Play" again — the clock is holding, either at the end of
+ * a line or the end of the stage, and a press will move it on rather than pause it.
  */
-export async function waitForPause(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => document.getElementById("btn-continue")?.classList.contains("pulse") ?? false,
-  );
+export async function waitForPlayable(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const state = document.getElementById("btn-play")?.dataset.state;
+    return state === "play" || state === "next" || state === "explore";
+  });
 }

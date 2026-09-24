@@ -10,8 +10,13 @@ export interface LegendItem {
   note?: string;
 }
 
+/** What the transport button does right now, and what it shows for it. */
+export type TransportState = "play" | "pause" | "next" | "explore";
+
 export interface HudCallbacks {
-  onContinue: () => void;
+  onPlayPause: () => void;
+  /** The reader clicked (or dragged to) this fraction [0, 1] of the current stage. */
+  onSeek: (fraction: number) => void;
   onPrev: () => void;
   onReplay: () => void;
   onJump: (index: number) => void;
@@ -35,7 +40,7 @@ export class Hud {
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
-  private readonly btnContinue = byId("btn-continue") as HTMLButtonElement;
+  private readonly btnPlay = byId("btn-play") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
   private readonly btnRecentre = byId("btn-recentre") as HTMLButtonElement;
@@ -52,17 +57,23 @@ export class Hud {
   private busy = false;
   private exploring = false;
   private stageIndex = 0;
+  private checkpointFractions: number[] = [];
 
   constructor(private readonly cb: HudCallbacks) {
     this.verdict = document.createElement("div");
     this.verdict.id = "verdict";
     byId("app").appendChild(this.verdict);
 
-    this.btnContinue.addEventListener("click", () => cb.onContinue());
+    this.btnPlay.addEventListener("click", () => cb.onPlayPause());
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
     this.btnRecentre.addEventListener("click", () => cb.onRecentre());
     this.btnRestart.addEventListener("click", () => cb.onRestart());
+
+    // Click (or drag) anywhere on the bar to jump straight there, snapping to a checkpoint
+    // tick when the pointer lands close enough to one — the way a video scrubber snaps to
+    // its chapter marks.
+    this.progress.addEventListener("pointerdown", (e) => this.beginScrub(e));
 
     this.buildRail();
 
@@ -82,7 +93,7 @@ export class Hud {
       case "Enter":
       case "ArrowRight":
         e.preventDefault();
-        this.cb.onContinue();
+        this.cb.onPlayPause();
         break;
       case "ArrowLeft":
         e.preventDefault();
@@ -96,6 +107,57 @@ export class Hud {
         this.setPopover(this.chapters, this.chaptersToggle, false);
         break;
     }
+  }
+
+  /**
+   * A drag scrubs the whole bar the same way a click does: each move reports the fraction
+   * under the pointer, coalesced to one report per frame so a fast drag doesn't flood the
+   * caller with seeks the render loop can't keep up with.
+   */
+  private beginScrub(down: PointerEvent): void {
+    if (this.busy) return;
+    const el = this.progress;
+    el.setPointerCapture(down.pointerId);
+    let pending: number | null = null;
+    let raf = 0;
+
+    const report = (e: PointerEvent) => {
+      pending = this.fractionAt(e.clientX);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (pending !== null) this.cb.onSeek(pending);
+      });
+    };
+    const onMove = (e: PointerEvent) => report(e);
+    const onUp = (e: PointerEvent) => {
+      report(e);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    report(down);
+  }
+
+  /** The bar position under `clientX`, snapped to the nearest checkpoint tick if it's close. */
+  private fractionAt(clientX: number): number {
+    const rect = this.progress.getBoundingClientRect();
+    const raw = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+    const clamped = Math.max(0, Math.min(1, raw));
+    const SNAP = 0.02;
+    let best = clamped;
+    let bestDist = SNAP;
+    for (const cp of [0, ...this.checkpointFractions, 1]) {
+      const dist = Math.abs(cp - clamped);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = cp;
+      }
+    }
+    return best;
   }
 
   // ------------------------------------------------------------------ loading
@@ -122,7 +184,7 @@ export class Hud {
    */
   setBusy(busy: boolean): void {
     this.busy = busy;
-    this.btnContinue.disabled = busy;
+    this.btnPlay.disabled = busy;
     this.btnReplay.disabled = busy;
     this.btnPrev.disabled = busy || this.stageIndex === 0;
   }
@@ -196,8 +258,6 @@ export class Hud {
     this.title.textContent = title;
     this.subtitle.innerHTML = subtitle;
     this.btnPrev.disabled = this.busy || index === 0;
-    this.btnContinue.querySelector("span")!.textContent =
-      index === total - 1 ? "Explore" : "Continue";
     for (const [i, el] of [...this.chapters.children].entries()) {
       el.classList.toggle("active", i === index);
     }
@@ -291,6 +351,7 @@ export class Hud {
    * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
    */
   setCheckpoints(fractions: number[]): void {
+    this.checkpointFractions = fractions;
     this.progress.querySelectorAll(".checkpoint").forEach((el) => el.remove());
     for (const f of fractions) {
       // A mark right at the very end doesn't tell the reader anything they can't already see.
@@ -302,21 +363,33 @@ export class Hud {
     }
   }
 
-  /** Invite a tap: the clock is holding, either at the end of a line or the end of the stage. */
-  setFinished(waiting: boolean): void {
-    this.btnContinue.classList.toggle("pulse", waiting);
+  /**
+   * What the transport button does right now: invite a play (or a next-stage / explore tap)
+   * with the idle pulse, or show a plain pause glyph while it is actually playing and there
+   * is nothing for the reader to do.
+   */
+  setTransport(state: TransportState): void {
+    this.btnPlay.dataset.state = state;
+    this.btnPlay.classList.toggle("pulse", state !== "pause");
+    this.btnPlay.querySelector("span")!.textContent =
+      state === "play"
+        ? "Play"
+        : state === "pause"
+          ? "Pause"
+          : state === "next"
+            ? "Next"
+            : "Explore";
   }
 
   /**
    * One distinct beat per press, independent of the idle "waiting" pulse: the reader should
-   * always feel the click land, even when what follows is a fast-forward too small to notice
-   * on its own.
+   * always feel a click on the transport land, whatever it does next.
    */
-  flashContinue(): void {
-    this.btnContinue.classList.remove("flash");
+  flashPlay(): void {
+    this.btnPlay.classList.remove("flash");
     // Force a reflow so back-to-back clicks each restart the animation from scratch.
-    void this.btnContinue.offsetWidth;
-    this.btnContinue.classList.add("flash");
+    void this.btnPlay.offsetWidth;
+    this.btnPlay.classList.add("flash");
   }
 
   // ------------------------------------------------------------------ explore

@@ -35,7 +35,10 @@ export const Ease = {
 export class Timeline {
   readonly clips: Clip[];
   readonly duration: number;
-  /** Times, one per `say()`, where the clock holds until `release()` is called. */
+  /**
+   * Times, one per `say()`, where the clock holds until `release()` is called — and where a
+   * scrubber can snap to, since these are the moments actually worth landing on.
+   */
   readonly checkpoints: number[];
   time = 0;
 
@@ -75,7 +78,29 @@ export class Timeline {
   }
 
   advance(dt: number): void {
-    this.time = Math.min(this.nextGate, this.duration, this.time + dt);
+    this.applyTime(Math.min(this.nextGate, this.duration, this.time + dt));
+  }
+
+  /**
+   * Jump the clock straight to `time`, releasing every checkpoint at or before it along the
+   * way. Only ever moves forward — clip handlers capture state on entry and are not safe to
+   * rewind, so seeking backward means rebuilding the stage and seeking from zero instead.
+   */
+  seek(time: number): void {
+    const target = Math.max(this.time, Math.min(this.duration, time));
+    while (this.gateIndex < this.checkpoints.length && this.checkpoints[this.gateIndex] <= target) {
+      this.gateIndex++;
+    }
+    this.applyTime(target);
+  }
+
+  /** Let the clock past the checkpoint it is currently holding at. */
+  release(): void {
+    if (this.paused) this.gateIndex++;
+  }
+
+  private applyTime(time: number): void {
+    this.time = time;
     for (const clip of this.clips) {
       if (this.time < clip.start) continue;
       if (this.exited.has(clip)) continue;
@@ -94,11 +119,6 @@ export class Timeline {
         clip.onExit?.();
       }
     }
-  }
-
-  /** Let the clock past the checkpoint it is currently holding at. */
-  release(): void {
-    if (this.paused) this.gateIndex++;
   }
 }
 

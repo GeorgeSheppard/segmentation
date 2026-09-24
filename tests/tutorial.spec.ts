@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { finishStage, open, stageTitle, waitForPause } from "./helpers.ts";
+import { finishStage, open, stageTitle, waitForPlayable } from "./helpers.ts";
 
 test.describe("tutorial", () => {
   test("loads, segments the scan, and shows the first stage", async ({ page }) => {
@@ -15,10 +15,7 @@ test.describe("tutorial", () => {
   });
 
   test("walks every stage without error, then offers to explore", async ({ page }) => {
-    // Continue now steps one line at a time, so clicking through every line of every stage
-    // is a lot more round trips than the old skip-to-end click — give it the room, especially
-    // under CI's parallel workers sharing one CPU for software-rendered WebGL.
-    test.setTimeout(600_000);
+    test.setTimeout(300_000);
     const errors = await open(page);
     const total = Number(await page.locator("#step-total").textContent());
     const titles: string[] = [];
@@ -27,15 +24,15 @@ test.describe("tutorial", () => {
       await expect(page.locator("#step-num")).toHaveText(String(i + 1));
       titles.push((await stageTitle(page).textContent()) ?? "");
       await finishStage(page);
-      await page.click("#btn-continue");
+      await page.click("#btn-play"); // reads "Next" once the stage is finished
     }
     await expect(page.locator("#step-num")).toHaveText(String(total));
     titles.push((await stageTitle(page).textContent()) ?? "");
     await finishStage(page);
 
-    // The last stage's Continue does not loop back to the start — it hands the finished
+    // The last stage's transport does not loop back to the start — it hands the finished
     // scene over, chrome and all, until Restart is pressed.
-    await page.click("#btn-continue");
+    await page.click("#btn-play"); // reads "Explore"
     await expect(page.locator("#app")).toHaveClass(/exploring/);
     await expect(page.locator("#btn-restart")).toBeVisible();
     await expect(page.locator("#top")).toBeHidden();
@@ -57,31 +54,69 @@ test.describe("tutorial", () => {
     // The measured range on screen comes from a real return, not from a script.
     await expect(page.locator("#caption-text")).toContainText("123,494");
     await finishStage(page);
-    await page.click("#btn-continue");
+    await page.click("#btn-play");
     await expect(stageTitle(page)).toHaveText("One LiDAR scan");
     expect(errors).toEqual([]);
   });
 
-  test("Continue steps one line at a time, then advances the stage", async ({ page }) => {
+  test("Play runs to the next checkpoint and hands control back; Pause lands immediately", async ({
+    page,
+  }) => {
     await open(page);
     const width = () => page.locator("#progress-bar").getAttribute("style");
+    const state = () => page.locator("#btn-play").getAttribute("data-state");
 
     expect(await width()).not.toMatch(/width:\s*100%/);
-    await page.click("#btn-continue");
-    // A click's effect depends on whether the clock was already paused when it landed, so
-    // wait for the pause it produces before reading state off the page.
-    await waitForPause(page);
-    const afterOneLine = await width();
-    // One line at a time: the first tap does not jump straight to the end of the stage.
-    expect(afterOneLine).not.toMatch(/width:\s*100%/);
-    await page.click("#btn-continue");
-    await waitForPause(page);
-    expect(await width()).not.toEqual(afterOneLine);
-    await expect(page.locator("#step-num")).toHaveText("1");
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play");
 
+    await page.click("#btn-play");
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "pause");
+    // Playing runs on its own until the first line's checkpoint, then auto-pauses.
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play", {
+      timeout: 20_000,
+    });
+    const afterFirstLine = await width();
+    expect(afterFirstLine).not.toMatch(/width:\s*0%/);
+    expect(afterFirstLine).not.toMatch(/width:\s*100%/);
+
+    // Pause lands wherever the clock actually is, not at the next checkpoint.
+    await page.click("#btn-play");
+    expect(await state()).toBe("pause");
+    await page.waitForTimeout(300);
+    await page.click("#btn-play");
+    expect(await state()).toBe("play");
+    const midLine = await width();
+    expect(midLine).not.toEqual(afterFirstLine);
+
+    await expect(page.locator("#step-num")).toHaveText("1");
     await finishStage(page);
-    await page.click("#btn-continue");
+    await page.click("#btn-play");
     await expect(page.locator("#step-num")).toHaveText("2");
+  });
+
+  test("clicking the progress bar seeks there, forward or back", async ({ page }) => {
+    await open(page);
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    const widthPct = async () => {
+      const style = await page.locator("#progress-bar").getAttribute("style");
+      return Number(style?.match(/width:\s*([\d.]+)%/)?.[1] ?? 0);
+    };
+
+    await page.mouse.click(bar.x + bar.width * 0.6, bar.y + bar.height / 2);
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(10);
+    const forward = await widthPct();
+
+    // Seeking back rebuilds the stage from scratch and fast-forwards to the new point,
+    // rather than trying to rewind the running scene in place.
+    await page.mouse.click(bar.x + bar.width * 0.1, bar.y + bar.height / 2);
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeLessThan(forward);
+  });
+
+  test("checkpoint ticks mark where each line lands on the bar", async ({ page }) => {
+    await open(page);
+    const count = await page.locator("#progress .checkpoint").count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test("Replay restarts the current stage", async ({ page }) => {
@@ -163,7 +198,7 @@ test.describe("layout", () => {
 
   test("the transport stays reachable and finger-sized", async ({ page }) => {
     await open(page, "sweep");
-    for (const id of ["#btn-continue", "#btn-replay", "#btn-prev"]) {
+    for (const id of ["#btn-play", "#btn-replay", "#btn-prev"]) {
       const box = await page.locator(id).boundingBox();
       expect(box, `${id} has no box`).not.toBeNull();
       expect(box!.height, `${id} is too short to tap`).toBeGreaterThanOrEqual(36);
@@ -175,14 +210,11 @@ test.describe("layout", () => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
     // The legend fills in a row at a time as each colour it names actually appears, so it
-    // starts empty. The first row lands partway through the second line, not the moment
-    // the first one releases, so release it and let the reveal play out in real time
-    // rather than assuming a fixed number of clicks gets there.
-    await page.waitForFunction(() =>
-      document.getElementById("btn-continue")!.classList.contains("pulse"),
-    );
-    await page.click("#btn-continue");
-    await expect(legend).toBeVisible();
+    // starts empty. Playing releases the checkpoints in turn and lets the reveal play out in
+    // real time, rather than assuming a fixed number of clicks gets there.
+    await waitForPlayable(page);
+    await page.click("#btn-play");
+    await expect(legend).toBeVisible({ timeout: 20_000 });
 
     const strip = (await legend.boundingBox())!;
     const controls = (await page.locator("#controls").boundingBox())!;
@@ -212,10 +244,10 @@ test.describe("getting around", () => {
     await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#rail li").first()).toBeVisible();
     await expect(page.locator("#loading")).not.toHaveClass(/hidden/);
-    await expect(page.locator("#btn-continue")).toBeDisabled();
+    await expect(page.locator("#btn-play")).toBeDisabled();
 
     await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
-    await expect(page.locator("#btn-continue")).toBeEnabled();
+    await expect(page.locator("#btn-play")).toBeEnabled();
     await expect(page.locator("#caption-text")).toContainText("123,494");
   });
 

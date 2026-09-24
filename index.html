@@ -80,9 +80,17 @@
               </svg>
               <span>Replay</span>
             </button>
-            <button id="btn-continue" class="primary" title="Continue (→ or space)">
-              <span>Continue</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+            <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+              </svg>
+              <span>Play</span>
+              <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
         </footer>

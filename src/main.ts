@@ -5,7 +5,7 @@ import { loadKittiFrame } from "./core/loadFrame.ts";
 import { DEFAULT_PARAMS, initialState, segmentGround, type FrameTrace } from "./patchwork/index.ts";
 import { StageContext } from "./tutorial/context.ts";
 import { STAGES } from "./tutorial/index.ts";
-import { Hud } from "./ui/hud.ts";
+import { Hud, type TransportState } from "./ui/hud.ts";
 import { CameraRig } from "./viz/cameraRig.ts";
 import { CloudView } from "./viz/cloud.ts";
 import { applyThemeToCss, THEME } from "./viz/themes.ts";
@@ -24,13 +24,6 @@ const OVERVIEW: CameraPose = {
   target: new Vector3(8, -2, -1.7),
 };
 
-/**
- * How much faster the clock runs while fast-forwarding to the next checkpoint. Fast, not
- * instant: pressing Continue mid-line should visibly play through to the hold rather than
- * snap there, so the click reads as "it did something" instead of a silent jump.
- */
-const FAST_FORWARD_SPEED = 8;
-
 class App {
   private readonly viewer: Viewer;
   private readonly rig: CameraRig;
@@ -41,10 +34,9 @@ class App {
   private ctx: StageContext | null = null;
   private timeline: Timeline | null = null;
   private index = 0;
-  private wasFinished = false;
+  private playing = false;
+  private transportState: TransportState | null = null;
   private ignoreHashChange = false;
-  /** True while a Continue click is playing the clock forward to the next checkpoint. */
-  private fastForward = false;
 
   constructor() {
     const canvas = document.getElementById("view") as HTMLCanvasElement;
@@ -55,9 +47,10 @@ class App {
     this.viewer.setBackground(THEME.surface);
     this.rig = new CameraRig(this.viewer);
     this.hud = new Hud({
-      onContinue: () => this.onContinue(),
+      onPlayPause: () => this.onPlayPause(),
+      onSeek: (fraction) => this.onSeek(fraction),
       onPrev: () => this.goTo(this.index - 1),
-      onReplay: () => this.buildStage(this.index),
+      onReplay: () => this.rebuildTimeline(),
       onJump: (i) => this.goTo(i),
       onRecentre: () => this.recentre(),
       onRestart: () => this.exitExplore(),
@@ -127,29 +120,56 @@ class App {
     if (!this.cloud) return;
     this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
     if (this.timeline) {
-      this.timeline.advance(this.fastForward ? dt * FAST_FORWARD_SPEED : dt);
-      // The fast-forward only lasts until it reaches what it was heading for; once there,
-      // playback is back to normal pace for whatever comes after the next Continue.
-      if (this.fastForward && (this.timeline.paused || this.timeline.finished)) {
-        this.fastForward = false;
+      if (this.playing) {
+        this.timeline.advance(dt);
+        // Reaching a checkpoint or the end of the stage always hands control back to the
+        // reader — a hold is a hold, whether it's mid-stage or the last line of it.
+        if (this.timeline.paused || this.timeline.finished) this.playing = false;
       }
       this.hud.setProgress(this.timeline.progress);
-      // The button invites a tap whenever the clock is holding for the reader — at the end
-      // of a line as much as at the end of the stage.
-      const waiting = this.timeline.paused || this.timeline.finished;
-      if (waiting !== this.wasFinished) {
-        this.wasFinished = waiting;
-        this.hud.setFinished(waiting);
-      }
+      this.updateTransport();
     }
     this.cloud.commit();
   }
 
+  /** Refresh the transport button for whatever the current state actually is. */
+  private updateTransport(): void {
+    if (!this.timeline) return;
+    const state: TransportState = this.timeline.finished
+      ? this.index === STAGES.length - 1
+        ? "explore"
+        : "next"
+      : this.playing
+        ? "pause"
+        : "play";
+    if (state === this.transportState) return;
+    this.transportState = state;
+    this.hud.setTransport(state);
+  }
+
   private buildStage(index: number): void {
     this.index = Math.max(0, Math.min(STAGES.length - 1, index));
+    this.rebuildTimeline();
+    this.hud.setStage(
+      this.index,
+      STAGES.length,
+      STAGES[this.index].title,
+      STAGES[this.index].subtitle,
+    );
+    this.hud.setRailSteps(STAGES[this.index].steps);
+    this.syncHash(STAGES[this.index].id);
+  }
+
+  /**
+   * Rebuild the current stage's scene and clock from scratch, at time zero. Used both for a
+   * fresh stage and for Replay, and as the first half of seeking backward — clips capture
+   * their state on entry, so rewinding in place isn't safe; starting over and fast-forwarding
+   * to the target time is.
+   */
+  private rebuildTimeline(): void {
     const stage = STAGES[this.index];
 
-    // A new stage takes the camera back, whatever the viewer was looking at.
+    // A new run takes the camera back, whatever the viewer was looking at.
     this.viewer.releaseManualControl();
 
     this.ctx?.dispose();
@@ -168,16 +188,16 @@ class App {
       THEME,
     );
     this.timeline = stage.build(this.ctx);
-    this.wasFinished = false;
-    this.fastForward = false;
-    this.hud.setFinished(false);
-    this.hud.setStage(this.index, STAGES.length, stage.title, stage.subtitle);
-    this.hud.setRailSteps(stage.steps);
+    // Every stage opens already playing, the way it always has — the first line plays out
+    // and holds on its own, and Play/Pause only starts mattering from there on.
+    this.playing = true;
+    this.transportState = null;
     this.hud.setProgress(0);
     // Non-uniform, like YouTube chapter marks: each `say()` in the stage leaves a tick where
-    // the clock will hold, so the reader can see where the next beat is before they get there.
+    // the clock will hold, so the reader can see where the next beat is before they get there,
+    // and a place the scrubber below can snap the pointer to.
     this.hud.setCheckpoints(this.timeline.checkpointFractions);
-    this.syncHash(stage.id);
+    this.updateTransport();
   }
 
   /** Every stage is linkable: /#gle jumps straight to Ground Likelihood Estimation. */
@@ -213,25 +233,46 @@ class App {
   }
 
   /**
-   * Continue steps one line at a time: while a line is still playing out it jumps to the
-   * end of that line, and once the clock is holding there it releases the next one. Only
-   * once every line in the stage has been read does it move to the next stage.
+   * A standard play/pause toggle. Pausing always lands immediately, wherever the clock
+   * happens to be — there is no more "click does nothing" case, because there is no more
+   * skip-to-checkpoint step in between. Once the stage is finished the same button just
+   * moves the tour on, since there is nothing left here to play.
    */
-  private onContinue(): void {
-    if (!this.frame) return;
-    // Every press gets its own visible beat on the button, whatever it ends up doing —
-    // releasing a hold, fast-forwarding to one, or moving to the next stage.
-    this.hud.flashContinue();
-    if (this.timeline && !this.timeline.finished) {
+  private onPlayPause(): void {
+    if (!this.frame || !this.timeline) return;
+    this.hud.flashPlay();
+    if (this.timeline.finished) {
+      if (this.index === STAGES.length - 1) this.enterExplore();
+      else this.goTo(this.index + 1);
+      return;
+    }
+    if (this.playing) {
+      this.playing = false;
+    } else {
       if (this.timeline.paused) this.timeline.release();
-      else this.fastForward = true;
-      return;
+      this.playing = true;
     }
-    if (this.index === STAGES.length - 1) {
-      this.enterExplore();
-      return;
-    }
-    this.goTo(this.index + 1);
+    this.updateTransport();
+  }
+
+  /**
+   * Jump straight to `fraction` of the current stage — a click or drag on the progress bar.
+   * Forward is a plain seek; going backward means rebuilding the stage from scratch first,
+   * since clips capture their state on entry and are never rewound in place.
+   */
+  private onSeek(fraction: number): void {
+    if (!this.frame || !this.timeline) return;
+    // Seeking preserves whatever the reader was doing — still playing, or paused right where
+    // they left it — rather than always resuming, the way `rebuildTimeline` otherwise would.
+    const wasPlaying = this.playing;
+    const target = fraction * this.timeline.duration;
+    if (target < this.timeline.time) this.rebuildTimeline();
+    const timeline = this.timeline;
+    if (!timeline) return;
+    timeline.seek(target);
+    this.playing = wasPlaying && !timeline.paused && !timeline.finished;
+    this.hud.setProgress(timeline.progress);
+    this.updateTransport();
   }
 
   /**

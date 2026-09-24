@@ -478,11 +478,17 @@ body {
 #progress {
   position: relative;
   height: 3px;
+  /* A generous invisible hit area: the visual bar stays a thin 3px line, but a 3px target is
+     unusable for a click-or-drag scrubber, on a mouse or a finger alike. */
+  padding: 9px 0;
+  margin: -9px 0 2px;
+  background-clip: content-box;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
+  background-color: color-mix(in srgb, var(--text-faint) 30%, transparent);
   /* Ticks sit half on, half off the bar — the bar itself still needs to clip the fill. */
   overflow: visible;
-  margin-bottom: 11px;
+  cursor: pointer;
+  touch-action: none;
 }
 #progress-bar {
   height: 100%;
@@ -588,6 +594,20 @@ button.primary:disabled {
 button.primary.pulse {
   opacity: 1;
   animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* The transport is one button whose glyph and label swap with what pressing it will do —
+   play, pause, or move to the next stage — rather than three widgets fighting for the same
+   spot. Only one icon shows at a time; `svg` above already gives them all a stroke-based
+   look, so the play/pause glyphs (normally solid shapes) are drawn as closed outlines too. */
+#btn-play svg {
+  display: none;
+}
+#btn-play[data-state="play"] .icon-play,
+#btn-play[data-state="pause"] .icon-pause,
+#btn-play[data-state="next"] .icon-next,
+#btn-play[data-state="explore"] .icon-next {
+  display: block;
 }
 /* box-shadow only, deliberately: a transform: scale() here would keep the button's
    bounding box changing every frame forever, which Playwright's click reads as "never
