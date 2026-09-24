@@ -329,8 +329,9 @@ body {
 /* ---------------------------------------------------------------- legend */
 
 /* A strip under the step rail: what the colours mean, read before the scene rather than
-   found afterwards in a corner. Nothing in it is clickable, so drags pass straight to the
-   scene underneath. */
+   found afterwards in a corner. The pill's own padding and the gaps between rows stay
+   click-through, so a drag started there still reaches the scene underneath; each row
+   opts back in below so its text can be selected and copied. */
 #legend {
   grid-row: 3;
   justify-self: center;
@@ -356,6 +357,9 @@ body {
   gap: 8px;
   white-space: nowrap;
   color: var(--text-dim);
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 #legend .row i {
   font-style: normal;
@@ -396,6 +400,12 @@ body {
   transition:
     opacity 0.35s ease,
     transform 0.35s ease;
+  /* The card itself opts back into pointer events so the narration can be selected and
+     copied — #caption stays click-through around it, and the scene is most of the screen
+     regardless, so a drag that would have started here can start an inch away instead. */
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 #caption-text.visible {
   opacity: 1;
