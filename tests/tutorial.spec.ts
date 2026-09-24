@@ -170,6 +170,9 @@ test.describe("layout", () => {
   test("the legend sits above the scene, not over the controls", async ({ page }) => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
+    // The legend fills in a row at a time as each colour it names actually appears, so it
+    // starts empty — release the first line to get past that point.
+    await page.click("#btn-continue");
     await expect(legend).toBeVisible();
 
     const strip = (await legend.boundingBox())!;

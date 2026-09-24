@@ -36,11 +36,18 @@ export const stageGle: Stage = {
     }
     cloud.captureBase();
 
-    ctx.legend([
-      { color: ctx.color.ground, label: "passes", note: "accepted as ground" },
-      { color: ctx.color.nonGround, label: "not upright", note: "tilted more than 45°" },
-      { color: ctx.color.nonGround, label: "above the sensor", note: "a roof, a hedge, a bonnet" },
-    ]);
+    // Revealed a row at a time below, as each colour actually appears on a cell.
+    const legendPasses = { color: ctx.color.ground, label: "passes", note: "accepted as ground" };
+    const legendNotUpright = {
+      color: ctx.color.nonGround,
+      label: "not upright",
+      note: "tilted more than 45°",
+    };
+    const legendAboveSensor = {
+      color: ctx.color.nonGround,
+      label: "above the sensor",
+      note: "a roof, a hedge, a bonnet",
+    };
 
     const makeCell = (bin: CellTrace, color: Color) => {
       const outline = ctx.outline(bin, -2.1, 1.2, color);
@@ -80,6 +87,7 @@ export const stageGle: Stage = {
         ctx.verdict("Rejected — not upright", "bad");
       },
       onUpdate: (v) => reveal(cells.wall, v),
+      onExit: () => ctx.legend([legendNotUpright, legendAboveSensor]),
     });
     t.say(
       `First test, the cheapest: does the plane face <em>up</em>? This one is <em>${facingLabel(wall.gle!.uprightness)}</em> — nearly on edge.`,
@@ -92,6 +100,7 @@ export const stageGle: Stage = {
     t.add(2.3, ctx.rig.flyTo(ctx.binPose(roof, { distance: 9, height: 4.5 })), Ease.cinematic);
     t.add(1.0, {
       onUpdate: (v) => reveal(cells.roof, v),
+      onExit: () => ctx.legend([legendPasses, legendNotUpright, legendAboveSensor]),
     });
     t.say(
       `Facing up isn't enough — the plane also has to <em>sit</em> below the sensor. This is the closest call in the scan, and it still clears.`,
@@ -185,12 +194,19 @@ export const stageSweep: Stage = {
 
     // Only three meanings on screen: ground, not-ground, and the one class this step is
     // about. Peeled vertical points are simply non-ground here — R-VPF's own stage is where
-    // they get singled out.
-    ctx.legend([
-      { color: ctx.color.ground, label: "ground" },
-      { color: ctx.color.nonGround, label: "not ground" },
-      { color: ctx.color.focus, label: "undecided", note: "handed to TGR" },
-    ]);
+    // they get singled out. Rows are added below as the sweep actually colours a ring that
+    // has that class in it, rather than all at once before the sweep has coloured anything.
+    const legendGround = { color: ctx.color.ground, label: "ground" };
+    const legendNonGround = { color: ctx.color.nonGround, label: "not ground" };
+    const legendUndecided = { color: ctx.color.focus, label: "undecided", note: "handed to TGR" };
+    const shownLegend = new Set<string>();
+    const revealLegend = () => {
+      ctx.legend(
+        [legendGround, legendNonGround, legendUndecided].filter((item) =>
+          shownLegend.has(item.label),
+        ),
+      );
+    };
 
     const grid = ctx.grid();
     grid.setOpacity(0.25);
@@ -262,6 +278,12 @@ export const stageSweep: Stage = {
           cloud.fadeTo(u, 1, p);
           cloud.sizeTo(u, 5.5, p);
         },
+        onExit: () => {
+          if (g.length) shownLegend.add(legendGround.label);
+          if (n.length) shownLegend.add(legendNonGround.label);
+          if (u.length) shownLegend.add(legendUndecided.label);
+          revealLegend();
+        },
       });
     }
 
@@ -311,11 +333,19 @@ export const stageTgr: Stage = {
     cloud.fadeAllTo(Math.max(ctx.dim, 0.22), 1);
     cloud.captureBase();
 
-    ctx.legend([
-      { color: ctx.color.focus, label: "candidate", note: "GLE could not decide" },
-      { color: ctx.color.ground, label: "this ring's definite ground", note: "the reference set" },
-      { color: ctx.color.focus, label: "reverted to ground" },
-    ]);
+    // Revealed a row at a time below. "Reverted to ground" only ever joins the strip if
+    // this cell actually is reverted — otherwise the colour it names never appears.
+    const legendCandidate = {
+      color: ctx.color.focus,
+      label: "candidate",
+      note: "GLE could not decide",
+    };
+    const legendDefinite = {
+      color: ctx.color.ground,
+      label: "this ring's definite ground",
+      note: "the reference set",
+    };
+    const legendReverted = { color: ctx.color.focus, label: "reverted to ground" };
 
     const peerCells = peers.map((b) => {
       const w = ctx.wedge(b, ctx.color.ground, 0);
@@ -350,6 +380,7 @@ export const stageTgr: Stage = {
           cloud.fadeTo(hero.cellGround, 1, v);
           cloud.sizeTo(hero.cellGround, 5, v);
         },
+        onExit: () => ctx.legend([legendCandidate]),
       });
 
     t.say(
@@ -361,6 +392,7 @@ export const stageTgr: Stage = {
       onUpdate: (v) => {
         for (const c of peerCells) c.opacity = v * 0.3;
       },
+      onExit: () => ctx.legend([legendCandidate, legendDefinite]),
     });
     t.say(
       `TGR asks a different question: how flat is <em>this ring, this scan</em>? These ${ring.flatnessSamples.length} cells are the reference.`,
@@ -381,6 +413,9 @@ export const stageTgr: Stage = {
           heroCell.color = ctx.color.focus;
           heroOutline.color = ctx.color.focus;
         }
+      },
+      onExit: () => {
+        if (verdict.reverted) ctx.legend([legendCandidate, legendDefinite, legendReverted]);
       },
     });
     t.say("Against its neighbours it is not rough at all. Reverted to ground.", 2.6);

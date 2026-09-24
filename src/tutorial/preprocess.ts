@@ -18,10 +18,18 @@ export const stageRnr: Stage = {
     const params = ctx.params;
     cloud.setBaseRaw(ctx.color.raw);
 
-    ctx.legend([
-      { color: ctx.color.focus, label: "reflected noise", note: "removed by RNR" },
-      { color: ctx.color.plane, label: "RNR floor", note: "well below the road surface" },
-    ]);
+    // Revealed a row at a time, as each colour actually appears on screen — see each
+    // clip's onExit below.
+    const legendNoise = {
+      color: ctx.color.focus,
+      label: "reflected noise",
+      note: "removed by RNR",
+    };
+    const legendFloor = {
+      color: ctx.color.plane,
+      label: "RNR floor",
+      note: "well below the road surface",
+    };
 
     const noise = frame.noiseIndices;
     // The deepest one is the clearest illustration.
@@ -74,6 +82,7 @@ export const stageRnr: Stage = {
         cloud.fadeAllTo(Math.max(ctx.dim, 0.12), v);
         cloud.fadeTo(noise, 1, v);
       },
+      onExit: () => ctx.legend([legendNoise]),
     });
     t.say(`<em>${noise.length} points</em>, all of them metres <em>below</em> the road.`, 2.4);
 
@@ -103,6 +112,7 @@ export const stageRnr: Stage = {
     // The three tests.
     t.add(0.8, {
       onUpdate: (v) => (floor.opacity = v * 0.1),
+      onExit: () => ctx.legend([legendNoise, legendFloor]),
     });
     t.say(
       `RNR needs <em>all three</em>: a ray pointing down — this one <em>${fmt(heroAngle, 0)}°</em> below ` +
@@ -152,15 +162,15 @@ export const stageCzm: Stage = {
     const { cloud, czm, params } = ctx;
     cloud.setBaseRaw(ctx.color.raw);
 
-    ctx.legend(
-      zoneColors(ctx.theme).map((c, i) => ({
-        color: `#${c.getHexString()}`,
-        label: BAND_NAMES[i],
-        note: `${czm.minRanges[i].toFixed(1)}–${czm.maxRanges[i].toFixed(1)} m · ${
-          params.numRingsEachZone[i]
-        } rings, ${params.numSectorsEachZone[i]} wedges`,
-      })),
-    );
+    // One row per band, added as the sweep below draws that band in — never describing a
+    // colour the reader has not seen land yet.
+    const legendItems = zoneColors(ctx.theme).map((c, i) => ({
+      color: `#${c.getHexString()}`,
+      label: BAND_NAMES[i],
+      note: `${czm.minRanges[i].toFixed(1)}–${czm.maxRanges[i].toFixed(1)} m · ${
+        params.numRingsEachZone[i]
+      } rings, ${params.numSectorsEachZone[i]} wedges`,
+    }));
 
     const grid = ctx.grid();
     grid.setOpacity(0);
@@ -226,6 +236,7 @@ export const stageCzm: Stage = {
           onExit: () => {
             grid.setZoneSweep(z, 1);
             hand.opacity = 0;
+            ctx.legend(legendItems.slice(0, z + 1));
           },
         },
         Ease.inOut,
