@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { finishStage, open, stageTitle } from "./helpers.ts";
+import { finishStage, open, stageTitle, waitForPause } from "./helpers.ts";
 
 test.describe("tutorial", () => {
   test("loads, segments the scan, and shows the first stage", async ({ page }) => {
@@ -68,10 +68,14 @@ test.describe("tutorial", () => {
 
     expect(await width()).not.toMatch(/width:\s*100%/);
     await page.click("#btn-continue");
+    // A click's effect depends on whether the clock was already paused when it landed, so
+    // wait for the pause it produces before reading state off the page.
+    await waitForPause(page);
     const afterOneLine = await width();
     // One line at a time: the first tap does not jump straight to the end of the stage.
     expect(afterOneLine).not.toMatch(/width:\s*100%/);
     await page.click("#btn-continue");
+    await waitForPause(page);
     expect(await width()).not.toEqual(afterOneLine);
     await expect(page.locator("#step-num")).toHaveText("1");
 

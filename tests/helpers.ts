@@ -51,3 +51,18 @@ export async function finishStage(page: Page): Promise<void> {
 export function stageTitle(page: Page) {
   return page.locator("#stage-title");
 }
+
+/**
+ * Wait for Continue to be paused for the reader (pulsing) again.
+ *
+ * What a click does next — jump to the end of the current line, or release the next one —
+ * depends on whether the clock is already paused, and that depends on real time elapsed
+ * since the last click. Reading state (like the progress bar) right after a click without
+ * waiting for this is a race: on a release, the clock does not move until the next
+ * animation frame, so an immediate read sees the same value as before the click.
+ */
+export async function waitForPause(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => document.getElementById("btn-continue")?.classList.contains("pulse") ?? false,
+  );
+}
