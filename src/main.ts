@@ -2,6 +2,7 @@ import { Vector3 } from "three";
 import "./style.css";
 import type { Timeline } from "./anim/timeline.ts";
 import { loadKittiFrame } from "./core/loadFrame.ts";
+import { CanvasRecorder, downloadBlob } from "./core/recorder.ts";
 import { DEFAULT_PARAMS, initialState, segmentGround, type FrameTrace } from "./patchwork/index.ts";
 import { StageContext } from "./tutorial/context.ts";
 import { STAGES } from "./tutorial/index.ts";
@@ -37,6 +38,10 @@ class App {
   private playing = false;
   private transportState: TransportState | null = null;
   private ignoreHashChange = false;
+
+  // ---- ?record — a dev-only capture pass, see `beginRecordingSession` below.
+  private recorder: CanvasRecorder | null = null;
+  private recordQueue: number[] = [];
 
   constructor() {
     const canvas = document.getElementById("view") as HTMLCanvasElement;
@@ -101,6 +106,44 @@ class App {
     this.buildStage(this.stageFromHash());
     this.hud.hideLoading();
     this.hud.armGestureHint();
+
+    if (new URLSearchParams(location.search).has("record")) this.beginRecordingSession();
+  }
+
+  /**
+   * Dev-only capture path (`?record`, e.g. `/?record#gle`): plays every stage straight
+   * through at real speed while `CanvasRecorder` grabs the canvas via `captureStream`, and
+   * hands each stage's video to `window.__onStageRecorded` if a script defined one (see
+   * scripts/record-stage-videos.mjs), or otherwise just downloads it — a video is a video
+   * however it's captured, it just needs the canvas to actually be rendering.
+   */
+  private beginRecordingSession(): void {
+    this.hud.setBusy(true);
+    this.recordQueue = STAGES.map((_, i) => i);
+    this.recordNext();
+  }
+
+  private recordNext(): void {
+    const index = this.recordQueue.shift();
+    if (index === undefined) {
+      (window as unknown as { __recordingComplete?: boolean }).__recordingComplete = true;
+      return;
+    }
+    this.buildStage(index);
+    this.recorder = new CanvasRecorder(this.viewer.renderer.domElement);
+  }
+
+  private async finishRecording(): Promise<void> {
+    const recorder = this.recorder;
+    this.recorder = null;
+    if (!recorder) return;
+    const blob = await recorder.stop();
+    const hook = (window as unknown as { __onStageRecorded?: (id: string, blob: Blob) => void })
+      .__onStageRecorded;
+    const id = STAGES[this.index].id;
+    if (hook) hook(id, blob);
+    else downloadBlob(blob, `${id}.webm`);
+    this.recordNext();
   }
 
   /**
@@ -120,7 +163,12 @@ class App {
     if (!this.cloud) return;
     this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
     if (this.timeline) {
-      if (this.playing) {
+      if (this.recorder) {
+        // A recording plays straight through: `seek` releases every checkpoint it crosses,
+        // so the reader-pacing holds that gate normal playback don't apply here.
+        this.timeline.seek(this.timeline.time + dt);
+        if (this.timeline.finished) this.finishRecording();
+      } else if (this.playing) {
         this.timeline.advance(dt);
         // Reaching a checkpoint or the end of the stage always hands control back to the
         // reader — a hold is a hold, whether it's mid-stage or the last line of it.
