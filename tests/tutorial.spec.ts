@@ -113,6 +113,46 @@ test.describe("tutorial", () => {
     await expect.poll(widthPct, { timeout: 10_000 }).toBeLessThan(forward);
   });
 
+  test("the playhead always shows the current position on the bar", async ({ page }) => {
+    await open(page);
+    const thumbLeft = async () =>
+      Number(
+        (await page.locator("#progress-thumb").getAttribute("style"))?.match(
+          /left:\s*([\d.]+)%/,
+        )?.[1] ?? -1,
+      );
+
+    await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(0);
+
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    await page.mouse.click(bar.x + bar.width * 0.7, bar.y + bar.height / 2);
+    await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(50);
+  });
+
+  test("hovering near a checkpoint previews the snap, hovering away clears it", async ({
+    page,
+  }) => {
+    await open(page, "gle");
+    const tick = page.locator("#progress .checkpoint").first();
+    const tickBox = await tick.boundingBox();
+    if (!tickBox) throw new Error("no checkpoint tick rendered");
+
+    await page.mouse.move(tickBox.x + tickBox.width / 2, tickBox.y + tickBox.height / 2);
+    await expect(tick).toHaveClass(/near/);
+    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
+
+    // Far from any checkpoint: no snap highlight, but the preview ring still tracks the pointer.
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    await page.mouse.move(bar.x + bar.width * 0.5, bar.y + bar.height / 2);
+    await expect(tick).not.toHaveClass(/near/);
+    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
+
+    await page.mouse.move(bar.x, bar.y - 40);
+    await expect(page.locator("#progress-preview")).not.toHaveClass(/visible/);
+  });
+
   test("checkpoint ticks mark where each line lands on the bar", async ({ page }) => {
     await open(page);
     const count = await page.locator("#progress .checkpoint").count();

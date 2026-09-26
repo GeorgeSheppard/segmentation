@@ -37,6 +37,8 @@ export class Hud {
   private readonly legend = byId("legend");
   private readonly progress = byId("progress");
   private readonly progressBar = byId("progress-bar");
+  private readonly progressThumb = byId("progress-thumb");
+  private readonly progressPreview = byId("progress-preview");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
@@ -57,7 +59,11 @@ export class Hud {
   private busy = false;
   private exploring = false;
   private stageIndex = 0;
-  private checkpointFractions: number[] = [];
+  /** Each checkpoint's fraction and its rendered tick — `el` is null for one too close to
+   * either end of the bar to get its own mark, but it's still a valid place to snap to. */
+  private checkpoints: { frac: number; el: HTMLElement | null }[] = [];
+  private nearEl: HTMLElement | null = null;
+  private scrubbing = false;
 
   constructor(private readonly cb: HudCallbacks) {
     this.verdict = document.createElement("div");
@@ -72,8 +78,17 @@ export class Hud {
 
     // Click (or drag) anywhere on the bar to jump straight there, snapping to a checkpoint
     // tick when the pointer lands close enough to one — the way a video scrubber snaps to
-    // its chapter marks.
+    // its chapter marks. Hovering first (mouse only; touch has no hover) previews exactly
+    // where that click would land, before it happens.
     this.progress.addEventListener("pointerdown", (e) => this.beginScrub(e));
+    this.progress.addEventListener("pointermove", (e) => {
+      if (this.scrubbing) return;
+      this.showPreview(e.clientX);
+    });
+    this.progress.addEventListener("pointerleave", () => {
+      if (this.scrubbing) return;
+      this.hidePreview();
+    });
 
     this.buildRail();
 
@@ -118,11 +133,13 @@ export class Hud {
     if (this.busy) return;
     const el = this.progress;
     el.setPointerCapture(down.pointerId);
+    this.scrubbing = true;
     let pending: number | null = null;
     let raf = 0;
 
     const report = (e: PointerEvent) => {
-      pending = this.fractionAt(e.clientX);
+      pending = this.snapTarget(e.clientX).fraction;
+      this.showPreview(e.clientX);
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
@@ -132,6 +149,8 @@ export class Hud {
     const onMove = (e: PointerEvent) => report(e);
     const onUp = (e: PointerEvent) => {
       report(e);
+      this.scrubbing = false;
+      this.hidePreview();
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
@@ -142,22 +161,52 @@ export class Hud {
     report(down);
   }
 
-  /** The bar position under `clientX`, snapped to the nearest checkpoint tick if it's close. */
-  private fractionAt(clientX: number): number {
+  /**
+   * The bar position under `clientX`, snapped to the nearest checkpoint tick (or either end)
+   * if the pointer is within `SNAP_PX` of it. A fixed pixel radius, not a fraction of the
+   * bar's width, so a snap point is exactly as easy to hit on a short bar as a long one —
+   * and generous enough that landing on it doesn't take a steady hand.
+   */
+  private snapTarget(clientX: number): { fraction: number; el: HTMLElement | null } {
+    const SNAP_PX = 16;
     const rect = this.progress.getBoundingClientRect();
     const raw = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
     const clamped = Math.max(0, Math.min(1, raw));
-    const SNAP = 0.02;
+
     let best = clamped;
-    let bestDist = SNAP;
-    for (const cp of [0, ...this.checkpointFractions, 1]) {
-      const dist = Math.abs(cp - clamped);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = cp;
+    let bestEl: HTMLElement | null = null;
+    let bestPx = SNAP_PX;
+    const consider = (f: number, el: HTMLElement | null) => {
+      const px = Math.abs(f - clamped) * rect.width;
+      if (px < bestPx) {
+        bestPx = px;
+        best = f;
+        bestEl = el;
       }
+    };
+    consider(0, null);
+    consider(1, null);
+    for (const { frac, el } of this.checkpoints) consider(frac, el);
+
+    return { fraction: best, el: bestEl };
+  }
+
+  /** Show, at `clientX`, exactly where releasing the pointer now would land. */
+  private showPreview(clientX: number): void {
+    const { fraction, el } = this.snapTarget(clientX);
+    this.progressPreview.style.left = `${fraction * 100}%`;
+    this.progressPreview.classList.add("visible");
+    if (this.nearEl !== el) {
+      this.nearEl?.classList.remove("near");
+      el?.classList.add("near");
+      this.nearEl = el;
     }
-    return best;
+  }
+
+  private hidePreview(): void {
+    this.progressPreview.classList.remove("visible");
+    this.nearEl?.classList.remove("near");
+    this.nearEl = null;
   }
 
   // ------------------------------------------------------------------ loading
@@ -344,6 +393,7 @@ export class Hud {
 
   setProgress(p: number): void {
     this.progressBar.style.width = `${Math.round(p * 100)}%`;
+    this.progressThumb.style.left = `${p * 100}%`;
   }
 
   /**
@@ -351,16 +401,18 @@ export class Hud {
    * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
    */
   setCheckpoints(fractions: number[]): void {
-    this.checkpointFractions = fractions;
     this.progress.querySelectorAll(".checkpoint").forEach((el) => el.remove());
-    for (const f of fractions) {
-      // A mark right at the very end doesn't tell the reader anything they can't already see.
-      if (f <= 0 || f >= 0.995) continue;
+    this.nearEl = null;
+    this.checkpoints = fractions.map((f) => {
+      // A mark right at the very end doesn't tell the reader anything they can't already
+      // see, but it's still a fraction a click can land on and snap to.
+      if (f <= 0 || f >= 0.995) return { frac: f, el: null };
       const tick = document.createElement("i");
       tick.className = "checkpoint";
       tick.style.left = `${f * 100}%`;
       this.progress.appendChild(tick);
-    }
+      return { frac: f, el: tick };
+    });
   }
 
   /**
