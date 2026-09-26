@@ -16,8 +16,7 @@ export async function open(page: Page, stage = ""): Promise<string[]> {
 
 /**
  * Jump straight to the end of the current stage by clicking the far right of the progress
- * bar — a seek releases every checkpoint it passes over, so this reaches the end in one
- * step regardless of how many lines the stage has.
+ * bar, regardless of how many lines the stage has or how far autoplay has already gotten.
  */
 export async function finishStage(page: Page): Promise<void> {
   const bar = await page.locator("#progress").boundingBox();
@@ -30,15 +29,4 @@ export async function finishStage(page: Page): Promise<void> {
 
 export function stageTitle(page: Page) {
   return page.locator("#stage-title");
-}
-
-/**
- * Wait for the transport to read "Play" again — the clock is holding, either at the end of
- * a line or the end of the stage, and a press will move it on rather than pause it.
- */
-export async function waitForPlayable(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
-    const state = document.getElementById("btn-play")?.dataset.state;
-    return state === "play" || state === "next" || state === "explore";
-  });
 }

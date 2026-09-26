@@ -70,7 +70,10 @@ export class Hud {
     this.verdict.id = "verdict";
     byId("app").appendChild(this.verdict);
 
-    this.btnPlay.addEventListener("click", () => cb.onPlayPause());
+    this.btnPlay.addEventListener("click", () => {
+      this.dismissGestureHint();
+      cb.onPlayPause();
+    });
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
     this.btnRecentre.addEventListener("click", () => cb.onRecentre());
@@ -131,6 +134,7 @@ export class Hud {
    */
   private beginScrub(down: PointerEvent): void {
     if (this.busy) return;
+    this.dismissGestureHint();
     const el = this.progress;
     el.setPointerCapture(down.pointerId);
     this.scrubbing = true;
@@ -247,12 +251,13 @@ export class Hud {
   }
 
   /**
-   * Touch devices get one line telling them what their fingers do. It goes away at the
-   * first touch, and never comes back once it has been read.
+   * Nothing here waits for a click to keep going — the tour plays itself — so first-time
+   * visitors get one line saying so, plus how to steer: drag the scene, or drag the
+   * timeline. It goes away at the first sign they've found either, and never comes back
+   * once it's been read.
    */
   armGestureHint(): void {
-    const touch = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-    if (!touch || readFlag(HINT_SEEN_KEY)) return;
+    if (readFlag(HINT_SEEN_KEY)) return;
     this.gestureHint.hidden = false;
     // Next frame, so the transition has a hidden->shown edge to run on.
     requestAnimationFrame(() => this.gestureHint.classList.add("visible"));
@@ -397,7 +402,7 @@ export class Hud {
   }
 
   /**
-   * Mark where in the stage the clock will hold, the way YouTube marks chapter points on a
+   * Mark where each line of narration lands, the way YouTube marks chapter points on a
    * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
    */
   setCheckpoints(fractions: number[]): void {

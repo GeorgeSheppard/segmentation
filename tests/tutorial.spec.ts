@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { finishStage, open, stageTitle, waitForPlayable } from "./helpers.ts";
+import { finishStage, open, stageTitle } from "./helpers.ts";
 
 test.describe("tutorial", () => {
   test("loads, segments the scan, and shows the first stage", async ({ page }) => {
@@ -59,34 +59,36 @@ test.describe("tutorial", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Play runs to the next checkpoint and hands control back; Pause lands immediately", async ({
+  test("a stage plays straight through on its own; Pause stops it, Play resumes it", async ({
     page,
   }) => {
     await open(page);
-    const width = () => page.locator("#progress-bar").getAttribute("style");
+    const widthPct = async () => {
+      const style = await page.locator("#progress-bar").getAttribute("style");
+      return Number(style?.match(/width:\s*([\d.]+)%/)?.[1] ?? 0);
+    };
     const state = () => page.locator("#btn-play").getAttribute("data-state");
 
-    expect(await width()).not.toMatch(/width:\s*100%/);
-    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play");
+    // No click needed: it's already playing, and keeps going well past where a line's own
+    // narration ends — nothing here waits on a press to keep moving.
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "pause");
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(0);
+    const early = await widthPct();
+    await page.waitForTimeout(2000);
+    await expect.poll(widthPct).toBeGreaterThan(early);
+    expect(await state()).toBe("pause");
 
+    // Pause lands immediately, wherever the clock actually is, and holds there.
+    await page.click("#btn-play");
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play");
+    const pausedAt = await widthPct();
+    await page.waitForTimeout(500);
+    expect(await widthPct()).toBe(pausedAt);
+
+    // Play resumes from exactly where it paused.
     await page.click("#btn-play");
     await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "pause");
-    // Playing runs on its own until the first line's checkpoint, then auto-pauses.
-    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play", {
-      timeout: 20_000,
-    });
-    const afterFirstLine = await width();
-    expect(afterFirstLine).not.toMatch(/width:\s*0%/);
-    expect(afterFirstLine).not.toMatch(/width:\s*100%/);
-
-    // Pause lands wherever the clock actually is, not at the next checkpoint.
-    await page.click("#btn-play");
-    expect(await state()).toBe("pause");
-    await page.waitForTimeout(300);
-    await page.click("#btn-play");
-    expect(await state()).toBe("play");
-    const midLine = await width();
-    expect(midLine).not.toEqual(afterFirstLine);
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(pausedAt);
 
     await expect(page.locator("#step-num")).toHaveText("1");
     await finishStage(page);
@@ -249,11 +251,8 @@ test.describe("layout", () => {
   test("the legend sits above the scene, not over the controls", async ({ page }) => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
-    // The legend fills in a row at a time as each colour it names actually appears, so it
-    // starts empty. Playing releases the checkpoints in turn and lets the reveal play out in
-    // real time, rather than assuming a fixed number of clicks gets there.
-    await waitForPlayable(page);
-    await page.click("#btn-play");
+    // The legend fills in a row at a time as each colour it names actually appears. The
+    // stage plays on its own, so no click is needed to get there — just real time.
     await expect(legend).toBeVisible({ timeout: 20_000 });
 
     const strip = (await legend.boundingBox())!;
@@ -309,17 +308,20 @@ test.describe("getting around", () => {
     await expect(recentre).toBeHidden();
   });
 
-  test("the gesture hint shows where fingers are the input", async ({ page }) => {
+  test("the onboarding hint explains the tour plays itself, and dismisses on interaction", async ({
+    page,
+  }) => {
     await open(page);
-    const touch = await page.evaluate(
-      () => window.matchMedia("(hover: none) and (pointer: coarse)").matches,
-    );
     const hint = page.locator("#gesture-hint");
-    if (touch) {
-      await expect(hint).toBeVisible();
-      await expect(hint).toContainText("two fingers");
-    } else {
-      await expect(hint).toBeHidden();
-    }
+    await expect(hint).toBeVisible();
+    await expect(hint).toContainText("Playing on its own");
+
+    // A drag on the scene counts as having found the controls.
+    const size = page.viewportSize()!;
+    await page.mouse.move(size.width / 2, size.height * 0.42);
+    await page.mouse.down();
+    await page.mouse.move(size.width / 2 + 60, size.height * 0.42 + 30, { steps: 8 });
+    await page.mouse.up();
+    await expect(hint).toBeHidden();
   });
 });

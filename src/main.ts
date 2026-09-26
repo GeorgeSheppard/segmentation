@@ -122,9 +122,7 @@ class App {
     if (this.timeline) {
       if (this.playing) {
         this.timeline.advance(dt);
-        // Reaching a checkpoint or the end of the stage always hands control back to the
-        // reader — a hold is a hold, whether it's mid-stage or the last line of it.
-        if (this.timeline.paused || this.timeline.finished) this.playing = false;
+        if (this.timeline.finished) this.playing = false;
       }
       this.hud.setProgress(this.timeline.progress);
       this.updateTransport();
@@ -188,14 +186,13 @@ class App {
       THEME,
     );
     this.timeline = stage.build(this.ctx);
-    // Every stage opens already playing, the way it always has — the first line plays out
-    // and holds on its own, and Play/Pause only starts mattering from there on.
+    // Every stage opens already playing, and plays straight through to the end on its own —
+    // Play/Pause only starts mattering once the reader actually wants to stop it.
     this.playing = true;
     this.transportState = null;
     this.hud.setProgress(0);
     // Non-uniform, like YouTube chapter marks: each `say()` in the stage leaves a tick where
-    // the clock will hold, so the reader can see where the next beat is before they get there,
-    // and a place the scrubber below can snap the pointer to.
+    // a new line lands, so the scrubber has somewhere sensible to snap to.
     this.hud.setCheckpoints(this.timeline.checkpointFractions);
     this.updateTransport();
   }
@@ -233,9 +230,9 @@ class App {
   }
 
   /**
-   * A standard play/pause toggle. Pausing always lands immediately, wherever the clock
-   * happens to be — there is no more "click does nothing" case, because there is no more
-   * skip-to-checkpoint step in between. Once the stage is finished the same button just
+   * A standard play/pause toggle. Every stage plays straight through on its own — this is
+   * only for a reader who wants to stop it or start it again, never something the tour
+   * forces them to press just to keep going. Once the stage is finished the same button
    * moves the tour on, since there is nothing left here to play.
    */
   private onPlayPause(): void {
@@ -246,12 +243,7 @@ class App {
       else this.goTo(this.index + 1);
       return;
     }
-    if (this.playing) {
-      this.playing = false;
-    } else {
-      if (this.timeline.paused) this.timeline.release();
-      this.playing = true;
-    }
+    this.playing = !this.playing;
     this.updateTransport();
   }
 
@@ -270,7 +262,7 @@ class App {
     const timeline = this.timeline;
     if (!timeline) return;
     timeline.seek(target);
-    this.playing = wasPlaying && !timeline.paused && !timeline.finished;
+    this.playing = wasPlaying && !timeline.finished;
     this.hud.setProgress(timeline.progress);
     this.updateTransport();
   }
