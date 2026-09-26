@@ -35,13 +35,15 @@ export const Ease = {
 export class Timeline {
   readonly clips: Clip[];
   readonly duration: number;
-  /** Times, one per `say()`, where the clock holds until `release()` is called. */
+  /**
+   * Times, one per `say()` — where a new line of narration lands. Playback runs straight
+   * through them; they exist only so a scrubber has somewhere sensible to snap to.
+   */
   readonly checkpoints: number[];
   time = 0;
 
   private entered = new Set<Clip>();
   private exited = new Set<Clip>();
-  private gateIndex = 0;
 
   constructor(clips: Clip[], checkpoints: number[] = []) {
     this.clips = [...clips].sort((a, b) => a.start - b.start);
@@ -53,19 +55,31 @@ export class Timeline {
     return this.time >= this.duration;
   }
 
-  /** True once the clock has caught up with a checkpoint and is holding there. */
-  get paused(): boolean {
-    const gate = this.checkpoints[this.gateIndex];
-    return gate !== undefined && this.time >= gate;
-  }
-
   get progress(): number {
     return this.duration > 0 ? Math.min(1, this.time / this.duration) : 1;
   }
 
+  /** Checkpoint times as fractions of the total duration, for drawing markers on a scrubber. */
+  get checkpointFractions(): number[] {
+    if (this.duration <= 0) return [];
+    return this.checkpoints.map((c) => c / this.duration);
+  }
+
   advance(dt: number): void {
-    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
-    this.time = Math.min(gate, this.duration, this.time + dt);
+    this.applyTime(Math.min(this.duration, this.time + dt));
+  }
+
+  /**
+   * Jump the clock straight to `time`. Only ever moves forward — clip handlers capture state
+   * on entry and are not safe to rewind, so seeking backward means rebuilding the stage and
+   * seeking from zero instead.
+   */
+  seek(time: number): void {
+    this.applyTime(Math.max(this.time, Math.min(this.duration, time)));
+  }
+
+  private applyTime(time: number): void {
+    this.time = time;
     for (const clip of this.clips) {
       if (this.time < clip.start) continue;
       if (this.exited.has(clip)) continue;
@@ -84,20 +98,6 @@ export class Timeline {
         clip.onExit?.();
       }
     }
-  }
-
-  /** Let the clock past the checkpoint it is currently holding at. */
-  release(): void {
-    if (this.paused) this.gateIndex++;
-  }
-
-  /**
-   * Run to the checkpoint the clock is heading for — or to the end, once every checkpoint
-   * has been released. Used when Continue is pressed mid-beat rather than while paused.
-   */
-  skipToCheckpoint(): void {
-    const gate = this.checkpoints[this.gateIndex] ?? this.duration;
-    this.advance(Math.max(0, gate - this.time) + 1e-6);
   }
 }
 
@@ -142,11 +142,7 @@ export class Track {
     return this.add(0, { onEnter: fn });
   }
 
-  /**
-   * Show a line of narration for `duration` seconds, then hold: the clock will not pass
-   * this point until the reader presses Continue, so every line gets read at its own pace
-   * rather than on a timer.
-   */
+  /** Show a line of narration for `duration` seconds, then move straight on to what's next. */
   say(text: string, duration: number): this {
     this.add(duration, { onEnter: () => this.caption?.(text) });
     this.checkpoints.push(this.cursor);

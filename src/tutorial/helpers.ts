@@ -2,6 +2,24 @@ import { fitPlane, planeDistance, type PlaneFit } from "../core/linalg.ts";
 import { cloneParams, type CzmGeometry, type Params, type PointCloud } from "../patchwork/index.ts";
 
 /**
+ * Cache a derivation by object identity. A stage's `build()` reruns on every rebuild — a
+ * fresh load, Replay, or a backward seek — but `frame` (the algorithm's already-computed
+ * trace) never changes for the app's lifetime, so anything a stage derives purely from it
+ * only needs computing once rather than on every rebuild.
+ */
+export function memoize<K extends object, V>(compute: (key: K) => V): (key: K) => V {
+  const cache = new WeakMap<K, V>();
+  return (key: K) => {
+    let v = cache.get(key);
+    if (v === undefined) {
+      v = compute(key);
+      cache.set(key, v);
+    }
+    return v;
+  };
+}
+
+/**
  * The naive baseline: Zermas' GPF run over the whole cloud as a single segment.
  *
  * This is exactly the "fit one plane to everything" strawman — the same seed selection and

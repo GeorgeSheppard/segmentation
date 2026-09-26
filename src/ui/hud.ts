@@ -10,8 +10,13 @@ export interface LegendItem {
   note?: string;
 }
 
+/** What the transport button does right now, and what it shows for it. */
+export type TransportState = "play" | "pause" | "next" | "explore";
+
 export interface HudCallbacks {
-  onContinue: () => void;
+  onPlayPause: () => void;
+  /** The reader clicked (or dragged to) this fraction [0, 1] of the current stage. */
+  onSeek: (fraction: number) => void;
   onPrev: () => void;
   onReplay: () => void;
   onJump: (index: number) => void;
@@ -30,11 +35,14 @@ export class Hud {
   private readonly subtitle = byId("stage-subtitle");
   private readonly captionText = byId("caption-text");
   private readonly legend = byId("legend");
+  private readonly progress = byId("progress");
   private readonly progressBar = byId("progress-bar");
+  private readonly progressThumb = byId("progress-thumb");
+  private readonly progressPreview = byId("progress-preview");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
-  private readonly btnContinue = byId("btn-continue") as HTMLButtonElement;
+  private readonly btnPlay = byId("btn-play") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
   private readonly btnRecentre = byId("btn-recentre") as HTMLButtonElement;
@@ -51,17 +59,39 @@ export class Hud {
   private busy = false;
   private exploring = false;
   private stageIndex = 0;
+  /** Each checkpoint's fraction and its rendered tick — `el` is null for one too close to
+   * either end of the bar to get its own mark, but it's still a valid place to snap to. */
+  private checkpoints: { frac: number; el: HTMLElement | null }[] = [];
+  private nearEl: HTMLElement | null = null;
+  private scrubbing = false;
 
   constructor(private readonly cb: HudCallbacks) {
     this.verdict = document.createElement("div");
     this.verdict.id = "verdict";
     byId("app").appendChild(this.verdict);
 
-    this.btnContinue.addEventListener("click", () => cb.onContinue());
+    this.btnPlay.addEventListener("click", () => {
+      this.dismissGestureHint();
+      cb.onPlayPause();
+    });
     this.btnPrev.addEventListener("click", () => cb.onPrev());
     this.btnReplay.addEventListener("click", () => cb.onReplay());
     this.btnRecentre.addEventListener("click", () => cb.onRecentre());
     this.btnRestart.addEventListener("click", () => cb.onRestart());
+
+    // Click (or drag) anywhere on the bar to jump straight there, snapping to a checkpoint
+    // tick when the pointer lands close enough to one — the way a video scrubber snaps to
+    // its chapter marks. Hovering first (mouse only; touch has no hover) previews exactly
+    // where that click would land, before it happens.
+    this.progress.addEventListener("pointerdown", (e) => this.beginScrub(e));
+    this.progress.addEventListener("pointermove", (e) => {
+      if (this.scrubbing) return;
+      this.showPreview(e.clientX);
+    });
+    this.progress.addEventListener("pointerleave", () => {
+      if (this.scrubbing) return;
+      this.hidePreview();
+    });
 
     this.buildRail();
 
@@ -81,7 +111,7 @@ export class Hud {
       case "Enter":
       case "ArrowRight":
         e.preventDefault();
-        this.cb.onContinue();
+        this.cb.onPlayPause();
         break;
       case "ArrowLeft":
         e.preventDefault();
@@ -95,6 +125,92 @@ export class Hud {
         this.setPopover(this.chapters, this.chaptersToggle, false);
         break;
     }
+  }
+
+  /**
+   * A drag scrubs the whole bar the same way a click does: each move reports the fraction
+   * under the pointer, coalesced to one report per frame so a fast drag doesn't flood the
+   * caller with seeks the render loop can't keep up with.
+   */
+  private beginScrub(down: PointerEvent): void {
+    if (this.busy) return;
+    this.dismissGestureHint();
+    const el = this.progress;
+    el.setPointerCapture(down.pointerId);
+    this.scrubbing = true;
+    let pending: number | null = null;
+    let raf = 0;
+
+    const report = (e: PointerEvent) => {
+      pending = this.snapTarget(e.clientX).fraction;
+      this.showPreview(e.clientX);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (pending !== null) this.cb.onSeek(pending);
+      });
+    };
+    const onMove = (e: PointerEvent) => report(e);
+    const onUp = (e: PointerEvent) => {
+      report(e);
+      this.scrubbing = false;
+      this.hidePreview();
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    report(down);
+  }
+
+  /**
+   * The bar position under `clientX`, snapped to the nearest checkpoint tick (or either end)
+   * if the pointer is within `SNAP_PX` of it. A fixed pixel radius, not a fraction of the
+   * bar's width, so a snap point is exactly as easy to hit on a short bar as a long one —
+   * and generous enough that landing on it doesn't take a steady hand.
+   */
+  private snapTarget(clientX: number): { fraction: number; el: HTMLElement | null } {
+    const SNAP_PX = 16;
+    const rect = this.progress.getBoundingClientRect();
+    const raw = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+    const clamped = Math.max(0, Math.min(1, raw));
+
+    let best = clamped;
+    let bestEl: HTMLElement | null = null;
+    let bestPx = SNAP_PX;
+    const consider = (f: number, el: HTMLElement | null) => {
+      const px = Math.abs(f - clamped) * rect.width;
+      if (px < bestPx) {
+        bestPx = px;
+        best = f;
+        bestEl = el;
+      }
+    };
+    consider(0, null);
+    consider(1, null);
+    for (const { frac, el } of this.checkpoints) consider(frac, el);
+
+    return { fraction: best, el: bestEl };
+  }
+
+  /** Show, at `clientX`, exactly where releasing the pointer now would land. */
+  private showPreview(clientX: number): void {
+    const { fraction, el } = this.snapTarget(clientX);
+    this.progressPreview.style.left = `${fraction * 100}%`;
+    this.progressPreview.classList.add("visible");
+    if (this.nearEl !== el) {
+      this.nearEl?.classList.remove("near");
+      el?.classList.add("near");
+      this.nearEl = el;
+    }
+  }
+
+  private hidePreview(): void {
+    this.progressPreview.classList.remove("visible");
+    this.nearEl?.classList.remove("near");
+    this.nearEl = null;
   }
 
   // ------------------------------------------------------------------ loading
@@ -121,7 +237,7 @@ export class Hud {
    */
   setBusy(busy: boolean): void {
     this.busy = busy;
-    this.btnContinue.disabled = busy;
+    this.btnPlay.disabled = busy;
     this.btnReplay.disabled = busy;
     this.btnPrev.disabled = busy || this.stageIndex === 0;
   }
@@ -135,12 +251,13 @@ export class Hud {
   }
 
   /**
-   * Touch devices get one line telling them what their fingers do. It goes away at the
-   * first touch, and never comes back once it has been read.
+   * Nothing here waits for a click to keep going — the tour plays itself — so first-time
+   * visitors get one line saying so, plus how to steer: drag the scene, or drag the
+   * timeline. It goes away at the first sign they've found either, and never comes back
+   * once it's been read.
    */
   armGestureHint(): void {
-    const touch = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-    if (!touch || readFlag(HINT_SEEN_KEY)) return;
+    if (readFlag(HINT_SEEN_KEY)) return;
     this.gestureHint.hidden = false;
     // Next frame, so the transition has a hidden->shown edge to run on.
     requestAnimationFrame(() => this.gestureHint.classList.add("visible"));
@@ -195,8 +312,6 @@ export class Hud {
     this.title.textContent = title;
     this.subtitle.innerHTML = subtitle;
     this.btnPrev.disabled = this.busy || index === 0;
-    this.btnContinue.querySelector("span")!.textContent =
-      index === total - 1 ? "Explore" : "Continue";
     for (const [i, el] of [...this.chapters.children].entries()) {
       el.classList.toggle("active", i === index);
     }
@@ -283,11 +398,55 @@ export class Hud {
 
   setProgress(p: number): void {
     this.progressBar.style.width = `${Math.round(p * 100)}%`;
+    this.progressThumb.style.left = `${p * 100}%`;
   }
 
-  /** Invite a tap: the clock is holding, either at the end of a line or the end of the stage. */
-  setFinished(waiting: boolean): void {
-    this.btnContinue.classList.toggle("pulse", waiting);
+  /**
+   * Mark where each line of narration lands, the way YouTube marks chapter points on a
+   * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
+   */
+  setCheckpoints(fractions: number[]): void {
+    this.progress.querySelectorAll(".checkpoint").forEach((el) => el.remove());
+    this.nearEl = null;
+    this.checkpoints = fractions.map((f) => {
+      // A mark right at the very end doesn't tell the reader anything they can't already
+      // see, but it's still a fraction a click can land on and snap to.
+      if (f <= 0 || f >= 0.995) return { frac: f, el: null };
+      const tick = document.createElement("i");
+      tick.className = "checkpoint";
+      tick.style.left = `${f * 100}%`;
+      this.progress.appendChild(tick);
+      return { frac: f, el: tick };
+    });
+  }
+
+  /**
+   * What the transport button does right now: invite a play (or a next-stage / explore tap)
+   * with the idle pulse, or show a plain pause glyph while it is actually playing and there
+   * is nothing for the reader to do.
+   */
+  setTransport(state: TransportState): void {
+    this.btnPlay.dataset.state = state;
+    this.btnPlay.classList.toggle("pulse", state !== "pause");
+    this.btnPlay.querySelector("span")!.textContent =
+      state === "play"
+        ? "Play"
+        : state === "pause"
+          ? "Pause"
+          : state === "next"
+            ? "Next"
+            : "Explore";
+  }
+
+  /**
+   * One distinct beat per press, independent of the idle "waiting" pulse: the reader should
+   * always feel a click on the transport land, whatever it does next.
+   */
+  flashPlay(): void {
+    this.btnPlay.classList.remove("flash");
+    // Force a reflow so back-to-back clicks each restart the animation from scratch.
+    void this.btnPlay.offsetWidth;
+    this.btnPlay.classList.add("flash");
   }
 
   // ------------------------------------------------------------------ explore

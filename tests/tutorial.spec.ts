@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { finishStage, open, stageTitle, waitForPause } from "./helpers.ts";
+import { finishStage, open, stageTitle } from "./helpers.ts";
 
 test.describe("tutorial", () => {
   test("loads, segments the scan, and shows the first stage", async ({ page }) => {
@@ -15,10 +15,7 @@ test.describe("tutorial", () => {
   });
 
   test("walks every stage without error, then offers to explore", async ({ page }) => {
-    // Continue now steps one line at a time, so clicking through every line of every stage
-    // is a lot more round trips than the old skip-to-end click — give it the room, especially
-    // under CI's parallel workers sharing one CPU for software-rendered WebGL.
-    test.setTimeout(600_000);
+    test.setTimeout(300_000);
     const errors = await open(page);
     const total = Number(await page.locator("#step-total").textContent());
     const titles: string[] = [];
@@ -27,15 +24,15 @@ test.describe("tutorial", () => {
       await expect(page.locator("#step-num")).toHaveText(String(i + 1));
       titles.push((await stageTitle(page).textContent()) ?? "");
       await finishStage(page);
-      await page.click("#btn-continue");
+      await page.click("#btn-play"); // reads "Next" once the stage is finished
     }
     await expect(page.locator("#step-num")).toHaveText(String(total));
     titles.push((await stageTitle(page).textContent()) ?? "");
     await finishStage(page);
 
-    // The last stage's Continue does not loop back to the start — it hands the finished
+    // The last stage's transport does not loop back to the start — it hands the finished
     // scene over, chrome and all, until Restart is pressed.
-    await page.click("#btn-continue");
+    await page.click("#btn-play"); // reads "Explore"
     await expect(page.locator("#app")).toHaveClass(/exploring/);
     await expect(page.locator("#btn-restart")).toBeVisible();
     await expect(page.locator("#top")).toBeHidden();
@@ -57,31 +54,111 @@ test.describe("tutorial", () => {
     // The measured range on screen comes from a real return, not from a script.
     await expect(page.locator("#caption-text")).toContainText("123,494");
     await finishStage(page);
-    await page.click("#btn-continue");
+    await page.click("#btn-play");
     await expect(stageTitle(page)).toHaveText("One LiDAR scan");
     expect(errors).toEqual([]);
   });
 
-  test("Continue steps one line at a time, then advances the stage", async ({ page }) => {
+  test("a stage plays straight through on its own; Pause stops it, Play resumes it", async ({
+    page,
+  }) => {
     await open(page);
-    const width = () => page.locator("#progress-bar").getAttribute("style");
+    const widthPct = async () => {
+      const style = await page.locator("#progress-bar").getAttribute("style");
+      return Number(style?.match(/width:\s*([\d.]+)%/)?.[1] ?? 0);
+    };
+    const state = () => page.locator("#btn-play").getAttribute("data-state");
 
-    expect(await width()).not.toMatch(/width:\s*100%/);
-    await page.click("#btn-continue");
-    // A click's effect depends on whether the clock was already paused when it landed, so
-    // wait for the pause it produces before reading state off the page.
-    await waitForPause(page);
-    const afterOneLine = await width();
-    // One line at a time: the first tap does not jump straight to the end of the stage.
-    expect(afterOneLine).not.toMatch(/width:\s*100%/);
-    await page.click("#btn-continue");
-    await waitForPause(page);
-    expect(await width()).not.toEqual(afterOneLine);
+    // No click needed: it's already playing, and keeps going well past where a line's own
+    // narration ends — nothing here waits on a press to keep moving.
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "pause");
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(0);
+    const early = await widthPct();
+    await page.waitForTimeout(2000);
+    await expect.poll(widthPct).toBeGreaterThan(early);
+    expect(await state()).toBe("pause");
+
+    // Pause lands immediately, wherever the clock actually is, and holds there.
+    await page.click("#btn-play");
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "play");
+    const pausedAt = await widthPct();
+    await page.waitForTimeout(500);
+    expect(await widthPct()).toBe(pausedAt);
+
+    // Play resumes from exactly where it paused.
+    await page.click("#btn-play");
+    await expect(page.locator("#btn-play")).toHaveAttribute("data-state", "pause");
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(pausedAt);
+
     await expect(page.locator("#step-num")).toHaveText("1");
-
     await finishStage(page);
-    await page.click("#btn-continue");
+    await page.click("#btn-play");
     await expect(page.locator("#step-num")).toHaveText("2");
+  });
+
+  test("clicking the progress bar seeks there, forward or back", async ({ page }) => {
+    await open(page);
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    const widthPct = async () => {
+      const style = await page.locator("#progress-bar").getAttribute("style");
+      return Number(style?.match(/width:\s*([\d.]+)%/)?.[1] ?? 0);
+    };
+
+    await page.mouse.click(bar.x + bar.width * 0.6, bar.y + bar.height / 2);
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeGreaterThan(10);
+    const forward = await widthPct();
+
+    // Seeking back rebuilds the stage from scratch and fast-forwards to the new point,
+    // rather than trying to rewind the running scene in place.
+    await page.mouse.click(bar.x + bar.width * 0.1, bar.y + bar.height / 2);
+    await expect.poll(widthPct, { timeout: 10_000 }).toBeLessThan(forward);
+  });
+
+  test("the playhead always shows the current position on the bar", async ({ page }) => {
+    await open(page);
+    const thumbLeft = async () =>
+      Number(
+        (await page.locator("#progress-thumb").getAttribute("style"))?.match(
+          /left:\s*([\d.]+)%/,
+        )?.[1] ?? -1,
+      );
+
+    await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(0);
+
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    await page.mouse.click(bar.x + bar.width * 0.7, bar.y + bar.height / 2);
+    await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(50);
+  });
+
+  test("hovering near a checkpoint previews the snap, hovering away clears it", async ({
+    page,
+  }) => {
+    await open(page, "gle");
+    const tick = page.locator("#progress .checkpoint").first();
+    const tickBox = await tick.boundingBox();
+    if (!tickBox) throw new Error("no checkpoint tick rendered");
+
+    await page.mouse.move(tickBox.x + tickBox.width / 2, tickBox.y + tickBox.height / 2);
+    await expect(tick).toHaveClass(/near/);
+    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
+
+    // Far from any checkpoint: no snap highlight, but the preview ring still tracks the pointer.
+    const bar = await page.locator("#progress").boundingBox();
+    if (!bar) throw new Error("#progress has no box");
+    await page.mouse.move(bar.x + bar.width * 0.5, bar.y + bar.height / 2);
+    await expect(tick).not.toHaveClass(/near/);
+    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
+
+    await page.mouse.move(bar.x, bar.y - 40);
+    await expect(page.locator("#progress-preview")).not.toHaveClass(/visible/);
+  });
+
+  test("checkpoint ticks mark where each line lands on the bar", async ({ page }) => {
+    await open(page);
+    const count = await page.locator("#progress .checkpoint").count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test("Replay restarts the current stage", async ({ page }) => {
@@ -163,7 +240,7 @@ test.describe("layout", () => {
 
   test("the transport stays reachable and finger-sized", async ({ page }) => {
     await open(page, "sweep");
-    for (const id of ["#btn-continue", "#btn-replay", "#btn-prev"]) {
+    for (const id of ["#btn-play", "#btn-replay", "#btn-prev"]) {
       const box = await page.locator(id).boundingBox();
       expect(box, `${id} has no box`).not.toBeNull();
       expect(box!.height, `${id} is too short to tap`).toBeGreaterThanOrEqual(36);
@@ -174,15 +251,9 @@ test.describe("layout", () => {
   test("the legend sits above the scene, not over the controls", async ({ page }) => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
-    // The legend fills in a row at a time as each colour it names actually appears, so it
-    // starts empty. The first row lands partway through the second line, not the moment
-    // the first one releases, so release it and let the reveal play out in real time
-    // rather than assuming a fixed number of clicks gets there.
-    await page.waitForFunction(() =>
-      document.getElementById("btn-continue")!.classList.contains("pulse"),
-    );
-    await page.click("#btn-continue");
-    await expect(legend).toBeVisible();
+    // The legend fills in a row at a time as each colour it names actually appears. The
+    // stage plays on its own, so no click is needed to get there — just real time.
+    await expect(legend).toBeVisible({ timeout: 20_000 });
 
     const strip = (await legend.boundingBox())!;
     const controls = (await page.locator("#controls").boundingBox())!;
@@ -212,10 +283,10 @@ test.describe("getting around", () => {
     await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#rail li").first()).toBeVisible();
     await expect(page.locator("#loading")).not.toHaveClass(/hidden/);
-    await expect(page.locator("#btn-continue")).toBeDisabled();
+    await expect(page.locator("#btn-play")).toBeDisabled();
 
     await expect(page.locator("#loading")).toHaveClass(/hidden/, { timeout: 60_000 });
-    await expect(page.locator("#btn-continue")).toBeEnabled();
+    await expect(page.locator("#btn-play")).toBeEnabled();
     await expect(page.locator("#caption-text")).toContainText("123,494");
   });
 
@@ -237,17 +308,20 @@ test.describe("getting around", () => {
     await expect(recentre).toBeHidden();
   });
 
-  test("the gesture hint shows where fingers are the input", async ({ page }) => {
+  test("the onboarding hint explains the tour plays itself, and dismisses on interaction", async ({
+    page,
+  }) => {
     await open(page);
-    const touch = await page.evaluate(
-      () => window.matchMedia("(hover: none) and (pointer: coarse)").matches,
-    );
     const hint = page.locator("#gesture-hint");
-    if (touch) {
-      await expect(hint).toBeVisible();
-      await expect(hint).toContainText("two fingers");
-    } else {
-      await expect(hint).toBeHidden();
-    }
+    await expect(hint).toBeVisible();
+    await expect(hint).toContainText("Playing on its own");
+
+    // A drag on the scene counts as having found the controls.
+    const size = page.viewportSize()!;
+    await page.mouse.move(size.width / 2, size.height * 0.42);
+    await page.mouse.down();
+    await page.mouse.move(size.width / 2 + 60, size.height * 0.42 + 30, { steps: 8 });
+    await page.mouse.up();
+    await expect(hint).toBeHidden();
   });
 });

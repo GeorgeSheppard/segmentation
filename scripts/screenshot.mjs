@@ -38,12 +38,14 @@ for (let i = 0; i < total; i++) {
   const n = String(i).padStart(2, "0");
   await page.waitForTimeout(MID_WAIT);
   await page.screenshot({ path: `${OUT}/${n}-mid.png` });
-  await page.click("#btn-continue"); // skip to the end of this stage
+  // Scrub to the far right of the bar to jump straight to the end of this stage.
+  const bar = await page.locator("#progress").boundingBox();
+  await page.mouse.click(bar.x + bar.width - 1, bar.y + bar.height / 2);
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/${n}-end.png` });
   console.log(`${n}  ${await page.textContent("#stage-title")}`);
   if (i < total - 1) {
-    await page.click("#btn-continue");
+    await page.click("#btn-play"); // now showing "Next"
     await page.waitForTimeout(600);
   }
 }

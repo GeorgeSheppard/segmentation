@@ -476,17 +476,94 @@ body {
 }
 
 #progress {
+  position: relative;
   height: 3px;
+  /* A generous invisible hit area: the visual bar stays a thin 3px line, but a 3px target is
+     unusable for a click-or-drag scrubber, on a mouse or a finger alike. */
+  padding: 9px 0;
+  margin: -9px 0 2px;
+  background-clip: content-box;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
-  overflow: hidden;
-  margin-bottom: 11px;
+  background-color: color-mix(in srgb, var(--text-faint) 30%, transparent);
+  /* Ticks sit half on, half off the bar — the bar itself still needs to clip the fill. */
+  overflow: visible;
+  cursor: pointer;
+  touch-action: none;
 }
 #progress-bar {
   height: 100%;
   width: 0;
   border-radius: 2px;
   background: var(--accent);
+}
+/* Chapter marks, YouTube-style: wherever a `say()` in the stage actually lands, not evenly
+   spaced. They sit above the bar so they stay visible whether or not the fill has reached them. */
+.checkpoint {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 9px;
+  margin-left: -1.5px;
+  border-radius: 1px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--text-faint) 55%, transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition:
+    width 0.12s ease,
+    height 0.12s ease,
+    margin-left 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+/* The pointer is close enough that releasing now would snap here — grown and lit up so
+   landing on a line is something the reader can see coming, not just discover afterward. */
+.checkpoint.near {
+  width: 5px;
+  height: 15px;
+  margin-left: -2.5px;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Always-visible playhead: with everything else on the bar being a thin fill and small
+   ticks, "where am I right now" needs its own unambiguous marker, paused or not. */
+#progress-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--panel),
+    0 1px 3px color-mix(in srgb, var(--surface) 70%, transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* A hollow preview ring shows where a click would land before it happens — hover on desktop,
+   or wherever the finger actually is mid-drag on touch. */
+#progress-preview {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 1;
+}
+#progress-preview.visible {
+  opacity: 0.85;
 }
 
 .control-row {
@@ -573,6 +650,20 @@ button.primary.pulse {
   opacity: 1;
   animation: pulse 1.4s ease-in-out infinite;
 }
+
+/* The transport is one button whose glyph and label swap with what pressing it will do —
+   play, pause, or move to the next stage — rather than three widgets fighting for the same
+   spot. Only one icon shows at a time; `svg` above already gives them all a stroke-based
+   look, so the play/pause glyphs (normally solid shapes) are drawn as closed outlines too. */
+#btn-play svg {
+  display: none;
+}
+#btn-play[data-state="play"] .icon-play,
+#btn-play[data-state="pause"] .icon-pause,
+#btn-play[data-state="next"] .icon-next,
+#btn-play[data-state="explore"] .icon-next {
+  display: block;
+}
 /* box-shadow only, deliberately: a transform: scale() here would keep the button's
    bounding box changing every frame forever, which Playwright's click reads as "never
    stable" and retries against until it times out — the same thing a size-changing hit
@@ -584,6 +675,22 @@ button.primary.pulse {
   }
   50% {
     box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+/* One-shot feedback for the press itself, distinct from the idle `.pulse` invitation above:
+   every click gets this same short ring, whether it releases a hold, fast-forwards to one, or
+   moves the stage on — so "I clicked it" always reads as something happened. Box-shadow only,
+   for the same Playwright/hit-target reason `.pulse` avoids transform: scale(). */
+button.primary.flash {
+  animation: click-flash 0.38s ease-out;
+}
+@keyframes click-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 

@@ -1,7 +1,9 @@
 import { Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
+import type { FrameTrace } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
+import { memoize } from "./helpers.ts";
 
 /**
  * Step 1 — where the points come from.
@@ -32,7 +34,10 @@ export const stageSensor: Stage = {
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
     const { xyz, count } = frame.cloud;
-    const sweep = bucketByAzimuth(xyz, count);
+    // Bucketing ~120,000 points by azimuth is the one real cost in this stage's setup, and
+    // build() reruns on every rebuild — a fresh load, Replay, or a backward seek — so it's
+    // cached once per frame rather than repeated on every one of those.
+    const sweep = getSweep(frame);
 
     // Nothing has been measured yet: the points are loaded, but invisible until a beam
     // reaches them.
@@ -206,6 +211,10 @@ interface Sweep {
   /** Up to BEAMS representative returns per bucket, top of the fan to the bottom. */
   fans: Int32Array[];
 }
+
+const getSweep = memoize((frame: FrameTrace) =>
+  bucketByAzimuth(frame.cloud.xyz, frame.cloud.count),
+);
 
 /**
  * Sort the scan into azimuth buckets, and pick a fan of returns for each.

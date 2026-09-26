@@ -55,13 +55,18 @@
       <!-- Bottom band -->
       <div id="bottom">
         <p id="gesture-hint" hidden>
-          <b>One finger</b> turns the scene · <b>two fingers</b> zoom and slide it
+          <b>Playing on its own</b> — drag to look around, or drag the timeline below to jump
+          anywhere
         </p>
 
         <div id="caption"><p id="caption-text"></p></div>
 
         <footer id="controls">
-          <div id="progress"><div id="progress-bar"></div></div>
+          <div id="progress">
+            <div id="progress-bar"></div>
+            <i id="progress-preview"></i>
+            <i id="progress-thumb"></i>
+          </div>
           <div class="control-row">
             <button id="btn-prev" class="ghost" title="Previous step (←)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
@@ -80,9 +85,17 @@
               </svg>
               <span>Replay</span>
             </button>
-            <button id="btn-continue" class="primary" title="Continue (→ or space)">
-              <span>Continue</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+            <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+              </svg>
+              <span>Play</span>
+              <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
         </footer>
