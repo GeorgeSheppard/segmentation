@@ -11,7 +11,6 @@ export const stageRnr: Stage = {
   id: "rnr",
   steps: ["rnr"],
   title: "RNR — Reflected Noise Removal",
-  subtitle: "A few points arrive from under the road. Each one ruins the cell it lands in.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -156,7 +155,6 @@ export const stageCzm: Stage = {
   id: "czm",
   steps: ["czm"],
   title: "CZM — the Concentric Zone Model",
-  subtitle: "504 cells in four bands, each sized to match how crowded that distance is.",
 
   build(ctx: StageContext) {
     const { cloud, czm, params } = ctx;

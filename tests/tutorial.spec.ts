@@ -7,7 +7,7 @@ test.describe("tutorial", () => {
 
     await expect(stageTitle(page)).toHaveText("How the scan is made");
     await expect(page.locator("#step-num")).toHaveText("1");
-    await expect(page.locator("#step-total")).toHaveText("12");
+    await expect(page.locator("#step-total")).toHaveText("11");
 
     // The caption is fed from the live segmentation, so this asserts the algorithm ran.
     await expect(page.locator("#caption-text")).toContainText("123,494");
@@ -55,7 +55,7 @@ test.describe("tutorial", () => {
     await expect(page.locator("#caption-text")).toContainText("123,494");
     await finishStage(page);
     await page.click("#btn-play");
-    await expect(stageTitle(page)).toHaveText("One LiDAR scan");
+    await expect(stageTitle(page)).toHaveText("RNR — Reflected Noise Removal");
     expect(errors).toEqual([]);
   });
 
@@ -172,10 +172,10 @@ test.describe("tutorial", () => {
 
   test("Back steps to the previous stage and is disabled on the first", async ({ page }) => {
     await open(page, "czm");
-    await expect(page.locator("#step-num")).toHaveText("4");
+    await expect(page.locator("#step-num")).toHaveText("3");
 
     await page.click("#btn-prev");
-    await expect(page.locator("#step-num")).toHaveText("3");
+    await expect(page.locator("#step-num")).toHaveText("2");
 
     await open(page);
     await expect(page.locator("#btn-prev")).toBeDisabled();

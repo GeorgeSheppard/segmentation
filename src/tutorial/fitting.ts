@@ -14,8 +14,6 @@ export const stageSeeds: Stage = {
   id: "seeds",
   steps: ["seeds"],
   title: "Seeds — the lowest points win",
-  subtitle:
-    "Sort the cell by height, average the 20 lowest, and seed from everything within 12.5 cm.",
 
   build(ctx: StageContext) {
     const { cloud, params } = ctx;
@@ -142,8 +140,6 @@ export const stageRgpf: Stage = {
   id: "rgpf",
   steps: ["rgpf"],
   title: "R-GPF — fit, re-select, repeat",
-  subtitle:
-    "Fit a flat surface through the seeds. Points within 12.5 cm of it become the next seed set. Three times.",
 
   build(ctx: StageContext) {
     const { cloud, params } = ctx;
@@ -304,8 +300,6 @@ export const stageRvpf: Stage = {
   id: "rvpf",
   steps: ["rvpf"],
   title: "R-VPF — peeling off vertical structure",
-  subtitle:
-    "When ground sits on a kerb or a wall, the wall's points are lower, so they win the seeding.",
 
   build(ctx: StageContext) {
     const { cloud } = ctx;

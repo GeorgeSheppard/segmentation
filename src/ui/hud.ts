@@ -32,7 +32,6 @@ export class Hud {
   private readonly stepNum = byId("step-num");
   private readonly stepTotal = byId("step-total");
   private readonly title = byId("stage-title");
-  private readonly subtitle = byId("stage-subtitle");
   private readonly captionText = byId("caption-text");
   private readonly legend = byId("legend");
   private readonly progress = byId("progress");
@@ -305,12 +304,11 @@ export class Hud {
 
   // ------------------------------------------------------------------ stage
 
-  setStage(index: number, total: number, title: string, subtitle: string): void {
+  setStage(index: number, total: number, title: string): void {
     this.stageIndex = index;
     this.stepNum.textContent = String(index + 1);
     this.stepTotal.textContent = String(total);
     this.title.textContent = title;
-    this.subtitle.innerHTML = subtitle;
     this.btnPrev.disabled = this.busy || index === 0;
     for (const [i, el] of [...this.chapters.children].entries()) {
       el.classList.toggle("active", i === index);

@@ -29,7 +29,6 @@ const ORIGIN = new Vector3(0, 0, 0);
 export const stageSensor: Stage = {
   id: "sensor",
   title: "How the scan is made",
-  subtitle: "A pulse, a reflection, and the time between them — over a million times a second.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;

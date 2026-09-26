@@ -243,8 +243,6 @@ export function planeZ(normal: Vec3, d: number, x: number, y: number): number {
 export interface Stage {
   id: string;
   title: string;
-  /** One line under the title. May contain inline HTML. */
-  subtitle: string;
   /**
    * Which pipeline steps this stage covers — drives the step rail, so the reader can always
    * see where in the algorithm they are. Most stages name one; the full-sweep stage names

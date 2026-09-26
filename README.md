@@ -5,7 +5,7 @@ algorithm from [Lee, Lim & Myung (IROS 2022)](https://arxiv.org/abs/2207.11919) 
 Three.js and Vite.
 
 The algorithm is not pre-baked into an animation. A faithful TypeScript port runs live in the
-browser on a real KITTI scan, records every intermediate result, and the twelve tutorial stages
+browser on a real KITTI scan, records every intermediate result, and the eleven tutorial stages
 replay those results: the actual seed points, the actual plane from each PCA iteration, the
 actual eigenvalues the classifier tested.
 
@@ -19,24 +19,23 @@ pnpm dev
 | #   | Stage                | What you see                                                                  |
 | --- | -------------------- | ----------------------------------------------------------------------------- |
 | 1   | How the scan is made | One pulse timed to a real return, then the fan, then a full turn              |
-| 2   | One LiDAR scan       | 123,494 points from a Velodyne HDL-64E, unlabelled and unsorted               |
-| 3   | RNR                  | Reflected noise: the mirror-image points hiding below the road                |
-| 4   | CZM                  | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff  |
-| 5   | Seeds                | Sorting a cell by height, the Lowest Point Representative, the seed band      |
-| 6   | R-GPF                | Three PCA refinements turning seeds into a ground plane                       |
-| 7   | R-VPF                | Peeling a vertical structure away so the ground on top of it survives         |
-| 8   | GLE                  | Uprightness, elevation and flatness — a real cell for each, not always a fail |
-| 9   | 504 cells            | The whole sweep, judged ring by ring                                          |
-| 10  | TGR                  | A borderline cell getting a second hearing against its own ring               |
-| 11  | A-GLE                | The thresholds — and the sensor height — being measured rather than set       |
-| 12  | The result           | Ground vs not-ground, against the one-plane strawman it replaces              |
+| 2   | RNR                  | Reflected noise: the mirror-image points hiding below the road                |
+| 3   | CZM                  | The Concentric Zone Model — 504 cells, sized to the sensor's density falloff  |
+| 4   | Seeds                | Sorting a cell by height, the Lowest Point Representative, the seed band      |
+| 5   | R-GPF                | Three PCA refinements turning seeds into a ground plane                       |
+| 6   | R-VPF                | Peeling a vertical structure away so the ground on top of it survives         |
+| 7   | GLE                  | Uprightness, elevation and flatness — a real cell for each, not always a fail |
+| 8   | 504 cells            | The whole sweep, judged ring by ring                                          |
+| 9   | TGR                  | A borderline cell getting a second hearing against its own ring               |
+| 10  | A-GLE                | The thresholds — and the sensor height — being measured rather than set       |
+| 11  | The result           | Ground vs not-ground, against the one-plane strawman it replaces              |
 
 Each stage zooms into a real cell, narrates what happens there, and pulls back to the whole
 scene. A **step rail** across the top stays on screen the whole time with the live pipeline
 step lit, so "where are we" never has to be inferred.
 
 The raw scan is one neutral colour, never a height ramp: a ramp bands the cloud into road,
-cars and walls, so the reader would arrive at step 1 holding the answer the next eleven
+cars and walls, so the reader would arrive at step 1 holding the answer the next ten
 stages are supposed to earn.
 
 Structures are _built_, not faded in. The scan itself is built the way the sensor builds it:
@@ -123,7 +122,7 @@ src/patchwork/
 
 src/core/linalg.ts    closed-form symmetric 3x3 eigensolver + PCA plane fit
 src/core/kitti.ts     scan parsing (no browser APIs, so Node can run it)
-src/tutorial/         the twelve tutorial stages
+src/tutorial/         the eleven tutorial stages
 src/viz/              renderer, point cloud, cell gizmos, camera rig
 src/anim/timeline.ts  the keyframe engine the stages are written against
 ```
@@ -173,7 +172,7 @@ scan has either.
 The main tutorial never shows that captured colour, though — `cloud.setBaseRaw` keeps the
 scan one neutral colour throughout, same as before. A height ramp or true colour would band
 the cloud into road, cars and hedges before step 1, handing the reader the answer the next
-eleven stages are supposed to earn. `scripts/dump-cells.ts` is what made re-pointing the
+ten stages are supposed to earn. `scripts/dump-cells.ts` is what made re-pointing the
 tutorial at a new scan tractable: it runs the pipeline headlessly against any `.pcq` and
 reports which cells actually exhibit each of the tutorial's hand-picked teaching moments (a
 mixed cell, a wall, an elevated plane, a peeled vertical structure), instead of picking them
@@ -233,7 +232,7 @@ pnpm format        # prettier
 `tests/tutorial.spec.ts` drives the real app in a real browser — it is a WebGL page, so
 there is no useful unit-level substitute. It runs under two projects, desktop and a
 390×844 phone, and covers: the app loading and actually segmenting the scan (asserted via
-the live point count in the caption), walking all twelve stages with zero console errors,
+the live point count in the caption), walking all eleven stages with zero console errors,
 Continue's finish-then-advance behaviour and its hand-off into Explore, Replay, Back, deep
 links, the step rail lighting the right steps, the theme's three slots staying distinct,
 nothing overflowing the viewport, the transport staying on screen with tappable targets, the

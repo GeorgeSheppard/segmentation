@@ -15,8 +15,6 @@ export const stageAgle: Stage = {
   id: "agle",
   steps: ["agle"],
   title: "A-GLE — it tunes itself",
-  subtitle:
-    "The thresholds are measured every frame, from the cells the algorithm was surest about.",
 
   build(ctx: StageContext) {
     const { cloud, frame, params, czm } = ctx;
@@ -173,7 +171,6 @@ const getResultData = memoize((frame: FrameTrace) => {
 export const stageResult: Stage = {
   id: "result",
   title: "The result",
-  subtitle: "Ground and not-ground, one CPU core, a few milliseconds, nothing learned in advance.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
