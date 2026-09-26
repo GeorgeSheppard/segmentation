@@ -227,14 +227,6 @@ body {
   line-height: 1.14;
   text-shadow: 0 2px 20px color-mix(in srgb, var(--surface) 80%, transparent);
 }
-#stage-subtitle {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--text-dim);
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--surface) 85%, transparent);
-}
-
 #top-actions {
   display: flex;
   gap: 8px;
@@ -853,10 +845,6 @@ button.primary.flash {
     font-size: 17px;
     margin-bottom: 2px;
   }
-  /* The subtitle repeats what the caption will say; the caption is the one that animates. */
-  #stage-subtitle {
-    display: none;
-  }
   .step-badge {
     padding: 4px 8px;
     margin-top: 1px;
@@ -941,7 +929,6 @@ button.primary.flash {
 
 /* Short landscape phones: drop the side matter entirely, the canvas needs the room. */
 @media (max-height: 460px) and (max-width: 900px) {
-  #stage-subtitle,
   #rail,
   #legend {
     display: none;

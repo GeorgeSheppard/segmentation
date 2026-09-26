@@ -109,7 +109,7 @@ class App {
    */
   private showStageChrome(index: number): void {
     const stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
-    this.hud.setStage(index, STAGES.length, stage.title, stage.subtitle);
+    this.hud.setStage(index, STAGES.length, stage.title);
     this.hud.setRailSteps(stage.steps);
     this.hud.setProgress(0);
     this.hud.setCheckpoints([]);
@@ -148,12 +148,7 @@ class App {
   private buildStage(index: number): void {
     this.index = Math.max(0, Math.min(STAGES.length - 1, index));
     this.rebuildTimeline();
-    this.hud.setStage(
-      this.index,
-      STAGES.length,
-      STAGES[this.index].title,
-      STAGES[this.index].subtitle,
-    );
+    this.hud.setStage(this.index, STAGES.length, STAGES[this.index].title);
     this.hud.setRailSteps(STAGES[this.index].steps);
     this.syncHash(STAGES[this.index].id);
   }

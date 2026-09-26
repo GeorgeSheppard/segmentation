@@ -18,7 +18,6 @@ export const stageGle: Stage = {
   id: "gle",
   steps: ["gle"],
   title: "GLE — is that plane really ground?",
-  subtitle: "R-GPF always returns a plane. GLE is the veto: uprightness, elevation, flatness.",
 
   build(ctx: StageContext) {
     const { cloud } = ctx;
@@ -183,7 +182,6 @@ export const stageSweep: Stage = {
   id: "sweep",
   steps: ["seeds", "rvpf", "rgpf", "gle"],
   title: "504 cells, one scan",
-  subtitle: "Everything so far, over the whole sweep, ring by ring outward.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -317,7 +315,6 @@ export const stageTgr: Stage = {
   id: "tgr",
   steps: ["tgr"],
   title: "TGR — Temporal Ground Revert",
-  subtitle: "Borderline cells get one more hearing, against the other cells in their own ring.",
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
