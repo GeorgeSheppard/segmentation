@@ -1,13 +1,14 @@
 import { Ease } from "../anim/timeline.ts";
 import {
   isGroundLabel,
+  type FrameTrace,
   type PointLabel,
   ringFromConcentric,
   ringRadii,
 } from "../patchwork/index.ts";
 import { pose } from "../viz/viewer.ts";
 import { type Stage, type StageContext } from "./context.ts";
-import { fitGlobalPlane } from "./helpers.ts";
+import { fitGlobalPlane, memoize } from "./helpers.ts";
 
 /** Step 11 — A-GLE: the algorithm tunes its own thresholds from what it just saw. */
 export const stageAgle: Stage = {
@@ -142,6 +143,32 @@ export const stageAgle: Stage = {
   },
 };
 
+/**
+ * The naive one-plane baseline and the ground/non-ground split, both derived purely from
+ * `frame`. Fitting the baseline is a sort plus three O(n) refinement passes over the whole
+ * ~120,000-point cloud — the priciest thing any stage's `build()` does — and `build()`
+ * reruns on every rebuild (a fresh load, Replay, or a backward seek), so this is cached
+ * once per frame rather than redone on every one of those.
+ */
+const getResultData = memoize((frame: FrameTrace) => {
+  const { ground: naiveGround } = fitGlobalPlane(frame.cloud, frame.params);
+
+  const groundIdx: number[] = [];
+  const nonGroundIdx: number[] = [];
+  for (let i = 0; i < frame.cloud.count; i++) {
+    if (isGroundLabel(frame.labels[i] as PointLabel)) groundIdx.push(i);
+    else nonGroundIdx.push(i);
+  }
+  const g = Int32Array.from(groundIdx);
+  const n = Int32Array.from(nonGroundIdx);
+
+  const naiveIsGround = new Uint8Array(frame.cloud.count);
+  for (const i of naiveGround) naiveIsGround[i] = 1;
+  const rescued = Int32Array.from(groundIdx.filter((i) => !naiveIsGround[i]));
+
+  return { g, n, rescued };
+});
+
 /** Step 12 — the result, against the one-plane strawman it replaces. */
 export const stageResult: Stage = {
   id: "result",
@@ -150,20 +177,7 @@ export const stageResult: Stage = {
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
-    const { ground: naiveGround } = fitGlobalPlane(frame.cloud, ctx.params);
-
-    const groundIdx: number[] = [];
-    const nonGroundIdx: number[] = [];
-    for (let i = 0; i < frame.cloud.count; i++) {
-      if (isGroundLabel(frame.labels[i] as PointLabel)) groundIdx.push(i);
-      else nonGroundIdx.push(i);
-    }
-    const g = Int32Array.from(groundIdx);
-    const n = Int32Array.from(nonGroundIdx);
-
-    const naiveIsGround = new Uint8Array(frame.cloud.count);
-    for (const i of naiveGround) naiveIsGround[i] = 1;
-    const rescued = Int32Array.from(groundIdx.filter((i) => !naiveIsGround[i]));
+    const { g, n, rescued } = getResultData(frame);
 
     cloud.setBaseUniform("#475569", 0.9);
 
