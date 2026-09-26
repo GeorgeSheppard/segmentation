@@ -5,8 +5,17 @@
  * keeps whatever is left, which is most of the screen.
  *
  * Every colour comes from a custom property written by themes.ts; nothing here hard-codes
- * a palette value.
+ * a palette value. The colours are exempt from the Open Props token pass below: they are
+ * chosen and gated by the data-viz validator (CVD separation, contrast, ordinal ramps — see
+ * viz/themes.ts), and an off-the-shelf palette would fail that gate. Structural tokens
+ * (spacing, radius, shadow, easing, type) come from Open Props instead, so the HUD chrome
+ * reads as one considered system without touching the validated colours.
  */
+@import "open-props/sizes.min.css";
+@import "open-props/borders.min.css";
+@import "open-props/easings.min.css";
+@import "open-props/fonts.min.css";
+@import "open-props/shadows.min.css";
 
 :root {
   --surface: #070a0f;
@@ -23,10 +32,12 @@
   --focus: #9085e9;
   --seed: #fde047;
 
-  --radius: 12px;
-  --gutter: 20px;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  --radius: var(--radius-3);
+  --radius-tight: var(--radius-2);
+  --gutter: var(--size-5);
+  --mono: var(--font-mono);
+  --sans: var(--font-neo-grotesque);
+  --ease: var(--ease-out-3);
 
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -127,11 +138,11 @@ body {
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  border-radius: var(--radius-round);
+  box-shadow: var(--shadow-4);
   z-index: 25;
   pointer-events: none;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.5s var(--ease);
 }
 #loading.hidden {
   opacity: 0;
@@ -211,7 +222,7 @@ body {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   padding: 5px 10px;
   margin-top: 4px;
 }
@@ -347,7 +358,7 @@ body {
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   pointer-events: none;
   z-index: 15;
 }
@@ -394,12 +405,12 @@ body {
   line-height: 1.5;
   text-align: center;
   color: var(--text);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: var(--shadow-4);
   opacity: 0;
   transform: translateY(6px);
   transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
+    opacity 0.35s var(--ease),
+    transform 0.35s var(--ease);
   /* The card itself opts back into pointer events so the narration can be selected and
      copied — #caption stays click-through around it, and the scene is most of the screen
      regardless, so a drag that would have started here can start an inch away instead. */
@@ -440,7 +451,7 @@ body {
   max-width: calc(100% - 2 * var(--gutter));
   margin-inline: auto;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
@@ -451,8 +462,8 @@ body {
   opacity: 0;
   transform: translateY(6px);
   transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
+    opacity 0.35s var(--ease),
+    transform 0.35s var(--ease);
 }
 #gesture-hint.visible {
   opacity: 1;
@@ -471,13 +482,13 @@ body {
   background: var(--panel);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-4);
 }
 
 #progress {
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-1);
   background: color-mix(in srgb, var(--text-faint) 30%, transparent);
   overflow: hidden;
   margin-bottom: 11px;
@@ -485,7 +496,7 @@ body {
 #progress-bar {
   height: 100%;
   width: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-1);
   background: var(--accent);
 }
 
@@ -498,7 +509,7 @@ body {
 button {
   font-family: var(--sans);
   font-size: 13px;
-  border-radius: 9px;
+  border-radius: var(--radius-tight);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -506,10 +517,10 @@ button {
   /* Comfortable touch targets without changing the desktop look. */
   min-height: 38px;
   transition:
-    background 0.15s,
-    color 0.15s,
-    border-color 0.15s,
-    opacity 0.15s;
+    background 0.15s var(--ease),
+    color 0.15s var(--ease),
+    border-color 0.15s var(--ease),
+    opacity 0.15s var(--ease);
 }
 button svg {
   width: 15px;
@@ -536,11 +547,11 @@ button.ghost,
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-round);
 }
 button.ghost {
   background: transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-tight);
 }
 button.ghost:hover:not(:disabled),
 #chapters-toggle:hover {
@@ -559,7 +570,7 @@ button.primary {
      waiting on them, so the button says so before it ever needs to animate. The pulse
      below is what makes "now" unmissable; this is what makes "not yet" unambiguous. */
   opacity: 0.5;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s var(--ease);
 }
 button.primary:hover:not(:disabled) {
   filter: brightness(1.1);
@@ -602,7 +613,7 @@ button.primary.pulse {
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 48px color-mix(in srgb, var(--surface) 75%, transparent);
+  box-shadow: var(--shadow-5);
 }
 #chapters button {
   display: flex;
@@ -612,7 +623,7 @@ button.primary.pulse {
   text-align: left;
   background: none;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tight);
   color: var(--text-dim);
   font-size: 13px;
   line-height: 1.35;
@@ -654,7 +665,7 @@ button.primary.pulse {
   background: var(--panel);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-round);
 }
 #btn-restart:hover {
   color: var(--text);
