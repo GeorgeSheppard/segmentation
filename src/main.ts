@@ -1,4 +1,13 @@
 import { Vector3 } from "three";
+// Self-hosted so the HUD never flashes a system font or depends on a third-party CDN.
+import "@fontsource/chakra-petch/500.css";
+import "@fontsource/chakra-petch/600.css";
+import "@fontsource/chakra-petch/700.css";
+import "@fontsource/exo-2/400.css";
+import "@fontsource/exo-2/500.css";
+import "@fontsource/exo-2/600.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import "./style.css";
 import type { Timeline } from "./anim/timeline.ts";
 import { loadKittiFrame } from "./core/loadFrame.ts";

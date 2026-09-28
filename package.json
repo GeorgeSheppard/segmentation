@@ -22,6 +22,9 @@
     "preview:upload": "pnpm run build && wrangler versions upload"
   },
   "dependencies": {
+    "@fontsource/chakra-petch": "^5.3.0",
+    "@fontsource/exo-2": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "three": "^0.186.0"
   },
   "devDependencies": {

@@ -80,33 +80,34 @@ export interface Theme {
 }
 
 /**
- * Validated light, surface #fcfcfb, all-pairs:
- *   CVD ΔE 9.2 (deutan, orange↔aqua) · normal ΔE 27.6 · all in band.
- *   Contrast WARN: aqua sits at 2.74:1. The relief channel the method requires is the
- *   always-visible legend, which names every class in text — never colour alone.
+ * Validated dark, surface #070a0f, all-pairs:
+ *   CVD ΔE 9.4 (deutan, orange↔aqua) · normal ΔE 24.6 · all ≥ 3:1 · all in band.
+ *
+ * Dark on purpose: the page is styled as a game HUD, and a HUD reads as one only over a
+ * dark scene — lit chrome on a lit backdrop just looks like a web form.
  */
 export const THEME: Theme = {
-  scheme: "light",
-  surface: "#eef1f6",
-  ground: "#1baf7a",
-  nonGround: "#eb6834",
-  focus: "#4a3aa7",
-  plane: "#2a78d6",
-  seed: "#b45309",
-  normal: "#0f172a",
-  grid: "#9aa8c0",
-  raw: "#55617a",
-  contextAlpha: 0.22,
-  // ordinal, light on #eef1f6: ΔL gaps clear, light end 2.62:1, hue spread 4°
-  zoneRamp: ["#8397b8", "#5c7ba6", "#3a5a8c", "#1d3a66"],
+  scheme: "dark",
+  surface: "#070a0f",
+  ground: "#199e70",
+  nonGround: "#d95926",
+  focus: "#9085e9",
+  plane: "#7dd3fc",
+  seed: "#fde047",
+  normal: "#f0f9ff",
+  grid: "#38507a",
+  raw: "#93a7bd",
+  contextAlpha: 0.12,
+  // ordinal, dark on #070a0f: ΔL gaps clear, light end 2.26:1, hue spread 8°
+  zoneRamp: ["#8cc4ee", "#4f9bd1", "#2f72a8", "#1d4d7a"],
   ui: {
-    panel: "rgba(252, 252, 251, 0.88)",
-    border: "rgba(15, 23, 42, 0.14)",
-    text: "#0b1220",
-    textDim: "#44506a",
-    textFaint: "#6b7793",
-    accent: "#2a78d6",
-    accentInk: "#ffffff",
+    panel: "rgba(8, 14, 24, 0.78)",
+    border: "rgba(125, 211, 252, 0.22)",
+    text: "#e6f1fb",
+    textDim: "#9fb3c8",
+    textFaint: "#5f7389",
+    accent: "#7dd3fc",
+    accentInk: "#041018",
   },
 };
 
