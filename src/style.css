@@ -4,22 +4,24 @@
  * transport). On a phone the bands stay in the same order and only get denser — the canvas
  * keeps whatever is left, which is most of the screen.
  *
- * The look is a game HUD: sharp-cornered glass panels with lit corner brackets, a condensed
- * display face for anything that labels, a segmented mission-progress rail, and a banner for
- * each verdict. The narration stays in a readable text face — it is the one thing on screen
- * that is read rather than glanced at.
+ * The look is a modern game HUD, and its cohesion comes from having very few rules:
+ *   - one typeface (Barlow), used three ways: a heading, body text, and a small
+ *     letter-spaced uppercase label for anything that names or counts;
+ *   - one surface: dark glass, a hairline border, one radius;
+ *   - one accent, spent only on "now" — the live step, the playhead, the button to press.
+ * No glows, gradients or decorative chrome: the scene is the spectacle, the HUD is quiet.
  *
  * Every colour comes from a custom property written by themes.ts; nothing here hard-codes
- * a palette value. The only literals are black for shadows and the vignette.
+ * a palette value. The only literal is black, for shadows.
  */
 
 :root {
   --surface: #070a0f;
-  --panel: rgba(8, 14, 24, 0.78);
-  --border: rgba(125, 211, 252, 0.22);
-  --text: #e6f1fb;
-  --text-dim: #9fb3c8;
-  --text-faint: #5f7389;
+  --panel: rgba(10, 13, 18, 0.72);
+  --border: rgba(226, 232, 240, 0.1);
+  --text: #eef2f6;
+  --text-dim: #9aa6b4;
+  --text-faint: #5d6875;
   --accent: #7dd3fc;
   --accent-ink: #041018;
   --ground: #199e70;
@@ -27,13 +29,12 @@
   --focus: #9085e9;
   --seed: #fde047;
 
-  --border-strong: color-mix(in srgb, var(--accent) 55%, transparent);
-  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  --border-strong: color-mix(in srgb, var(--text) 26%, transparent);
+  --hover: color-mix(in srgb, var(--text) 7%, transparent);
 
-  --radius: 3px;
-  --gutter: 20px;
-  --display: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, sans-serif;
-  --sans: "Exo 2", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 4px;
+  --gutter: 24px;
+  --sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --safe-l: env(safe-area-inset-left, 0px);
@@ -67,6 +68,7 @@ body {
   background: var(--surface);
   color: var(--text);
   font-family: var(--sans);
+  font-feature-settings: "tnum";
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
@@ -81,8 +83,7 @@ body {
   inset: 0;
   display: grid;
   /* top band, step rail, legend, then everything else — the bottom band pins to the bottom
-     of it. The canvas, the screen overlay and the status chip are absolutely positioned and
-     out of flow. */
+     of it. The canvas and status chip are absolutely positioned and out of flow. */
   grid-template-rows: auto auto auto 1fr;
   /* Pin the column to the viewport. Without this the column takes its min-content width
      from the step rail, which is wider than a phone, and every band overflows. */
@@ -90,9 +91,8 @@ body {
   pointer-events: none;
 }
 
-/* The "screen": a vignette that pulls the eye to the middle of the scene and a faint
-   scanline, both over the canvas and under every band. Purely decorative and never
-   hit-testable, so dragging the scene is unaffected. */
+/* Two soft scrims, top and bottom, so the title and transport always sit on a calm field
+   whatever the scene is doing behind them. Never hit-testable. */
 #app::before {
   content: "";
   position: absolute;
@@ -100,12 +100,12 @@ body {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 85% 75% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
-    repeating-linear-gradient(
-      0deg,
-      color-mix(in srgb, var(--accent) 3%, transparent) 0 1px,
-      transparent 1px 3px
-    );
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--surface) 80%, transparent),
+      transparent 22%
+    ),
+    linear-gradient(to top, color-mix(in srgb, var(--surface) 70%, transparent), transparent 28%);
 }
 
 #top,
@@ -143,14 +143,9 @@ body {
   touch-action: none;
 }
 
-/* ---------------------------------------------------------------- HUD panel */
+/* ---------------------------------------------------------------- shared */
 
-/*
- * One look for every piece of chrome that sits on the scene: dark glass, a hairline frame,
- * and short lit brackets on all four corners. The brackets are background layers painted
- * over the border box, so they cost no extra markup and follow the panel at any size.
- * `--bc` is the bracket colour; a panel can override it.
- */
+/* The one surface every piece of chrome on the scene uses. */
 #loading,
 #legend,
 #caption-text,
@@ -158,29 +153,28 @@ body {
 #chapters,
 #gesture-hint,
 #btn-restart,
-#chapters-toggle {
-  --bc: color-mix(in srgb, var(--accent) 80%, transparent);
-  --bk: 9px;
-  --bw: 1.5px;
+#chapters-toggle,
+#verdict {
+  background: var(--panel);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background:
-    linear-gradient(var(--bc), var(--bc)) left top / var(--bk) var(--bw) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) left top / var(--bw) var(--bk) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) right top / var(--bk) var(--bw) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) right top / var(--bw) var(--bk) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) left bottom / var(--bk) var(--bw) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) left bottom / var(--bw) var(--bk) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) right bottom / var(--bk) var(--bw) no-repeat border-box,
-    linear-gradient(var(--bc), var(--bc)) right bottom / var(--bw) var(--bk) no-repeat border-box,
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%)
-      padding-box,
-    var(--panel);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* The one label style: anything that names or counts rather than explains. */
+.step-badge,
+#rail li .name,
+#legend .row strong,
+#loading p,
+button,
+#verdict {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* ---------------------------------------------------------------- loading */
@@ -195,7 +189,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 18px;
+  padding: 11px 18px;
   z-index: 25;
   pointer-events: none;
   transition: opacity 0.5s ease;
@@ -204,19 +198,14 @@ body {
   opacity: 0;
 }
 #loading p {
-  color: var(--text);
-  font-family: var(--display);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--text-dim);
   margin: 0;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 #loading-bar {
-  width: 84px;
-  height: 4px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  width: 80px;
+  height: 2px;
+  background: var(--border);
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -226,30 +215,17 @@ body {
   height: 100%;
   width: var(--p, 0%);
   background: var(--accent);
-  box-shadow: 0 0 10px var(--glow);
   transition: width 0.12s linear;
 }
 
-/* Two counter-rotating arcs on a diamond, rather than the stock web spinner. */
 .spinner {
-  position: relative;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   flex: none;
-  border: 2px solid transparent;
+  border: 1.5px solid var(--border);
   border-top-color: var(--accent);
-  border-bottom-color: var(--accent);
   border-radius: 50%;
-  filter: drop-shadow(0 0 4px var(--glow));
-  animation: spin 1.1s linear infinite;
-}
-.spinner::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  background: var(--accent);
-  transform: rotate(45deg);
-  animation: spin 1.1s linear infinite reverse;
+  animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
   to {
@@ -263,10 +239,10 @@ body {
   position: relative;
   z-index: 40;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: calc(var(--safe-t) + 18px) calc(var(--safe-r) + var(--gutter)) 0
+  padding: calc(var(--safe-t) + 22px) calc(var(--safe-r) + var(--gutter)) 0
     calc(var(--safe-l) + var(--gutter));
   pointer-events: none;
 }
@@ -274,85 +250,37 @@ body {
   pointer-events: auto;
 }
 
+/* An eyebrow over a heading: "STAGE 7 / 11", then the stage's name. */
 #titles {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  max-width: min(620px, 60vw);
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(640px, 60vw);
 }
 
-/* "STAGE 3 /11" — a mission tag, not a pill. */
 .step-badge {
-  flex: none;
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
   align-items: baseline;
-  justify-content: center;
-  gap: 0 2px;
-  min-width: 60px;
-  padding: 6px 11px 7px;
-  margin-top: 2px;
-  font-family: var(--display);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--accent-ink);
-  background: linear-gradient(
-    160deg,
-    var(--accent),
-    color-mix(in srgb, var(--accent) 70%, var(--surface))
-  );
-  /* A notched corner, the one shape on screen that says "game" before anything is read. */
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
-  filter: drop-shadow(0 0 10px var(--glow));
+  gap: 5px;
+  color: var(--accent);
 }
 .step-badge::before {
   content: "Stage";
-  flex: 0 0 100%;
-  margin-bottom: 4px;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  text-align: center;
-  opacity: 0.75;
-}
-.step-badge #step-num {
-  font-size: 21px;
+  margin-right: 3px;
 }
 .step-badge .sep,
 .step-badge #step-total {
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-.title-text {
-  position: relative;
-  padding-bottom: 9px;
-}
-/* A lit underline that fades out to the right, like a HUD objective header. */
-.title-text::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: min(260px, 100%);
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), transparent);
-  box-shadow: 0 0 8px var(--glow);
+  color: var(--text-faint);
 }
 
 #stage-title {
   margin: 0;
-  font-family: var(--display);
-  font-size: clamp(20px, 2.3vw, 30px);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.12;
-  text-transform: uppercase;
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.15;
   color: var(--text);
-  text-shadow:
-    0 0 18px color-mix(in srgb, var(--accent) 30%, transparent),
-    0 2px 12px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.6);
 }
 #top-actions {
   display: flex;
@@ -362,14 +290,14 @@ body {
 
 /* ---------------------------------------------------------------- step rail */
 
-/* Mission progress: one slanted segment per pipeline step, numbered, the live one lit. */
+/* The pipeline as a segmented progress track: numbered, the live step in the accent. */
 #rail {
   position: relative;
   z-index: 15;
   display: flex;
   align-items: stretch;
-  gap: 5px;
-  margin: 16px 0 0;
+  gap: 4px;
+  margin: 20px 0 0;
   padding: 0 calc(var(--safe-r) + var(--gutter)) 0 calc(var(--safe-l) + var(--gutter));
   list-style: none;
   counter-reset: step;
@@ -386,85 +314,46 @@ body {
   min-width: 70px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   counter-increment: step;
-  opacity: 0.55;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
+  transition: opacity 0.35s ease;
 }
 #rail li .bar {
-  position: relative;
-  height: 6px;
-  transform: skewX(-30deg);
-  background: color-mix(in srgb, var(--text-faint) 35%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-faint) 40%, transparent);
-  overflow: hidden;
-  transition:
-    background 0.35s ease,
-    border-color 0.35s ease,
-    box-shadow 0.35s ease;
+  height: 2px;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+  transition: background 0.35s ease;
 }
 #rail li .name {
-  font-family: var(--display);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.12em;
   color: var(--text-faint);
   white-space: nowrap;
   transition: color 0.35s ease;
 }
 #rail li .name::before {
   content: counter(step, decimal-leading-zero);
-  margin-right: 6px;
+  margin-right: 8px;
   font-family: var(--mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  opacity: 0.7;
-}
-#rail li.done {
-  opacity: 0.85;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: 0.8;
 }
 #rail li.done .bar {
-  background: color-mix(in srgb, var(--ground) 70%, transparent);
-  border-color: color-mix(in srgb, var(--ground) 90%, transparent);
+  background: color-mix(in srgb, var(--text) 45%, transparent);
 }
 #rail li.done .name {
   color: var(--text-dim);
 }
-#rail li.active {
-  opacity: 1;
-  transform: translateY(-1px);
-}
 #rail li.active .bar {
   background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 14px var(--glow);
-}
-/* A light sweep running along the live segment: the step is in progress, not just marked. */
-#rail li.active .bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--text) 85%, transparent),
-    transparent
-  );
-  transform: translateX(-100%);
-  animation: sweep 2.2s ease-in-out infinite;
-}
-@keyframes sweep {
-  to {
-    transform: translateX(100%);
-  }
 }
 #rail li.active .name {
+  color: var(--text);
+}
+#rail li.active .name::before {
   color: var(--accent);
-  text-shadow: 0 0 10px var(--glow);
+  opacity: 1;
 }
 
 /* ---------------------------------------------------------------- bottom band */
@@ -477,8 +366,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 0 calc(var(--safe-r) + var(--gutter)) calc(var(--safe-b) + 18px)
+  gap: 8px;
+  padding: 0 calc(var(--safe-r) + var(--gutter)) calc(var(--safe-b) + 22px)
     calc(var(--safe-l) + var(--gutter));
   pointer-events: none;
 }
@@ -495,15 +384,15 @@ body {
 #legend {
   grid-row: 3;
   justify-self: center;
-  margin-top: 12px;
+  margin-top: 16px;
   max-width: calc(100% - 2 * (var(--gutter) + var(--safe-l)));
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 6px 18px;
+  gap: 6px 22px;
   padding: 8px 16px;
-  font-size: 12.5px;
+  font-size: 13px;
   pointer-events: none;
   z-index: 15;
 }
@@ -521,40 +410,28 @@ body {
   font-style: normal;
   color: var(--text-faint);
 }
-/* Diamond markers, lit in their own colour. */
 #legend .swatch {
-  width: 9px;
-  height: 9px;
-  margin: 0 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex: none;
-  transform: rotate(45deg);
-  box-shadow:
-    0 0 0 1.5px color-mix(in srgb, currentColor 35%, transparent),
-    0 0 10px currentColor;
 }
 #legend .row strong {
-  font-family: var(--display);
-  font-size: 1.02em;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: var(--text);
 }
 
 /* ---------------------------------------------------------------- caption */
 
 #caption {
-  width: min(780px, 100%);
+  width: min(760px, 100%);
   pointer-events: none;
 }
-/* The narration, styled as an in-game transmission: a lit tag on the frame, a lit edge on
-   the left, and text in the readable face rather than the display one. */
 #caption-text {
-  position: relative;
   margin: 0;
-  padding: 16px 22px 14px;
-  border-left: 2px solid var(--accent);
-  font-size: 16px;
+  padding: 14px 22px;
+  font-size: 17px;
+  font-weight: 400;
   line-height: 1.5;
   text-align: center;
   color: var(--text);
@@ -570,44 +447,21 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
-#caption-text::before {
-  content: "Briefing";
-  position: absolute;
-  left: 14px;
-  top: 0;
-  transform: translateY(-50%);
-  padding: 2px 8px 2px 18px;
-  font-family: var(--display);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  background:
-    linear-gradient(var(--accent-ink), var(--accent-ink)) 7px 50% / 5px 5px no-repeat,
-    var(--accent);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
-  user-select: none;
-  -webkit-user-select: none;
-}
 #caption-text.visible {
   opacity: 1;
   transform: translateY(0);
 }
 #caption-text code {
   font-family: var(--mono);
-  font-size: 0.85em;
-  padding: 1px 6px;
-  border-radius: 2px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  font-size: 0.82em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--hover);
 }
 #caption-text em {
   color: var(--accent);
   font-style: normal;
   font-weight: 600;
-  text-shadow: 0 0 12px var(--glow);
 }
 
 /* ------------------------------------------------------------ gesture hint */
@@ -621,13 +475,13 @@ body {
   left: 0;
   right: 0;
   bottom: 100%;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   width: fit-content;
   max-width: calc(100% - 2 * var(--gutter));
   margin-inline: auto;
   padding: 7px 14px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
   pointer-events: none;
   opacity: 0;
@@ -641,29 +495,26 @@ body {
   transform: translateY(0);
 }
 #gesture-hint b {
-  font-family: var(--display);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text);
   font-weight: 600;
 }
 
 /* ---------------------------------------------------------------- controls */
 
 #controls {
-  width: min(780px, 100%);
-  padding: 12px 14px;
+  width: min(760px, 100%);
+  padding: 12px 12px 10px;
 }
 
 #progress {
   position: relative;
-  height: 4px;
-  /* A generous invisible hit area: the visual bar stays a thin line, but a 4px target is
+  height: 2px;
+  /* A generous invisible hit area: the visual bar stays a thin line, but a 2px target is
      unusable for a click-or-drag scrubber, on a mouse or a finger alike. */
-  padding: 9px 0;
-  margin: -7px 0 4px;
+  padding: 10px 0;
+  margin: -8px 4px 2px;
   background-clip: content-box;
-  background-color: color-mix(in srgb, var(--text-faint) 30%, transparent);
+  background-color: color-mix(in srgb, var(--text) 14%, transparent);
   /* Ticks sit half on, half off the bar — the bar itself still needs to clip the fill. */
   overflow: visible;
   cursor: pointer;
@@ -672,12 +523,7 @@ body {
 #progress-bar {
   height: 100%;
   width: 0;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--accent) 45%, transparent),
-    var(--accent)
-  );
-  box-shadow: 0 0 10px var(--glow);
+  background: var(--accent);
 }
 /* Chapter marks, YouTube-style: wherever a `say()` in the stage actually lands, not evenly
    spaced. They sit above the bar so they stay visible whether or not the fill has reached them. */
@@ -685,27 +531,20 @@ body {
   position: absolute;
   top: 50%;
   width: 2px;
-  height: 10px;
+  height: 8px;
   margin-left: -1px;
-  background: color-mix(in srgb, var(--text-dim) 70%, transparent);
-  box-shadow: 0 0 0 1px var(--surface);
+  background: color-mix(in srgb, var(--text) 40%, transparent);
   transform: translateY(-50%);
   pointer-events: none;
   transition:
-    width 0.12s ease,
     height 0.12s ease,
-    margin-left 0.12s ease,
-    background 0.12s ease,
-    box-shadow 0.12s ease;
+    background 0.12s ease;
 }
 /* The pointer is close enough that releasing now would snap here — grown and lit up so
    landing on a line is something the reader can see coming, not just discover afterward. */
 .checkpoint.near {
-  width: 4px;
-  height: 16px;
-  margin-left: -2px;
+  height: 14px;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--glow);
 }
 
 /* Always-visible playhead: with everything else on the bar being a thin fill and small
@@ -714,29 +553,29 @@ body {
   position: absolute;
   top: 50%;
   left: 0%;
-  width: 11px;
-  height: 11px;
-  margin-left: -5.5px;
-  background: var(--accent);
-  box-shadow:
-    0 0 0 2px var(--surface),
-    0 0 12px var(--accent);
-  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  transform: translateY(-50%);
   pointer-events: none;
   z-index: 2;
 }
 
-/* A hollow preview marker shows where a click would land before it happens — hover on
+/* A hollow preview ring shows where a click would land before it happens — hover on
    desktop, or wherever the finger actually is mid-drag on touch. */
 #progress-preview {
   position: absolute;
   top: 50%;
   left: 0%;
-  width: 15px;
-  height: 15px;
-  margin-left: -7.5px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
   border: 1.5px solid var(--accent);
-  transform: translateY(-50%) rotate(45deg);
+  transform: translateY(-50%);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease;
@@ -749,27 +588,21 @@ body {
 .control-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 button {
-  font-family: var(--display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-radius: 2px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   /* Comfortable touch targets without changing the desktop look. */
   min-height: 38px;
   transition:
-    background 0.15s,
+    background-color 0.15s,
     color 0.15s,
     border-color 0.15s,
-    box-shadow 0.15s,
     opacity 0.15s;
 }
 button svg {
@@ -777,9 +610,9 @@ button svg {
   height: 15px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 button:disabled {
   opacity: 0.35;
@@ -787,76 +620,67 @@ button:disabled {
 }
 button:focus-visible {
   outline: 1.5px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-button.ghost,
-#chapters-toggle {
-  padding: 8px 13px;
-  color: var(--text-dim);
-}
+/* Secondary actions are text, not boxes: they only take a surface on hover. */
 button.ghost {
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
-  border: 1px solid var(--border);
+  padding: 8px 12px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+}
+#chapters-toggle {
+  padding: 8px 14px;
+  color: var(--text-dim);
 }
 button.ghost:hover:not(:disabled),
 #chapters-toggle:hover {
-  color: var(--accent);
-  border-color: var(--border-strong);
-  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+  background-color: var(--hover);
 }
 #chapters-toggle[aria-expanded="true"] {
-  color: var(--accent);
+  color: var(--text);
   border-color: var(--border-strong);
 }
 
 button.primary {
-  position: relative;
   margin-left: auto;
-  padding: 9px 20px 9px 18px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--accent-ink);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 100%, white 18%),
-    var(--accent) 45%,
-    color-mix(in srgb, var(--accent) 78%, var(--surface))
-  );
-  border: 1px solid color-mix(in srgb, var(--accent) 100%, white 30%);
-  /* Muted until it is actually the reader's turn to act — a still-playing line is not
-     waiting on them, so the button says so before it ever needs to animate. The pulse
-     below is what makes "now" unmissable; this is what makes "not yet" unambiguous. */
-  opacity: 0.5;
+  padding: 9px 18px;
+  /* Quiet until it is actually the reader's turn to act — a still-playing line is not
+     waiting on them, so the button is only an outline. The filled, pulsing state below is
+     what makes "now" unmissable; this is what makes "not yet" unambiguous. */
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-strong);
   transition:
-    opacity 0.25s ease,
-    filter 0.15s ease;
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    opacity 0.25s ease;
 }
 button.primary svg {
-  fill: currentColor;
-  stroke-width: 1.5;
-}
-button.primary .icon-next {
-  fill: none;
-  stroke-width: 2.5;
+  stroke-width: 2.2;
 }
 button.primary:hover:not(:disabled) {
-  filter: brightness(1.12);
+  filter: brightness(1.08);
 }
-/* The idle 0.5 above is about pacing, not availability — a genuinely disabled button (the
-   scan is still downloading) needs to look more inert than that, regardless of pulse. */
+/* The quiet outline above is about pacing, not availability — a genuinely disabled button
+   (the scan is still downloading) needs to look inert, regardless of pulse. */
 button.primary:disabled {
   opacity: 0.35;
 }
 button.primary.pulse {
-  opacity: 1;
-  animation: pulse 1.4s ease-in-out infinite;
+  color: var(--accent-ink);
+  background-color: var(--accent);
+  border-color: var(--accent);
+  animation: pulse 1.8s ease-in-out infinite;
 }
 
 /* The transport is one button whose glyph and label swap with what pressing it will do —
    play, pause, or move to the next stage — rather than three widgets fighting for the same
-   spot. Only one icon shows at a time. */
+   spot. Only one icon shows at a time; `svg` above already gives them all a stroke-based
+   look, so the play/pause glyphs (normally solid shapes) are drawn as closed outlines too. */
 #btn-play svg {
   display: none;
 }
@@ -873,14 +697,10 @@ button.primary.pulse {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent),
-      0 0 16px var(--glow);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
   }
-  50% {
-    box-shadow:
-      0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent),
-      0 0 26px var(--glow);
+  60% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
@@ -893,10 +713,10 @@ button.primary.flash {
 }
 @keyframes click-flash {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent);
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
@@ -910,7 +730,7 @@ button.primary.flash {
   width: min(320px, calc(100vw - 2 * var(--gutter)));
   max-height: min(60vh, 480px);
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -923,27 +743,19 @@ button.primary.flash {
   text-align: left;
   background: none;
   border: none;
-  border-left: 2px solid transparent;
-  border-radius: 0;
   color: var(--text-dim);
-  font-family: var(--sans);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
   line-height: 1.35;
 }
 #chapters button:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: var(--hover);
   color: var(--text);
 }
 #chapters button.active {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--accent) 20%, transparent),
-    transparent
-  );
-  border-left-color: var(--accent);
+  background: var(--hover);
   color: var(--text);
 }
 #chapters .idx {
@@ -964,7 +776,7 @@ button.primary.flash {
 #btn-restart {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-b) + 20px);
+  bottom: calc(var(--safe-b) + 22px);
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -974,57 +786,50 @@ button.primary.flash {
   color: var(--text-dim);
 }
 #btn-restart:hover {
-  color: var(--accent);
+  color: var(--text);
   border-color: var(--border-strong);
 }
 
 /* ---------------------------------------------------------------- verdict */
 
 /*
- * The big call-out that fires when a step reaches a decision. Deliberately loud: on a
- * visualisation-first page the verdict should be readable from across the room — so it is a
- * full banner with lit rules above and below, the way a game announces an objective.
+ * The call-out that fires when a step reaches a decision: the same quiet surface as the
+ * rest of the HUD, told apart only by a status dot and its label in the verdict's colour —
+ * readable from across the room without shouting.
  */
 #verdict {
   --tone: var(--focus);
   position: absolute;
   left: 50%;
   top: 34%;
-  transform: translate(-50%, -50%) scaleX(0.6);
+  transform: translate(-50%, -50%) translateY(6px);
   z-index: 18;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: min(560px, 90vw);
-  padding: 12px 56px;
-  font-family: var(--display);
-  font-size: clamp(15px, 2vw, 22px);
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
+  gap: 12px;
+  padding: 11px 20px 11px 16px;
+  font-size: clamp(13px, 1.3vw, 15px);
+  letter-spacing: 0.18em;
   white-space: nowrap;
   color: var(--tone);
-  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 70%, transparent);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--tone) 16%, rgba(0, 0, 0, 0.55)) 22%,
-    color-mix(in srgb, var(--tone) 16%, rgba(0, 0, 0, 0.55)) 78%,
-    transparent
-  );
-  border-style: solid;
-  border-width: 1.5px 0;
-  border-image: linear-gradient(90deg, transparent, var(--tone), transparent) 1;
+  border-color: color-mix(in srgb, var(--tone) 40%, transparent);
   pointer-events: none;
   opacity: 0;
   transition:
     opacity 0.3s ease,
-    transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+    transform 0.3s ease;
+}
+#verdict::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 22%, transparent);
 }
 #verdict.visible {
   opacity: 1;
-  transform: translate(-50%, -50%) scaleX(1);
+  transform: translate(-50%, -50%);
 }
 #verdict.good {
   --tone: var(--ground);
@@ -1040,13 +845,13 @@ button.primary.flash {
 
 @media (max-width: 1000px) {
   :root {
-    --gutter: 14px;
+    --gutter: 16px;
   }
   #titles {
-    max-width: min(460px, 55vw);
+    max-width: min(480px, 60vw);
   }
   #legend {
-    font-size: 11.5px;
+    font-size: 12px;
   }
 }
 
@@ -1054,34 +859,20 @@ button.primary.flash {
 
 @media (max-width: 680px) {
   #top {
-    padding-top: calc(var(--safe-t) + 10px);
+    padding-top: calc(var(--safe-t) + 12px);
     gap: 10px;
   }
   #titles {
     max-width: none;
     flex: 1;
     min-width: 0;
-    gap: 10px;
-  }
-  .title-text {
-    min-width: 0;
-    padding-bottom: 7px;
-  }
-  #stage-title {
-    font-size: 17px;
+    gap: 4px;
   }
   .step-badge {
-    min-width: 46px;
-    padding: 5px 8px 6px;
-    margin-top: 0;
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+    font-size: 11px;
   }
-  .step-badge::before {
-    font-size: 8px;
-    margin-bottom: 3px;
-  }
-  .step-badge #step-num {
-    font-size: 18px;
+  #stage-title {
+    font-size: 19px;
   }
   #chapters-toggle span {
     display: none;
@@ -1091,8 +882,8 @@ button.primary.flash {
   }
 
   #rail {
-    margin-top: 12px;
-    gap: 4px;
+    margin-top: 14px;
+    gap: 3px;
   }
   #rail li {
     min-width: 0;
@@ -1117,15 +908,17 @@ button.primary.flash {
     margin-top: 10px;
     gap: 4px 14px;
     padding: 7px 12px;
-    font-size: 11px;
+  }
+  #legend .row strong {
+    font-size: 10.5px;
   }
   #legend .row i {
     display: none;
   }
 
   #caption-text {
-    font-size: 14px;
-    padding: 13px 14px 10px;
+    font-size: 15px;
+    padding: 11px 14px;
     line-height: 1.45;
   }
   #controls {
@@ -1145,7 +938,7 @@ button.primary.flash {
     display: inline;
   }
   button.ghost {
-    padding: 8px 12px;
+    padding: 8px 11px;
   }
   button.primary {
     order: 10;
@@ -1156,9 +949,8 @@ button.primary.flash {
   }
   #verdict {
     top: 30%;
-    font-size: 14px;
-    letter-spacing: 0.18em;
-    padding: 10px 32px;
+    font-size: 12px;
+    padding: 9px 16px 9px 13px;
   }
 }
 
@@ -1169,8 +961,8 @@ button.primary.flash {
     display: none;
   }
   #caption-text {
-    padding: 11px 12px 8px;
-    font-size: 12.5px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 }
 
@@ -1181,10 +973,7 @@ button.primary.flash {
   #rail li .bar {
     transition-duration: 0.01ms;
   }
-  button.primary.pulse,
-  #rail li.active .bar::after,
-  .spinner,
-  .spinner::after {
+  button.primary.pulse {
     animation: none;
   }
 }

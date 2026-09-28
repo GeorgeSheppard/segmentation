@@ -101,11 +101,11 @@ export const THEME: Theme = {
   // ordinal, dark on #070a0f: ΔL gaps clear, light end 2.26:1, hue spread 8°
   zoneRamp: ["#8cc4ee", "#4f9bd1", "#2f72a8", "#1d4d7a"],
   ui: {
-    panel: "rgba(8, 14, 24, 0.78)",
-    border: "rgba(125, 211, 252, 0.22)",
-    text: "#e6f1fb",
-    textDim: "#9fb3c8",
-    textFaint: "#5f7389",
+    panel: "rgba(10, 13, 18, 0.72)",
+    border: "rgba(226, 232, 240, 0.10)",
+    text: "#eef2f6",
+    textDim: "#9aa6b4",
+    textFaint: "#5d6875",
     accent: "#7dd3fc",
     accentInk: "#041018",
   },
