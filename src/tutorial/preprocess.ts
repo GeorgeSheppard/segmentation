@@ -11,6 +11,10 @@ export const stageRnr: Stage = {
   id: "rnr",
   steps: ["rnr"],
   title: "RNR — Reflected Noise Removal",
+  params: (p) => [
+    { label: "Only rays below", key: "RNR_ver_angle_thr", value: `${fmtNum(p.rnrVerAngleThr)}°` },
+    { label: "And dimmer than", key: "RNR_intensity_thr", value: fmtNum(p.rnrIntensityThr) },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -42,7 +46,7 @@ export const stageRnr: Stage = {
     const heroAngle = (Math.atan2(heroPos.z, heroRange) * 180) / Math.PI;
 
     // The ray that produced it: straight out from the sensor, through the phantom point.
-    const ray = ctx.segment(ctx.color.focus, 0, true);
+    const ray = ctx.segment(ctx.color.focus, 0);
     ray.set(new Vector3(0, 0, 0), heroPos);
     // Where that ray crosses the road — roughly where the reflective surface must be.
     const s = Math.abs(ctx.groundZ / heroPos.z);
@@ -155,6 +159,16 @@ export const stageCzm: Stage = {
   id: "czm",
   steps: ["czm"],
   title: "CZM — the Concentric Zone Model",
+  params: (p) => [
+    { label: "Zones", key: "num_zones", value: String(p.numZones) },
+    { label: "Rings per zone", key: "num_rings_each_zone", value: p.numRingsEachZone.join(" · ") },
+    {
+      label: "Sectors per zone",
+      key: "num_sectors_each_zone",
+      value: p.numSectorsEachZone.join(" · "),
+    },
+    { label: "Usable range", key: "min_range / max_range", value: `${p.minRange}–${p.maxRange} m` },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, czm, params } = ctx;
@@ -208,7 +222,7 @@ export const stageCzm: Stage = {
     // from straight ahead the way the sensor does, the ring arcs trail behind it, and each
     // spoke appears as the sweep crosses it.
     // Focus colour, not the grid colour — otherwise the hand looks like just another spoke.
-    const hand = ctx.segment(ctx.color.focus, 0, true);
+    const hand = ctx.segment(ctx.color.focus, 0);
     const sweepTo = (zone: number, turn: number) => {
       grid.setZoneSweep(zone, turn);
       const angle = turn * Math.PI * 2;
@@ -287,3 +301,8 @@ export const stageCzm: Stage = {
     return t.build();
   },
 };
+
+/** A signed number with a true minus sign, the way a parameter table prints it. */
+function fmtNum(n: number): string {
+  return n < 0 ? `−${Math.abs(n)}` : String(n);
+}

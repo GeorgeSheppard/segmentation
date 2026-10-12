@@ -5,6 +5,7 @@ import {
   Points,
   ShaderMaterial,
   type Camera,
+  type Vector3,
   type WebGLRenderer,
 } from "three";
 import { type PointCloud } from "../patchwork/index.ts";
@@ -17,30 +18,46 @@ const VERT = /* glsl */ `
   uniform float uScale;      // pixels per world unit at one unit of depth
   uniform float uSizeBoost;
   uniform float uWorldSize;  // nominal point radius, in metres
+  uniform float uPixelRatio;
   varying vec3 vColor;
   varying float vAlpha;
+  varying float vSize;
+  varying float vDepth;
   void main() {
     vColor = aColor;
     vAlpha = aAlpha;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    // Size in world units, projected to pixels, then clamped so distant points stay
-    // visible and close-ups do not turn into saucers.
-    float px = aSize * uSizeBoost * uWorldSize * uScale / max(0.05, -mv.z);
-    gl_PointSize = clamp(px, 1.0, 16.0);
+    vDepth = -mv.z;
+    // Size in world units, projected to pixels, then clamped — in CSS pixels, so a retina
+    // screen and a plain one agree — so distant points stay visible and close-ups stay
+    // separate points instead of merging into a solid mass.
+    float px = aSize * uSizeBoost * uWorldSize * uScale / max(0.05, vDepth);
+    gl_PointSize = clamp(px, 1.1 * uPixelRatio, 6.5 * uPixelRatio);
+    vSize = gl_PointSize;
     gl_Position = projectionMatrix * mv;
   }
 `;
 
 const FRAG = /* glsl */ `
+  uniform vec3 uFogColor;
+  uniform float uFogNear;
+  uniform float uFogFar;
   varying vec3 vColor;
   varying float vAlpha;
+  varying float vSize;
+  varying float vDepth;
   void main() {
     if (vAlpha < 0.015) discard;
-    vec2 d = gl_PointCoord - vec2(0.5);
-    float r2 = dot(d, d);
-    if (r2 > 0.25) discard;
-    float edge = smoothstep(0.25, 0.10, r2);
-    gl_FragColor = vec4(vColor, vAlpha * edge);
+    float r = length(gl_PointCoord - vec2(0.5));
+    // One device pixel of anti-aliasing at whatever size the point is drawn.
+    float aa = min(0.5, 1.0 / vSize);
+    float edge = 1.0 - smoothstep(0.5 - aa, 0.5, r);
+    if (edge <= 0.0) discard;
+    // Atmospheric depth: the far side of the scan recedes toward the background, so near
+    // and far no longer read as one flat sheet. Capped, so nothing ever vanishes into it.
+    float fog = 0.55 * smoothstep(uFogNear, uFogFar, vDepth);
+    gl_FragColor = vec4(mix(vColor, uFogColor, fog), vAlpha * edge);
+    #include <colorspace_fragment>
   }
 `;
 
@@ -104,6 +121,10 @@ export class CloudView {
         uScale: { value: 400 },
         uSizeBoost: { value: 1 },
         uWorldSize: { value: 0.055 },
+        uPixelRatio: { value: 1 },
+        uFogColor: { value: new Color() },
+        uFogNear: { value: 40 },
+        uFogFar: { value: 160 },
       },
       transparent: true,
       depthWrite: false,
@@ -113,11 +134,29 @@ export class CloudView {
     this.points.frustumCulled = false;
   }
 
-  /** gl_PointSize is in device pixels, so the scale depends on the drawing buffer. */
-  syncProjection(renderer: WebGLRenderer, camera: Camera & { fov?: number }): void {
+  /**
+   * gl_PointSize is in device pixels, so the scale depends on the drawing buffer. The depth
+   * fade is measured from what the camera is looking at, so it frames the subject the same
+   * way whether the shot is a close-up of one cell or the whole scan.
+   */
+  syncProjection(
+    renderer: WebGLRenderer,
+    camera: Camera & { fov?: number },
+    target: Vector3,
+  ): void {
+    const u = this.material.uniforms;
     const h = renderer.getContext().drawingBufferHeight;
     const fov = ((camera.fov ?? 50) * Math.PI) / 180;
-    this.material.uniforms.uScale.value = h / (2 * Math.tan(fov / 2));
+    u.uScale.value = h / (2 * Math.tan(fov / 2));
+    u.uPixelRatio.value = renderer.getPixelRatio();
+    const focus = camera.position.distanceTo(target);
+    u.uFogNear.value = focus * 0.9;
+    u.uFogFar.value = focus * 2.6;
+  }
+
+  /** The colour distant points recede toward — the scene background. */
+  set fogColor(c: Color | string) {
+    (this.material.uniforms.uFogColor.value as Color).set(c as Color);
   }
 
   set sizeBoost(v: number) {

@@ -1,32 +1,46 @@
 /*
- * Layout is three bands over a full-bleed canvas: a top band (which step, what it does),
- * a step rail (where we are in the algorithm), and a bottom band (evidence, narration,
- * transport). On a phone the bands stay in the same order and only get denser — the canvas
- * keeps whatever is left, which is most of the screen.
+ * The page is a grid of plain bands around the scene: a header (what this is, chapters),
+ * the step rail (where we are in the algorithm), the scene itself beside a stage panel
+ * (title, narration, key, parameters), and the transport along the bottom. On a phone the
+ * panel drops below the scene and joins the transport as one bottom sheet.
  *
- * Every colour comes from a custom property written by themes.ts; nothing here hard-codes
- * a palette value.
+ * The chrome is monochrome — ink on white, hairline borders — so that colour on screen
+ * only ever means something about the data. Every colour comes from a custom property
+ * written by themes.ts; nothing here hard-codes a palette value.
+ *
+ * Type: IBM Plex Sans for words, IBM Plex Mono only for code and values.
  */
 
 :root {
-  --surface: #070a0f;
-  --panel: rgba(13, 19, 30, 0.82);
-  --border: rgba(148, 163, 184, 0.18);
-  --border-strong: rgba(148, 163, 184, 0.34);
-  --text: #e8eef7;
-  --text-dim: #94a3b8;
-  --text-faint: #64748b;
-  --accent: #7dd3fc;
-  --accent-ink: #06121f;
-  --ground: #199e70;
-  --non-ground: #d95926;
-  --focus: #9085e9;
-  --seed: #fde047;
+  --surface: #eef1f6;
+  --panel: #ffffff;
+  --border: #dde2ea;
+  --text: #0b1220;
+  --text-dim: #44506a;
+  --text-faint: #6b7793;
+  --accent: #0b1220;
+  --accent-ink: #ffffff;
+  --ground: #1baf7a;
+  --non-ground: #eb6834;
+  --focus: #4a3aa7;
+  --seed: #b45309;
+  --focus-ring: #2a78d6;
 
-  --radius: 12px;
-  --gutter: 20px;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  /* The data colours are tuned for points on the scene; as text on white they need
+     darkening to stay readable. */
+  --ground-ink: color-mix(in srgb, var(--ground) 62%, black);
+  --non-ground-ink: color-mix(in srgb, var(--non-ground) 75%, black);
+
+  --hover: color-mix(in srgb, var(--text-dim) 7%, var(--panel));
+  --divider: color-mix(in srgb, var(--border) 55%, var(--panel));
+  --radius: 6px;
+  --gutter: 24px;
+  --panel-w: 380px;
+  --shadow: 0 1px 2px rgba(11, 18, 32, 0.06), 0 8px 24px rgba(11, 18, 32, 0.08);
+  /* Text that sits straight on the scene gets a halo in the scene's own colour. */
+  --halo: 0 0 2px var(--surface), 0 0 6px var(--surface);
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -38,8 +52,8 @@
   box-sizing: border-box;
 }
 
-/* The mobile rules below set display on #legend by id, which would otherwise
-   out-specify the [hidden] attribute and leave empty panels on screen. */
+/* Rules below set display on elements by id, which would otherwise out-specify the
+   [hidden] attribute and leave empty sections on screen. */
 [hidden] {
   display: none !important;
 }
@@ -53,12 +67,13 @@ body {
   overscroll-behavior: none;
   /* #view already opts out of native touch gestures so a two-finger drag reaches
      OrbitControls instead of the browser. Without this on the page root too, a pinch that
-     starts a few pixels off-canvas — over the caption, the legend, the transport — zooms the
-     whole page instead, and nothing in the app can undo that once it happens. */
+     starts a few pixels off-canvas zooms the whole page instead, and nothing in the app
+     can undo that once it happens. The stage panel opts back in to vertical scrolling. */
   touch-action: none;
   background: var(--surface);
   color: var(--text);
   font-family: var(--sans);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
@@ -67,37 +82,306 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  /* top band, step rail, legend, then everything else — the bottom band pins to the bottom
-     of it. The canvas and status chip are absolutely positioned and out of flow. */
-  grid-template-rows: auto auto auto 1fr;
-  /* Pin the column to the viewport. Without this the column takes its min-content width
-     from the step rail, which is wider than a phone, and every band overflows. */
-  grid-template-columns: minmax(0, 1fr);
-  pointer-events: none;
-}
-
-#top,
-#rail,
-#legend,
-#bottom {
-  min-width: 0;
-  transition:
-    opacity 0.6s ease,
-    visibility 0.6s;
-}
-
-#app > * {
-  pointer-events: auto;
+  grid-template-columns: minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top top"
+    "rail rail"
+    "stage panel"
+    "controls controls";
 }
 
 /* The tour is over: every band steps aside and the finished scene fills the screen. */
+#app.exploring {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "stage";
+}
 #app.exploring #top,
 #app.exploring #rail,
-#app.exploring #legend,
-#app.exploring #bottom {
-  opacity: 0;
+#app.exploring #panel,
+#app.exploring #controls,
+#app.exploring #scene-hint {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- header */
+
+#top {
+  grid-area: top;
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: calc(var(--safe-t) + 56px);
+  padding: var(--safe-t) calc(var(--safe-r) + var(--gutter)) 0 calc(var(--safe-l) + var(--gutter));
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.wordmark {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.tagline {
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+#chapters-toggle,
+#paper-link,
+#shortcuts-toggle {
+  min-height: 36px;
+  font-size: 13px;
+}
+#chapters-toggle {
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+#chapters-toggle .count {
+  font-weight: 400;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+#chapters-toggle[aria-expanded="true"] {
+  border-color: var(--text);
+  background: var(--hover);
+}
+#paper-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  text-decoration: none;
+}
+#paper-link svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#paper-link:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+#paper-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+#shortcuts-toggle {
+  width: 36px;
+  padding: 0;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+}
+#shortcuts-toggle:hover,
+#shortcuts-toggle[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* ---------------------------------------------------------------- popovers */
+
+#chapters,
+#shortcuts {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: calc(var(--safe-r) + var(--gutter));
+  z-index: 50;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(11, 18, 32, 0.12);
+}
+#chapters {
+  width: min(360px, calc(100vw - 2 * var(--gutter)));
+  max-height: min(75vh, 560px);
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+.popover-title {
+  margin: 6px 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+#chapters button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 16px;
+  justify-content: stretch;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+#chapters button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+#chapters button.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+#chapters .idx {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+#chapters button.active .idx {
+  color: inherit;
+}
+#chapters .seen-mark {
   visibility: hidden;
-  pointer-events: none;
+  color: var(--ground-ink);
+  stroke-width: 2;
+}
+#chapters button.seen .seen-mark {
+  visibility: visible;
+}
+
+#shortcuts {
+  width: 280px;
+  padding: 6px 6px 12px;
+}
+#shortcuts dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0;
+  padding: 2px 10px 0;
+  font-size: 13px;
+}
+#shortcuts dt {
+  display: flex;
+  gap: 4px;
+  color: var(--text-dim);
+}
+#shortcuts dd {
+  margin: 0;
+  color: var(--text);
+}
+kbd {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: var(--sans);
+  font-size: 12px;
+  text-align: center;
+  color: var(--text);
+  background: var(--panel);
+}
+
+/* ---------------------------------------------------------------- step rail */
+
+#rail {
+  grid-area: rail;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 12px calc(var(--safe-r) + var(--gutter)) 14px calc(var(--safe-l) + var(--gutter));
+  list-style: none;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+#rail li {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#rail li .bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.35s ease;
+}
+#rail li .name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.35s ease;
+}
+#rail li .num {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+#rail li.done .bar {
+  background: var(--text-dim);
+}
+#rail li.done .name {
+  color: var(--text-dim);
+}
+#rail li.done .num {
+  color: var(--text-faint);
+}
+#rail li.active .bar {
+  background: var(--accent);
+}
+#rail li.active .name {
+  color: var(--text);
+  font-weight: 600;
+}
+#rail li.active .num {
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- scene */
+
+#stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 #view {
@@ -106,12 +390,29 @@ body {
   width: 100%;
   height: 100%;
   display: block;
-  /* The scene is the thing you drag; the bands above it opt back in. */
-  pointer-events: auto;
   touch-action: none;
 }
 
-/* ---------------------------------------------------------------- loading */
+#scene-hint {
+  position: absolute;
+  left: 20px;
+  bottom: 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-shadow: var(--halo);
+  pointer-events: none;
+}
+
+#btn-recentre {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
 
 /* A chip in the middle of the empty scene, not a curtain over the page: the titles, the
    step rail and the controls are all readable while the points are still arriving. */
@@ -125,10 +426,9 @@ body {
   gap: 12px;
   padding: 10px 16px;
   background: var(--panel);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   z-index: 25;
   pointer-events: none;
   transition: opacity 0.5s ease;
@@ -140,14 +440,13 @@ body {
   color: var(--text-dim);
   font-size: 13px;
   margin: 0;
-  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 #loading-bar {
-  width: 70px;
+  width: 80px;
   height: 3px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
+  background: var(--border);
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -162,10 +461,10 @@ body {
 }
 
 .spinner {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: none;
-  border: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 2px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
@@ -176,309 +475,345 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------- top band */
-
-#top {
-  position: relative;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + var(--gutter)) 0
-    calc(var(--safe-l) + var(--gutter));
-  pointer-events: none;
-}
-#top > * {
-  pointer-events: auto;
-}
-
-#titles {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  max-width: min(520px, 55vw);
-}
-
-.step-badge {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-  border-radius: 999px;
-  padding: 5px 10px;
-  margin-top: 4px;
-}
-.step-badge .sep {
-  color: var(--text-faint);
-}
-
-#stage-title {
-  margin: 0 0 5px;
-  font-size: clamp(19px, 2.4vw, 29px);
-  font-weight: 620;
-  letter-spacing: -0.02em;
-  line-height: 1.14;
-  text-shadow: 0 2px 20px color-mix(in srgb, var(--surface) 80%, transparent);
-}
-#top-actions {
-  display: flex;
-  gap: 8px;
-  flex: none;
-}
-
-/* ---------------------------------------------------------------- step rail */
-
-#rail {
-  position: relative;
-  z-index: 15;
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  margin: 14px 0 0;
-  padding: 0 calc(var(--safe-r) + var(--gutter)) 0 calc(var(--safe-l) + var(--gutter));
-  list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-  pointer-events: none;
-}
-#rail::-webkit-scrollbar {
-  display: none;
-}
-
-#rail li {
-  flex: 1 1 0;
-  min-width: 70px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  opacity: 0.4;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-#rail li .bar {
-  height: 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--text-faint) 45%, transparent);
-  transition: background 0.35s ease;
-}
-#rail li .name {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  white-space: nowrap;
-  transition: color 0.35s ease;
-}
-#rail li.done {
-  opacity: 0.72;
-}
-#rail li.done .bar {
-  background: color-mix(in srgb, var(--ground) 65%, transparent);
-}
-#rail li.active {
-  opacity: 1;
-}
-#rail li.active .bar {
-  background: var(--accent);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 80%, transparent);
-}
-#rail li.active {
-  transform: translateY(-1px);
-}
-#rail li.active .name {
-  color: var(--text);
-}
-
-/* ---------------------------------------------------------------- bottom band */
-
-#bottom {
-  grid-row: 4;
-  align-self: end;
-  position: relative;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 0 calc(var(--safe-r) + var(--gutter)) calc(var(--safe-b) + 18px)
-    calc(var(--safe-l) + var(--gutter));
-  pointer-events: none;
-}
-#bottom > * {
-  pointer-events: auto;
-}
-
-/* ---------------------------------------------------------------- legend */
-
-/* A strip under the step rail: what the colours mean, read before the scene rather than
-   found afterwards in a corner. The pill's own padding and the gaps between rows stay
-   click-through, so a drag started there still reaches the scene underneath; each row
-   opts back in below so its text can be selected and copied. */
-#legend {
-  grid-row: 3;
-  justify-self: center;
-  margin-top: 10px;
-  max-width: calc(100% - 2 * (var(--gutter) + var(--safe-l)));
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 6px 16px;
-  padding: 8px 15px;
-  font-size: 12.5px;
-  background: var(--panel);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  pointer-events: none;
-  z-index: 15;
-}
-#legend .row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  color: var(--text-dim);
-  pointer-events: auto;
-  user-select: text;
-  -webkit-user-select: text;
-}
-#legend .row i {
-  font-style: normal;
-  color: var(--text-faint);
-}
-#legend .swatch {
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
-  flex: none;
-  box-shadow: 0 0 10px currentColor;
-}
-#legend .row strong {
-  color: var(--text);
-  font-weight: 560;
-}
-
-/* ---------------------------------------------------------------- caption */
-
-#caption {
-  width: min(760px, 100%);
-  pointer-events: none;
-}
-#caption-text {
-  margin: 0;
-  padding: 13px 18px;
-  background: var(--panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 15px;
-  line-height: 1.5;
-  text-align: center;
-  color: var(--text);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
-  opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-  /* The card itself opts back into pointer events so the narration can be selected and
-     copied — #caption stays click-through around it, and the scene is most of the screen
-     regardless, so a drag that would have started here can start an inch away instead. */
-  pointer-events: auto;
-  user-select: text;
-  -webkit-user-select: text;
-}
-#caption-text.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-#caption-text code {
-  font-family: var(--mono);
-  font-size: 0.87em;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--text-dim) 18%, transparent);
-}
-#caption-text em {
-  color: var(--accent);
-  font-style: normal;
-  font-weight: 600;
-}
-
-/* ------------------------------------------------------------ gesture hint */
-
-/* One line, on touch devices only, saying what fingers do. Never in the way: it cannot be
-   touched, and it leaves at the first gesture. */
+/* One line, saying the tour plays itself and how to steer it. Never in the way: it cannot
+   be touched, and it leaves at the first gesture. */
 #gesture-hint {
-  /* Floated above the bottom band rather than stacked into it, so a hint that is on
-     screen for nine seconds never squeezes the scene. */
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  margin: 0 0 8px;
-  width: fit-content;
+  left: 50%;
+  bottom: 16px;
+  transform: translate(-50%, 6px);
+  width: max-content;
   max-width: calc(100% - 2 * var(--gutter));
-  margin-inline: auto;
-  padding: 7px 14px;
-  border-radius: 999px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius);
   background: var(--panel);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(6px);
+  z-index: 15;
   transition:
     opacity 0.35s ease,
     transform 0.35s ease;
 }
 #gesture-hint.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 #gesture-hint b {
   color: var(--text);
   font-weight: 600;
 }
 
-/* ---------------------------------------------------------------- controls */
+/* The call-out that fires when a step reaches a decision: the outcome in the verdict's
+   colour, the reason in ink beside it. */
+#verdict {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translate(-50%, -50%) scale(0.96);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--tone);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 1.3, 0.5, 1);
+}
+#verdict.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+#verdict.good {
+  --tone: var(--ground);
+  --tone-ink: var(--ground-ink);
+}
+#verdict.bad {
+  --tone: var(--non-ground);
+  --tone-ink: var(--non-ground-ink);
+}
+#verdict.focus {
+  --tone: var(--focus);
+  --tone-ink: var(--focus);
+}
+#verdict .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--tone);
+  color: var(--accent-ink);
+}
+#verdict .icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#verdict .label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tone-ink);
+}
+#verdict .detail {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- stage panel */
+
+#panel {
+  grid-area: panel;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+#panel > * {
+  margin: 0;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--divider);
+}
+#panel > :last-child {
+  border-bottom: none;
+}
+#panel h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#panel > .panel-head {
+  padding-top: 28px;
+}
+.kicker {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+#stage-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+#stage-subtitle {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+#caption {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+#caption-history {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+#caption-history:empty {
+  display: none;
+}
+#caption-history p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-faint);
+}
+#caption-text {
+  margin: 0;
+  min-height: 1.55em;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+#caption-text.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#caption code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--hover);
+}
+#caption em {
+  font-style: normal;
+  font-weight: 600;
+}
+#caption-history em {
+  font-weight: 500;
+}
+
+#legend .rows {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+#legend .row {
+  display: contents;
+}
+#legend .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+#legend strong {
+  font-weight: 400;
+  color: var(--text);
+}
+#legend i {
+  font-style: normal;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+#checks ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+#checks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 500;
+}
+#checks .idx {
+  width: 16px;
+  font-variant-numeric: tabular-nums;
+}
+#checks .name {
+  flex: 1;
+}
+#checks .state {
+  font-size: 12px;
+  font-weight: 600;
+}
+#checks li.pending {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+#checks li.pass .state {
+  color: var(--ground-ink);
+}
+#checks li.fail .state {
+  color: var(--non-ground-ink);
+}
+
+#params dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+#params dt {
+  color: var(--text-dim);
+}
+#params code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+#params dd {
+  margin: 0;
+  font-family: var(--mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- transport */
 
 #controls {
-  width: min(760px, 100%);
-  padding: 11px 13px;
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px calc(var(--safe-r) + var(--gutter)) calc(var(--safe-b) + 12px)
+    calc(var(--safe-l) + var(--gutter));
   background: var(--panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--surface) 70%, transparent);
+  border-top: 1px solid var(--border);
+}
+
+/* Elapsed time, the bar, total time — the shape every media player has. */
+#scrubber {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+.time {
+  flex: none;
+  min-width: 2.6em;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+#time-elapsed {
+  color: var(--text);
+  text-align: right;
 }
 
 #progress {
   position: relative;
-  height: 3px;
-  /* A generous invisible hit area: the visual bar stays a thin 3px line, but a 3px target is
-     unusable for a click-or-drag scrubber, on a mouse or a finger alike. */
-  padding: 9px 0;
-  margin: -9px 0 2px;
+  flex: 1;
+  min-width: 0;
+  /* A generous invisible hit area: the visual bar stays a thin line, but a 4px target is
+     unusable for a click-or-drag scrubber, on a mouse or a finger alike. Content-box, so the
+     padding adds to the 4px rather than eating it. */
+  box-sizing: content-box;
+  height: 4px;
+  padding: 12px 0;
+  margin: -12px 0;
   background-clip: content-box;
   border-radius: 2px;
-  background-color: color-mix(in srgb, var(--text-faint) 30%, transparent);
-  /* Ticks sit half on, half off the bar — the bar itself still needs to clip the fill. */
-  overflow: visible;
+  background-color: var(--border);
   cursor: pointer;
   touch-action: none;
 }
@@ -488,57 +823,27 @@ body {
   border-radius: 2px;
   background: var(--accent);
 }
-/* Chapter marks, YouTube-style: wherever a `say()` in the stage actually lands, not evenly
-   spaced. They sit above the bar so they stay visible whether or not the fill has reached them. */
-.checkpoint {
-  position: absolute;
-  top: 50%;
-  width: 3px;
-  height: 9px;
-  margin-left: -1.5px;
-  border-radius: 1px;
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--text-faint) 55%, transparent);
-  transform: translateY(-50%);
-  pointer-events: none;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease,
-    margin-left 0.12s ease,
-    background 0.12s ease,
-    border-color 0.12s ease;
-}
-/* The pointer is close enough that releasing now would snap here — grown and lit up so
-   landing on a line is something the reader can see coming, not just discover afterward. */
-.checkpoint.near {
-  width: 5px;
-  height: 15px;
-  margin-left: -2.5px;
-  background: var(--accent);
-  border-color: var(--accent);
-}
 
-/* Always-visible playhead: with everything else on the bar being a thin fill and small
-   ticks, "where am I right now" needs its own unambiguous marker, paused or not. */
+/* Always-visible playhead: "where am I right now" gets its own unambiguous marker, paused
+   or not. */
 #progress-thumb {
   position: absolute;
   top: 50%;
   left: 0%;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow:
-    0 0 0 3px var(--panel),
-    0 1px 3px color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 2px solid var(--accent-ink);
+  box-shadow: 0 1px 3px rgba(11, 18, 32, 0.35);
   transform: translateY(-50%);
   pointer-events: none;
   z-index: 2;
 }
 
-/* A hollow preview ring shows where a click would land before it happens — hover on desktop,
-   or wherever the finger actually is mid-drag on touch. */
+/* A hollow ring shows where a click would land before it happens — hover on desktop, or
+   wherever the finger actually is mid-drag on touch. */
 #progress-preview {
   position: absolute;
   top: 50%;
@@ -555,25 +860,22 @@ body {
   z-index: 1;
 }
 #progress-preview.visible {
-  opacity: 0.85;
+  opacity: 0.4;
 }
 
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ---------------------------------------------------------------- buttons */
 
 button {
   font-family: var(--sans);
-  font-size: 13px;
-  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  /* Comfortable touch targets without changing the desktop look. */
-  min-height: 38px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
   transition:
     background 0.15s,
     color 0.15s,
@@ -581,72 +883,67 @@ button {
     opacity 0.15s;
 }
 button svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+  flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 button:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
 }
 button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-button.ghost,
-#chapters-toggle {
-  padding: 8px 12px;
+button.ghost {
+  padding: 0 12px;
   color: var(--text-dim);
   background: var(--panel);
-  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
-}
-button.ghost {
-  background: transparent;
-  border-radius: 9px;
 }
 button.ghost:hover:not(:disabled),
 #chapters-toggle:hover {
   color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--hover);
+}
+/* Back and Replay are square icon buttons. */
+#btn-prev,
+#btn-replay {
+  flex: none;
+  width: 44px;
+  padding: 0;
 }
 
 button.primary {
-  margin-left: auto;
-  padding: 9px 16px;
-  font-weight: 600;
+  flex: none;
+  min-width: 132px;
+  padding: 0 18px;
   color: var(--accent-ink);
   background: var(--accent);
-  border: none;
-  /* Muted until it is actually the reader's turn to act — a still-playing line is not
-     waiting on them, so the button says so before it ever needs to animate. The pulse
-     below is what makes "now" unmissable; this is what makes "not yet" unambiguous. */
-  opacity: 0.5;
-  transition: opacity 0.25s ease;
+  border: 1px solid var(--accent);
 }
 button.primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-/* The idle 0.5 above is about pacing, not availability — a genuinely disabled button (the
-   scan is still downloading) needs to look more inert than that, regardless of pulse. */
-button.primary:disabled {
-  opacity: 0.35;
-}
-button.primary.pulse {
-  opacity: 1;
-  animation: pulse 1.4s ease-in-out infinite;
+  background: color-mix(in srgb, var(--accent) 86%, white);
 }
 
 /* The transport is one button whose glyph and label swap with what pressing it will do —
    play, pause, or move to the next stage — rather than three widgets fighting for the same
-   spot. Only one icon shows at a time; `svg` above already gives them all a stroke-based
-   look, so the play/pause glyphs (normally solid shapes) are drawn as closed outlines too. */
+   spot. While the stage is playing there is nothing for the reader to do, so Pause sits
+   quietly as an outlined button; the solid ink fill is kept for when it is their turn. */
+#btn-play[data-state="pause"] {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+}
+#btn-play[data-state="pause"]:hover:not(:disabled) {
+  background: var(--hover);
+}
 #btn-play svg {
   display: none;
 }
@@ -656,6 +953,19 @@ button.primary.pulse {
 #btn-play[data-state="explore"] .icon-next {
   display: block;
 }
+/* The play glyph is the one solid icon. */
+#btn-play .icon-play {
+  fill: currentColor;
+  stroke: none;
+}
+/* Continue and Explore read as "go on", so the arrow trails the word. */
+#btn-play .icon-next {
+  order: 2;
+}
+button.primary.pulse:not([data-state="pause"]) {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
 /* box-shadow only, deliberately: a transform: scale() here would keep the button's
    bounding box changing every frame forever, which Playwright's click reads as "never
    stable" and retries against until it times out — the same thing a size-changing hit
@@ -663,10 +973,10 @@ button.primary.pulse {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
 
@@ -679,63 +989,12 @@ button.primary.flash {
 }
 @keyframes click-flash {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
   }
 }
-
-/* ---------------------------------------------------------------- popovers */
-
-#chapters {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: calc(var(--safe-r) + var(--gutter));
-  z-index: 30;
-  width: min(300px, calc(100vw - 2 * var(--gutter)));
-  max-height: min(60vh, 460px);
-  overflow-y: auto;
-  padding: 7px;
-  background: var(--panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 48px color-mix(in srgb, var(--surface) 75%, transparent);
-}
-#chapters button {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 10px;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-dim);
-  font-size: 13px;
-  line-height: 1.35;
-}
-#chapters button:hover {
-  background: color-mix(in srgb, var(--text-dim) 14%, transparent);
-  color: var(--text);
-}
-#chapters button.active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--text);
-}
-#chapters .idx {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-faint);
-  min-width: 18px;
-  padding-top: 1px;
-}
-#chapters button.active .idx {
-  color: var(--accent);
-}
-
-/* ---------------------------------------------------------------- explore */
 
 /* The one control left once the tour is done: small, out of the way, easy to ignore while
    looking at the scene, easy to find when the reader is ready to start again. */
@@ -745,205 +1004,225 @@ button.primary.flash {
   bottom: calc(var(--safe-b) + 20px);
   transform: translateX(-50%);
   z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  color: var(--text-dim);
+  padding: 0 16px;
+  color: var(--text);
   background: var(--panel);
-  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  box-shadow: var(--shadow);
 }
 #btn-restart:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--hover);
 }
 
-/* ---------------------------------------------------------------- verdict */
+/* ---------------------------------------------------------------- narrower screens */
 
-/*
- * The big call-out that fires when a step reaches a decision. Deliberately loud: on a
- * visualisation-first page the verdict should be readable from across the room.
- */
-#verdict {
-  position: absolute;
-  left: 50%;
-  top: 34%;
-  transform: translate(-50%, -50%) scale(0.92);
-  z-index: 18;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  font-family: var(--mono);
-  font-size: clamp(13px, 1.7vw, 17px);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 600;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s cubic-bezier(0.2, 1.3, 0.5, 1);
-}
-#verdict.visible {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-#verdict.good {
-  color: var(--ground);
-  background: color-mix(in srgb, var(--ground) 18%, transparent);
-  border: 1.5px solid color-mix(in srgb, var(--ground) 60%, transparent);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--ground) 30%, transparent);
-}
-#verdict.bad {
-  color: var(--non-ground);
-  background: color-mix(in srgb, var(--non-ground) 18%, transparent);
-  border: 1.5px solid color-mix(in srgb, var(--non-ground) 60%, transparent);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--non-ground) 30%, transparent);
-}
-#verdict.focus {
-  color: var(--focus);
-  background: color-mix(in srgb, var(--focus) 18%, transparent);
-  border: 1.5px solid color-mix(in srgb, var(--focus) 60%, transparent);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--focus) 30%, transparent);
-}
-
-/* ---------------------------------------------------------------- tablet */
-
-@media (max-width: 1000px) {
+@media (max-width: 1200px) {
   :root {
-    --gutter: 14px;
+    --panel-w: 340px;
   }
-  #titles {
-    max-width: min(420px, 50vw);
+  #panel > * {
+    padding-left: 22px;
+    padding-right: 22px;
   }
-  #legend {
-    font-size: 11.5px;
+}
+
+@media (max-width: 960px) {
+  :root {
+    --gutter: 16px;
+    --panel-w: 300px;
+  }
+  .tagline {
+    display: none;
+  }
+  #rail li .name {
+    font-size: 12px;
+  }
+  #stage-title {
+    font-size: 26px;
   }
 }
 
 /* ---------------------------------------------------------------- phone */
 
-@media (max-width: 680px) {
+/* The panel drops under the scene and, with the transport, becomes one bottom sheet. The
+   sheet keeps only what the moment needs: where we are, the line being said, and the key. */
+@media (max-width: 720px) {
+  #app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "top"
+      "rail"
+      "stage"
+      "panel"
+      "controls";
+  }
+
   #top {
-    padding-top: calc(var(--safe-t) + 10px);
-    gap: 10px;
+    min-height: calc(var(--safe-t) + 52px);
+    padding-right: calc(var(--safe-r) + 8px);
+    border-bottom: none;
   }
-  #titles {
-    max-width: none;
-    flex: 1;
-    min-width: 0;
-  }
-  .title-text {
-    min-width: 0;
-  }
-  #stage-title {
-    font-size: 17px;
-    margin-bottom: 2px;
-  }
-  .step-badge {
-    padding: 4px 8px;
-    margin-top: 1px;
-  }
-  #chapters-toggle span {
+  #paper-link,
+  #shortcuts-toggle,
+  #shortcuts,
+  #chapters-toggle .label {
     display: none;
   }
   #chapters-toggle {
-    padding: 8px 10px;
+    min-height: 44px;
+    padding: 0 10px;
+    border-color: transparent;
+    flex-direction: row-reverse;
   }
 
+  /* Progress ticks only; the sheet below names the step. */
   #rail {
-    margin-top: 10px;
-    gap: 4px;
+    gap: 3px;
+    padding-top: 0;
+    padding-bottom: 12px;
   }
-  #rail li {
-    min-width: 0;
-    flex: 1 1 0;
-  }
-  /* Only the live step keeps its name; the rest are progress ticks. */
   #rail li .name {
     display: none;
-    font-size: 9px;
-  }
-  #rail li.active .name {
-    display: block;
   }
 
-  #bottom {
-    gap: 8px;
-    padding-bottom: calc(var(--safe-b) + 10px);
-  }
-
-  /* One line on a phone: swatch and name, with the explanations dropped. */
-  #legend {
-    margin-top: 8px;
-    gap: 4px 12px;
-    padding: 7px 12px;
-    font-size: 11.5px;
-  }
-  #legend .row i {
+  #scene-hint {
     display: none;
   }
+  #btn-recentre {
+    min-height: 44px;
+  }
 
-  #caption-text {
-    font-size: 13.5px;
-    padding: 10px 13px;
-    line-height: 1.45;
+  #panel {
+    overflow: visible;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
-  #controls {
-    padding: 9px 10px;
+  #panel > * {
+    padding: 0 16px;
+    border-bottom: none;
   }
-  .control-row {
-    flex-wrap: wrap;
-    row-gap: 8px;
+  #panel > .panel-head {
+    padding-top: 14px;
   }
-  button.ghost span {
-    display: none;
+  .kicker {
+    font-size: 12px;
+    margin-bottom: 4px;
   }
-  /* Back and Replay are always on screen, so icon-only keeps the row compact. Recentre
-     only appears once the reader has dragged the scene themselves, and a bare crosshair
-     icon reads as unlabelled chrome — keep its word so it is obvious what tapping it does. */
-  #btn-recentre span {
+  #stage-title {
     display: inline;
+    font-size: 18px;
   }
-  button.ghost {
-    padding: 8px 11px;
+  #stage-subtitle {
+    display: inline;
+    margin: 0 0 0 6px;
+    font-size: 14px;
+  }
+  #panel > #caption {
+    padding-top: 8px;
+  }
+  #caption-history,
+  #legend h2,
+  #legend i,
+  #checks,
+  #params {
+    display: none;
+  }
+  #caption-text {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  /* One line on a phone: swatch and name, with the explanations dropped. */
+  #panel > #legend {
+    padding-top: 10px;
+  }
+  #legend .rows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 12px;
+  }
+  #legend .row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #legend .swatch {
+    width: 10px;
+    height: 10px;
+  }
+
+  #controls {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 12px calc(var(--safe-r) + 16px) calc(var(--safe-b) + 12px) calc(var(--safe-l) + 16px);
+    border-top: none;
+  }
+  #scrubber {
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .time {
+    font-size: 12px;
+    min-width: 2.4em;
   }
   button.primary {
     order: 10;
     flex: 1 0 100%;
-    margin-left: 0;
-    justify-content: center;
-    min-height: 44px;
   }
   #verdict {
-    top: 30%;
-    font-size: 12px;
-    padding: 8px 14px;
+    top: 18%;
+    gap: 8px;
+    padding: 8px 14px 8px 10px;
+  }
+  #verdict .detail {
+    font-size: 13px;
   }
 }
 
-/* Short landscape phones: drop the side matter entirely, the canvas needs the room. */
-@media (max-height: 460px) and (max-width: 900px) {
+/* Short landscape screens: drop the rail and the extras, the canvas needs the room. */
+@media (max-height: 500px) and (min-width: 721px) {
   #rail,
-  #legend {
+  #caption-history,
+  #params,
+  #scene-hint {
     display: none;
   }
+  #top {
+    min-height: calc(var(--safe-t) + 48px);
+  }
+  #panel > * {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  #panel > .panel-head {
+    padding-top: 14px;
+  }
+  #stage-title {
+    font-size: 20px;
+  }
   #caption-text {
-    padding: 8px 12px;
-    font-size: 12.5px;
+    font-size: 14px;
+  }
+  #controls {
+    padding-top: 8px;
+    padding-bottom: calc(var(--safe-b) + 8px);
+  }
+}
+
+/* A touch screen has no scroll wheel; the gesture hint covers what fingers do. */
+@media (pointer: coarse) {
+  #scene-hint {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   #caption-text,
   #verdict,
-  #rail li,
-  #rail li .bar {
+  #gesture-hint,
+  #rail li .bar,
+  #rail li .name {
     transition-duration: 0.01ms;
   }
   button.primary.pulse {

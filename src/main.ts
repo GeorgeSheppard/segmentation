@@ -1,4 +1,8 @@
 import { Vector3 } from "three";
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
 import "./style.css";
 import type { Timeline } from "./anim/timeline.ts";
 import { loadKittiFrame } from "./core/loadFrame.ts";
@@ -19,8 +23,9 @@ import { Viewer, type CameraPose } from "./viz/viewer.ts";
  */
 const HERO_FRAME = "scene360-02-010880";
 
+// Framed for the scene beside the stage panel, which is narrower than the whole window.
 const OVERVIEW: CameraPose = {
-  position: new Vector3(-62, -58, 58),
+  position: new Vector3(-44.5, -44, 43),
   target: new Vector3(8, -2, -1.7),
 };
 
@@ -95,6 +100,7 @@ class App {
     this.frame = segmentGround(cloud, 0, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
 
     this.cloud = new CloudView(cloud);
+    this.cloud.fogColor = THEME.surface;
     this.viewer.add(this.cloud.points);
 
     this.hud.setBusy(false);
@@ -109,8 +115,10 @@ class App {
    */
   private showStageChrome(index: number): void {
     const stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
-    this.hud.setStage(index, STAGES.length, stage.title);
+    this.hud.setStage(index, STAGES.length, stage);
     this.hud.setRailSteps(stage.steps);
+    this.hud.setParams(stage.params?.(DEFAULT_PARAMS) ?? null);
+    this.hud.setDuration(0);
     this.hud.setProgress(0);
     this.hud.setCheckpoints([]);
   }
@@ -118,7 +126,11 @@ class App {
   private tick(dt: number): void {
     // The render loop runs from first paint, before the scan has landed.
     if (!this.cloud) return;
-    this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
+    this.cloud.syncProjection(
+      this.viewer.renderer,
+      this.viewer.camera,
+      this.viewer.controls.target,
+    );
     if (this.timeline) {
       if (this.playing) {
         this.timeline.advance(dt);
@@ -148,7 +160,7 @@ class App {
   private buildStage(index: number): void {
     this.index = Math.max(0, Math.min(STAGES.length - 1, index));
     this.rebuildTimeline();
-    this.hud.setStage(this.index, STAGES.length, STAGES[this.index].title);
+    this.hud.setStage(this.index, STAGES.length, STAGES[this.index]);
     this.hud.setRailSteps(STAGES[this.index].steps);
     this.syncHash(STAGES[this.index].id);
   }
@@ -168,6 +180,8 @@ class App {
     this.ctx?.dispose();
     this.hud.setCaption("");
     this.hud.setLegend(null);
+    this.hud.setChecks(null);
+    this.hud.setParams(stage.params?.(this.frame.params) ?? null);
     this.hud.showVerdict(null);
     this.cloud.sizeBoost = 1;
 
@@ -185,9 +199,10 @@ class App {
     // Play/Pause only starts mattering once the reader actually wants to stop it.
     this.playing = true;
     this.transportState = null;
+    this.hud.setDuration(this.timeline.duration);
     this.hud.setProgress(0);
-    // Non-uniform, like YouTube chapter marks: each `say()` in the stage leaves a tick where
-    // a new line lands, so the scrubber has somewhere sensible to snap to.
+    // Each `say()` in the stage marks where a new line lands, so the scrubber has somewhere
+    // sensible to snap to.
     this.hud.setCheckpoints(this.timeline.checkpointFractions);
     this.updateTransport();
   }

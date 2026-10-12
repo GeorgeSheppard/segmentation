@@ -8,7 +8,7 @@ import {
   type Params,
 } from "../patchwork/index.ts";
 import type { StepId } from "../patchwork/index.ts";
-import type { Hud, LegendItem } from "../ui/hud.ts";
+import type { CheckRow, Hud, LegendItem, ParamRow } from "../ui/hud.ts";
 import { CameraRig } from "../viz/cameraRig.ts";
 import type { CloudView } from "../viz/cloud.ts";
 import {
@@ -133,8 +133,8 @@ export class StageContext {
     return o;
   }
 
-  segment(color: Color | string, opacity = 1, additive = false): Segment {
-    const s = this.own(new Segment(color, opacity, additive));
+  segment(color: Color | string, opacity = 1): Segment {
+    const s = this.own(new Segment(color, opacity));
     this.scratch.add(s.line);
     return s;
   }
@@ -217,6 +217,11 @@ export class StageContext {
     this.hud.setLegend(items);
   }
 
+  /** The stage's tests, in the side panel, with how each has come out so far. */
+  checks(title: string, rows: CheckRow[]): void {
+    this.hud.setChecks(title, rows);
+  }
+
   /**
    * The loud call-out for the moment a step decides something. Used sparingly — one per
    * real verdict — so it keeps its weight.
@@ -243,6 +248,10 @@ export function planeZ(normal: Vec3, d: number, x: number, y: number): number {
 export interface Stage {
   id: string;
   title: string;
+  /** What the acronym in the title stands for, when the title does not already say. */
+  fullName?: string;
+  /** The parameters this stage turns on, listed in the side panel under their code names. */
+  params?: (p: Params) => ParamRow[];
   /**
    * Which pipeline steps this stage covers — drives the step rail, so the reader can always
    * see where in the algorithm they are. Most stages name one; the full-sweep stage names

@@ -24,7 +24,7 @@ test.describe("tutorial", () => {
       await expect(page.locator("#step-num")).toHaveText(String(i + 1));
       titles.push((await stageTitle(page).textContent()) ?? "");
       await finishStage(page);
-      await page.click("#btn-play"); // reads "Next" once the stage is finished
+      await page.click("#btn-play"); // reads "Continue" once the stage is finished
     }
     await expect(page.locator("#step-num")).toHaveText(String(total));
     titles.push((await stageTitle(page).textContent()) ?? "");
@@ -55,7 +55,8 @@ test.describe("tutorial", () => {
     await expect(page.locator("#caption-text")).toContainText("123,494");
     await finishStage(page);
     await page.click("#btn-play");
-    await expect(stageTitle(page)).toHaveText("RNR — Reflected Noise Removal");
+    await expect(stageTitle(page)).toHaveText("RNR");
+    await expect(page.locator("#stage-subtitle")).toHaveText("Reflected Noise Removal");
     expect(errors).toEqual([]);
   });
 
@@ -132,33 +133,32 @@ test.describe("tutorial", () => {
     await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(50);
   });
 
-  test("hovering near a checkpoint previews the snap, hovering away clears it", async ({
+  test("hovering the bar previews where a click would land, leaving clears it", async ({
     page,
   }) => {
     await open(page, "gle");
-    const tick = page.locator("#progress .checkpoint").first();
-    const tickBox = await tick.boundingBox();
-    if (!tickBox) throw new Error("no checkpoint tick rendered");
-
-    await page.mouse.move(tickBox.x + tickBox.width / 2, tickBox.y + tickBox.height / 2);
-    await expect(tick).toHaveClass(/near/);
-    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
-
-    // Far from any checkpoint: no snap highlight, but the preview ring still tracks the pointer.
     const bar = await page.locator("#progress").boundingBox();
     if (!bar) throw new Error("#progress has no box");
+
     await page.mouse.move(bar.x + bar.width * 0.5, bar.y + bar.height / 2);
-    await expect(tick).not.toHaveClass(/near/);
     await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
 
     await page.mouse.move(bar.x, bar.y - 40);
     await expect(page.locator("#progress-preview")).not.toHaveClass(/visible/);
   });
 
-  test("checkpoint ticks mark where each line lands on the bar", async ({ page }) => {
+  test("the bar has no tick marks, and the read-outs show elapsed and total time", async ({
+    page,
+  }) => {
     await open(page);
-    const count = await page.locator("#progress .checkpoint").count();
-    expect(count).toBeGreaterThan(0);
+    await expect(page.locator("#progress .checkpoint")).toHaveCount(0);
+    await expect(page.locator("#time-total")).toHaveText(/^\d+:\d{2}$/);
+    await expect(page.locator("#time-total")).not.toHaveText("0:00");
+
+    await finishStage(page);
+    await expect(page.locator("#time-elapsed")).toHaveText(
+      (await page.locator("#time-total").textContent())!,
+    );
   });
 
   test("Replay restarts the current stage", async ({ page }) => {
@@ -248,18 +248,44 @@ test.describe("layout", () => {
     }
   });
 
-  test("the legend sits above the scene, not over the controls", async ({ page }) => {
+  test("the key sits in the stage panel, clear of the scene and the controls", async ({ page }) => {
     await open(page, "rnr");
     const legend = page.locator("#legend");
-    // The legend fills in a row at a time as each colour it names actually appears. The
+    // The key fills in a row at a time as each colour it names actually appears. The
     // stage plays on its own, so no click is needed to get there — just real time.
     await expect(legend).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#panel #legend")).toBeVisible();
 
-    const strip = (await legend.boundingBox())!;
+    const key = (await legend.boundingBox())!;
+    const scene = (await page.locator("#stage").boundingBox())!;
     const controls = (await page.locator("#controls").boundingBox())!;
-    expect(strip.y + strip.height).toBeLessThan(controls.y);
-    // Above the halfway line: it belongs to the header, not to the bottom stack.
-    expect(strip.y).toBeLessThan(page.viewportSize()!.height / 2);
+    expect(key.y + key.height).toBeLessThanOrEqual(controls.y + 1);
+    const overlapsScene =
+      key.x < scene.x + scene.width &&
+      key.x + key.width > scene.x &&
+      key.y < scene.y + scene.height &&
+      key.y + key.height > scene.y;
+    expect(overlapsScene).toBe(false);
+  });
+
+  test("the stage panel lists the parameters a stage turns on", async ({ page }) => {
+    await open(page, "rgpf");
+    await expect(page.locator("#stage-title")).toHaveText("R-GPF");
+    await expect(page.locator("#stage-subtitle")).toContainText("Region-wise Ground Plane Fitting");
+    if (page.viewportSize()!.width > 720) {
+      await expect(page.locator("#params")).toContainText("th_dist");
+      await expect(page.locator("#params")).toContainText("0.125 m");
+    }
+  });
+
+  test("GLE ticks off its three tests as each cell is judged", async ({ page }) => {
+    await open(page, "gle");
+    const checks = page.locator("#checks li");
+    await expect(checks).toHaveCount(3);
+    await finishStage(page);
+    await expect(checks.nth(0)).toHaveClass(/fail/);
+    await expect(checks.nth(1)).toHaveClass(/pass/);
+    await expect(checks.nth(2)).toHaveClass(/pass/);
   });
 
   test("an empty legend is not rendered", async ({ page }) => {

@@ -29,6 +29,10 @@ const ORIGIN = new Vector3(0, 0, 0);
 export const stageSensor: Stage = {
   id: "sensor",
   title: "How the scan is made",
+  params: (p) => [
+    { label: "Sensor height", key: "sensor_height", value: `${p.sensorHeight} m` },
+    { label: "Usable range", key: "min_range / max_range", value: `${p.minRange}–${p.maxRange} m` },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -183,7 +187,7 @@ export const stageSensor: Stage = {
         },
       },
       Ease.inOut,
-    ).with(7.0, ctx.rig.flyTo(pose([-48, -42, 36], [6, -1, -1.6])), Ease.cinematic);
+    ).with(7.0, ctx.rig.flyTo(pose([-36, -33, 27.7], [6, -1, -1.6])), Ease.cinematic);
 
     t.say(
       "Near the car the rings are packed tight. Farther out, the same 64 lasers are spread over a much bigger circle.",

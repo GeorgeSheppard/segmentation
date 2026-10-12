@@ -16,13 +16,6 @@ const BASE_ASPECT = 1.6;
 const MAX_FOV = 88;
 
 /**
- * On a portrait phone the caption and transport sit over the lower third of the canvas, so
- * a subject centred in the canvas reads as "down in the corner". Shifting the rendered
- * frame up by this fraction of the height puts it in the part of the screen nothing covers.
- */
-const PORTRAIT_LIFT = 0.12;
-
-/**
  * Every camera pose in the tutorial was framed on a wide screen. On a portrait phone the
  * horizontal field of view would shrink to a slot and crop the subject out, so trade
  * vertical FOV to hold the horizontal extent roughly constant.
@@ -59,7 +52,9 @@ export class Viewer {
   readonly renderer: WebGLRenderer;
   readonly controls: OrbitControls;
 
-  private readonly onResize = () => this.resize();
+  /** The canvas shares the page with the side panel and the bands, so it is sized by them
+   * rather than by the window: watch the canvas itself. */
+  private readonly resizeObserver = new ResizeObserver(() => this.resize());
   private frameCallbacks: Array<(dt: number) => void> = [];
   private manualCallbacks: Array<(manual: boolean) => void> = [];
   private manual = false;
@@ -109,7 +104,7 @@ export class Viewer {
     );
 
     this.resize();
-    window.addEventListener("resize", this.onResize);
+    this.resizeObserver.observe(this.canvas);
   }
 
   /**
@@ -180,13 +175,6 @@ export class Viewer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.fov = fovForAspect(this.camera.aspect);
-
-    // Render the lower slice of a slightly taller frame, which lifts everything the camera
-    // is pointed at away from the bands along the bottom.
-    const lift = w < h ? Math.round(h * PORTRAIT_LIFT) : 0;
-    if (lift > 0) this.camera.setViewOffset(w, h + lift, 0, lift, w, h);
-    else this.camera.clearViewOffset();
-
     this.camera.updateProjectionMatrix();
   }
 
@@ -204,7 +192,7 @@ export class Viewer {
   }
 
   dispose(): void {
-    window.removeEventListener("resize", this.onResize);
+    this.resizeObserver.disconnect();
     this.renderer.setAnimationLoop(null);
     this.controls.dispose();
     this.renderer.dispose();
