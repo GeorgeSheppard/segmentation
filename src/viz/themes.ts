@@ -102,7 +102,7 @@ export const THEME: Theme = {
   // Monochrome chrome: the interface is ink on white, so colour on screen always means data.
   // The accent is ink rather than a hue — a blue one would read as the fitted plane.
   ui: {
-    panel: "rgba(255, 255, 255, 0.96)",
+    panel: "#ffffff",
     border: "#dde2ea",
     text: "#0b1220",
     textDim: "#44506a",

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="light" />
     <link rel="icon" href="/favicon.ico" />
     <title>How Patchwork++ Works</title>
     <meta
@@ -13,97 +13,162 @@
   </head>
   <body>
     <div id="app">
-      <canvas id="view"></canvas>
-
-      <!-- Status for the scan download. A chip, not a curtain: the rest of the page is
-           usable while the points stream in. -->
-      <div id="loading">
-        <div class="spinner"></div>
-        <p id="loading-text">Fetching the scan…</p>
-        <div id="loading-bar"><i></i></div>
-      </div>
-
-      <!-- Top band: which step of the algorithm we are in, and what it is doing. -->
+      <!-- Top band: what this is, and the way to any chapter. -->
       <header id="top">
-        <div id="titles">
-          <p class="kicker">Stage <span id="step-num">1</span> of <span id="step-total">1</span></p>
-          <h1 id="stage-title"></h1>
+        <div class="brand">
+          <span class="wordmark">Patchwork++</span>
+          <span class="tagline">How LiDAR ground segmentation works</span>
         </div>
 
         <div id="top-actions">
-          <button id="chapters-toggle" title="Chapters" aria-label="Chapters" aria-expanded="false">
+          <button
+            id="chapters-toggle"
+            title="Chapters"
+            aria-label="Chapters"
+            aria-controls="chapters"
+            aria-expanded="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+            <span class="label">Chapters</span>
+            <span id="chapters-count" class="count"></span>
+          </button>
+          <a id="paper-link" href="https://arxiv.org/abs/2207.11919" target="_blank" rel="noopener">
+            Paper
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+          </a>
+          <button
+            id="shortcuts-toggle"
+            title="Keyboard shortcuts"
+            aria-label="Keyboard shortcuts"
+            aria-controls="shortcuts"
+            aria-expanded="false"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 6h16M4 12h16M4 18h16" />
+              <rect x="3" y="6" width="18" height="12" rx="2" />
+              <path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8" />
             </svg>
-            <span>Chapters</span>
           </button>
         </div>
 
-        <nav id="chapters" hidden></nav>
+        <nav id="chapters" aria-label="Chapters" hidden></nav>
+
+        <div id="shortcuts" role="dialog" aria-label="Keyboard shortcuts" hidden>
+          <p class="popover-title">Keyboard shortcuts</p>
+          <dl>
+            <dt><kbd>→</kbd> <kbd>Space</kbd></dt>
+            <dd>Play, pause, continue</dd>
+            <dt><kbd>←</kbd></dt>
+            <dd>Previous stage</dd>
+            <dt><kbd>R</kbd></dt>
+            <dd>Replay this stage</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Close this menu</dd>
+            <dt>Drag</dt>
+            <dd>Orbit the scene</dd>
+            <dt>Scroll</dt>
+            <dd>Zoom</dd>
+          </dl>
+        </div>
       </header>
 
       <!-- The algorithm, always on screen, with the live step lit. -->
       <ol id="rail" aria-label="Pipeline steps"></ol>
 
-      <!-- What the colours mean, next to the step they belong to. -->
-      <aside id="legend" hidden></aside>
+      <!-- The scene. Everything in here sits over the canvas. -->
+      <main id="stage">
+        <canvas id="view"></canvas>
 
-      <!-- Bottom band -->
-      <div id="bottom">
+        <!-- Status for the scan download. A chip, not a curtain: the rest of the page is
+             usable while the points stream in. -->
+        <div id="loading">
+          <div class="spinner"></div>
+          <p id="loading-text">Fetching the scan…</p>
+          <div id="loading-bar"><i></i></div>
+        </div>
+
+        <p id="scene-hint">KITTI-360 scan · drag to orbit · scroll to zoom</p>
+
         <p id="gesture-hint" hidden>
           <b>Playing on its own</b> — drag to look around, or drag the timeline below to jump
           anywhere
         </p>
 
-        <div id="caption"><p id="caption-text"></p></div>
+        <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+          </svg>
+          <span>Recentre</span>
+        </button>
+      </main>
 
-        <footer id="controls">
-          <button
-            id="btn-prev"
-            class="ghost"
-            title="Previous stage (←)"
-            aria-label="Previous stage"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-          </button>
-          <button id="btn-replay" class="ghost" title="Replay this stage (R)" aria-label="Replay">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
-            </svg>
-          </button>
-          <div id="scrubber">
-            <span id="time-elapsed" class="time">0:00</span>
-            <div id="progress">
-              <div id="progress-bar"></div>
-              <i id="progress-preview"></i>
-              <i id="progress-thumb"></i>
-            </div>
-            <span id="time-total" class="time">0:00</span>
+      <!-- Which stage this is, what it is saying, and what the colours mean. -->
+      <aside id="panel" aria-label="Stage">
+        <div class="panel-head">
+          <p class="kicker">
+            Stage <span id="step-num">1</span> of <span id="step-total">1</span
+            ><span id="stage-scope"></span>
+          </p>
+          <h1 id="stage-title"></h1>
+          <p id="stage-subtitle" hidden></p>
+        </div>
+
+        <section id="caption" aria-label="Narration">
+          <div id="caption-history"></div>
+          <p id="caption-text" aria-live="polite"></p>
+        </section>
+
+        <section id="legend" aria-label="Key" hidden>
+          <h2>Key</h2>
+          <div class="rows"></div>
+        </section>
+
+        <section id="checks" hidden>
+          <h2 id="checks-title"></h2>
+          <ol></ol>
+        </section>
+
+        <section id="params" aria-label="Parameters" hidden>
+          <h2>Parameters</h2>
+          <dl></dl>
+        </section>
+      </aside>
+
+      <!-- Transport -->
+      <footer id="controls">
+        <button id="btn-prev" class="ghost" title="Previous stage (←)" aria-label="Previous stage">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <button id="btn-replay" class="ghost" title="Replay this stage (R)" aria-label="Replay">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
+          </svg>
+        </button>
+        <div id="scrubber">
+          <span id="time-elapsed" class="time">0:00</span>
+          <div id="progress">
+            <div id="progress-bar"></div>
+            <i id="progress-preview"></i>
+            <i id="progress-thumb"></i>
           </div>
-          <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-            </svg>
-            <span>Recentre</span>
-          </button>
-          <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
-            <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 5v14M15 5v14" />
-            </svg>
-            <span>Play</span>
-            <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
-        </footer>
-      </div>
+          <span id="time-total" class="time">0:00</span>
+        </div>
+        <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
+          <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 5v14M15 5v14" />
+          </svg>
+          <span>Play</span>
+          <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
+      </footer>
 
       <!-- Shown only once the tour is done and the reader has chosen to explore: every
-           other band fades out, leaving the finished scene full-screen. -->
+           other band steps aside, leaving the finished scene full-screen. -->
       <button id="btn-restart" title="Restart the tour" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />

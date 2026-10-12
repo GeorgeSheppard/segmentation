@@ -1,6 +1,7 @@
 import { Color, Vector3 } from "three";
 import { Ease } from "../anim/timeline.ts";
 import { type CellTrace, PointLabel } from "../patchwork/index.ts";
+import type { CheckRow } from "../ui/hud.ts";
 import { type Stage, type StageContext } from "./context.ts";
 import { facingLabel, fmt, thickness } from "./helpers.ts";
 
@@ -18,6 +19,15 @@ export const stageGle: Stage = {
   id: "gle",
   steps: ["gle"],
   title: "GLE — is that plane really ground?",
+  fullName: "Ground Likelihood Estimation",
+  params: (p) => [
+    { label: "Upright when n_z above", key: "uprightness_thr", value: String(p.uprightnessThr) },
+    {
+      label: "Rings with elevation tests",
+      key: "num_rings_of_interest",
+      value: String(p.numRingsOfInterest),
+    },
+  ],
 
   build(ctx: StageContext) {
     const { cloud } = ctx;
@@ -73,6 +83,18 @@ export const stageGle: Stage = {
       cloud.sizeTo(c.bin.indices, 1.4 + 1.0 * v, 1);
     };
 
+    // The three tests, ticked off in the side panel as each cell is judged.
+    const tests: CheckRow[] = [
+      { label: "Uprightness", state: "pending" },
+      { label: "Elevation", state: "pending" },
+      { label: "Flatness", state: "pending" },
+    ];
+    const settle = (i: number, state: CheckRow["state"]) => {
+      tests[i] = { ...tests[i], state };
+      ctx.checks("Three tests", tests);
+    };
+    ctx.checks("Three tests", tests);
+
     const t = ctx.track();
 
     // ---- Test 1: uprightness, shown on the wall cell.
@@ -84,6 +106,7 @@ export const stageGle: Stage = {
     t.add(1.0, {
       onEnter: () => {
         ctx.verdict("Rejected — not upright", "bad");
+        settle(0, "fail");
       },
       onUpdate: (v) => reveal(cells.wall, v),
       onExit: () => ctx.legend([legendNotUpright, legendAboveSensor]),
@@ -121,6 +144,7 @@ export const stageGle: Stage = {
     t.add(1.2, {
       onEnter: () => {
         ctx.verdict("Passes — below the sensor", "good");
+        settle(1, "pass");
       },
       onUpdate: (v) => {
         sensorDisc.opacity = v * 0.1;
@@ -143,6 +167,7 @@ export const stageGle: Stage = {
     t.add(1.0, {
       onEnter: () => {
         ctx.verdict("Accepted — ground", "good");
+        settle(2, "pass");
       },
       onUpdate: (v) => {
         reveal(cells.good, v);
@@ -182,6 +207,10 @@ export const stageSweep: Stage = {
   id: "sweep",
   steps: ["seeds", "rvpf", "rgpf", "gle"],
   title: "504 cells, one scan",
+  params: (p) => [
+    { label: "Fewest points to fit", key: "num_min_pts", value: String(p.numMinPts) },
+    { label: "Refinement passes", key: "num_iter", value: String(p.numIter) },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
@@ -315,6 +344,10 @@ export const stageTgr: Stage = {
   id: "tgr",
   steps: ["tgr"],
   title: "TGR — Temporal Ground Revert",
+  params: (p) => [
+    { label: "Flatness margin", key: "c_m", value: `${p.tgrGain} σ` },
+    { label: "Line-shaped veto", key: "λ₁ / λ₂ >", value: String(p.tgrLineVariableThr) },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;

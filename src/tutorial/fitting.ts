@@ -14,6 +14,10 @@ export const stageSeeds: Stage = {
   id: "seeds",
   steps: ["seeds"],
   title: "Seeds — the lowest points win",
+  params: (p) => [
+    { label: "Points averaged for the LPR", key: "num_lpr", value: String(p.numLPR) },
+    { label: "Seed band above the LPR", key: "th_seeds", value: `${p.thSeeds} m` },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, params } = ctx;
@@ -140,6 +144,12 @@ export const stageRgpf: Stage = {
   id: "rgpf",
   steps: ["rgpf"],
   title: "R-GPF — fit, re-select, repeat",
+  fullName: "Region-wise Ground Plane Fitting",
+  params: (p) => [
+    { label: "Plane thickness", key: "th_dist", value: `${p.thDist} m` },
+    { label: "Refinement passes", key: "num_iter", value: String(p.numIter) },
+    { label: "Fewest points to fit", key: "num_min_pts", value: String(p.numMinPts) },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, params } = ctx;
@@ -300,6 +310,12 @@ export const stageRvpf: Stage = {
   id: "rvpf",
   steps: ["rvpf"],
   title: "R-VPF — peeling off vertical structure",
+  fullName: "Region-wise Vertical Plane Fitting",
+  params: (p) => [
+    { label: "Vertical seed band", key: "th_seeds_v", value: `${p.thSeedsV} m` },
+    { label: "Vertical plane thickness", key: "th_dist_v", value: `${p.thDistV} m` },
+    { label: "Upright when n_z below", key: "uprightness_thr", value: String(p.uprightnessThr) },
+  ],
 
   build(ctx: StageContext) {
     const { cloud } = ctx;

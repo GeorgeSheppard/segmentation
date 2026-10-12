@@ -1,13 +1,34 @@
 import { Color } from "three";
 import { PIPELINE_STEPS, type StepId } from "../patchwork/index.ts";
 
-/** All DOM outside the canvas: titles, step rail, legend, caption, transport. */
+/** All DOM outside the canvas: header, step rail, stage panel, transport. */
 
 export interface LegendItem {
   /** A CSS colour, or the scene Color the swatch must match exactly. */
   color: string | Color;
   label: string;
   note?: string;
+}
+
+/** One row of the stage panel's parameter list: what it is, its name in the code, its value. */
+export interface ParamRow {
+  label: string;
+  key: string;
+  value: string;
+}
+
+/** One test in a stage's checklist, and how it has come out so far. */
+export interface CheckRow {
+  label: string;
+  state: "pending" | "pass" | "fail";
+}
+
+/** What the stage panel needs to know about a stage. */
+export interface StageInfo {
+  title: string;
+  /** What the acronym in the title stands for, when the title does not already say. */
+  fullName?: string;
+  steps?: StepId[];
 }
 
 /** What the transport button does right now, and what it shows for it. */
@@ -24,6 +45,19 @@ export interface HudCallbacks {
   onRestart: () => void;
 }
 
+/** Earlier lines of narration kept on screen above the current one. */
+const HISTORY_LINES = 2;
+
+const SCOPE_LABEL = { frame: "whole scan", cell: "per cell", ring: "per ring" } as const;
+
+const CHECK_LABEL = { pending: "—", pass: "Pass", fail: "Fail" } as const;
+
+const VERDICT_ICON = {
+  good: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>`,
+  bad: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>`,
+  focus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v6M12 17h.01" /></svg>`,
+} as const;
+
 /** How long the touch-gesture hint stays up if nobody touches anything. */
 const HINT_MS = 9000;
 const HINT_SEEN_KEY = "patchworkpp.gesture-hint-seen";
@@ -31,9 +65,16 @@ const HINT_SEEN_KEY = "patchworkpp.gesture-hint-seen";
 export class Hud {
   private readonly stepNum = byId("step-num");
   private readonly stepTotal = byId("step-total");
+  private readonly scope = byId("stage-scope");
   private readonly title = byId("stage-title");
+  private readonly subtitle = byId("stage-subtitle");
+  private readonly chaptersCount = byId("chapters-count");
+  private readonly captionHistory = byId("caption-history");
   private readonly captionText = byId("caption-text");
   private readonly legend = byId("legend");
+  private readonly checks = byId("checks");
+  private readonly checksTitle = byId("checks-title");
+  private readonly params = byId("params");
   private readonly progress = byId("progress");
   private readonly progressBar = byId("progress-bar");
   private readonly progressThumb = byId("progress-thumb");
@@ -43,6 +84,8 @@ export class Hud {
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
+  private readonly shortcuts = byId("shortcuts");
+  private readonly shortcutsToggle = byId("shortcuts-toggle") as HTMLButtonElement;
   private readonly btnPlay = byId("btn-play") as HTMLButtonElement;
   private readonly btnPrev = byId("btn-prev") as HTMLButtonElement;
   private readonly btnReplay = byId("btn-replay") as HTMLButtonElement;
@@ -55,6 +98,8 @@ export class Hud {
   private readonly verdict: HTMLElement;
 
   private currentCaption = "";
+  /** Every line this stage has said so far, oldest first; the last one is on screen. */
+  private captions: string[] = [];
   private verdictTimer = 0;
   private hintTimer = 0;
   private busy = false;
@@ -68,7 +113,8 @@ export class Hud {
   constructor(private readonly cb: HudCallbacks) {
     this.verdict = document.createElement("div");
     this.verdict.id = "verdict";
-    byId("app").appendChild(this.verdict);
+    this.verdict.setAttribute("role", "status");
+    byId("stage").appendChild(this.verdict);
 
     this.btnPlay.addEventListener("click", () => {
       this.dismissGestureHint();
@@ -96,7 +142,24 @@ export class Hud {
     this.buildRail();
 
     this.chaptersToggle.addEventListener("click", () => {
+      this.setPopover(this.shortcuts, this.shortcutsToggle, false);
       this.setPopover(this.chapters, this.chaptersToggle, this.chapters.hidden);
+    });
+    this.shortcutsToggle.addEventListener("click", () => {
+      this.setPopover(this.chapters, this.chaptersToggle, false);
+      this.setPopover(this.shortcuts, this.shortcutsToggle, this.shortcuts.hidden);
+    });
+    // A press anywhere else closes whichever menu is open.
+    document.addEventListener("pointerdown", (e) => {
+      const target = e.target as Node;
+      for (const [panel, toggle] of [
+        [this.chapters, this.chaptersToggle],
+        [this.shortcuts, this.shortcutsToggle],
+      ] as const) {
+        if (!panel.hidden && !panel.contains(target) && !toggle.contains(target)) {
+          this.setPopover(panel, toggle, false);
+        }
+      }
     });
 
     document.addEventListener("keydown", (e) => this.onKey(e));
@@ -123,6 +186,7 @@ export class Hud {
         break;
       case "Escape":
         this.setPopover(this.chapters, this.chaptersToggle, false);
+        this.setPopover(this.shortcuts, this.shortcutsToggle, false);
         break;
     }
   }
@@ -286,29 +350,48 @@ export class Hud {
       li.classList.toggle("active", isActive);
       li.classList.toggle("done", firstIdx >= 0 && i < firstIdx);
     }
-    const lead = this.rail.children[firstIdx] as HTMLElement | undefined;
-    lead?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }
 
   // ------------------------------------------------------------------ stage
 
-  setStage(index: number, total: number, title: string): void {
+  setStage(index: number, total: number, stage: StageInfo): void {
     this.stageIndex = index;
     this.stepNum.textContent = String(index + 1);
     this.stepTotal.textContent = String(total);
-    this.title.textContent = title;
+    this.chaptersCount.textContent = `${index + 1} of ${total}`;
+
+    const scope = stage.steps?.length
+      ? PIPELINE_STEPS.find((s) => s.id === stage.steps![0])?.scope
+      : undefined;
+    this.scope.textContent = scope ? ` · ${SCOPE_LABEL[scope]}` : "";
+
+    // "R-GPF — fit, re-select, repeat" becomes the acronym as the heading, with what it
+    // stands for and what it does underneath.
+    const [head, tail] = stage.title.split(" — ");
+    this.title.textContent = head;
+    const sub = tail ? (stage.fullName ? `${stage.fullName} — ${tail}` : capitalise(tail)) : "";
+    this.subtitle.textContent = sub;
+    this.subtitle.hidden = !sub;
+
     this.btnPrev.disabled = this.busy || index === 0;
-    for (const [i, el] of [...this.chapters.children].entries()) {
+    for (const [i, el] of [...this.chapters.querySelectorAll("button")].entries()) {
       el.classList.toggle("active", i === index);
+      el.classList.toggle("seen", i < index);
       el.toggleAttribute("aria-current", i === index);
     }
   }
 
   setChapters(titles: string[]): void {
     this.chapters.replaceChildren();
+    const heading = document.createElement("p");
+    heading.className = "popover-title";
+    heading.textContent = "Chapters";
+    this.chapters.appendChild(heading);
     titles.forEach((t, i) => {
       const b = document.createElement("button");
-      b.innerHTML = `<span class="idx">${i + 1}</span><span>${t}</span>`;
+      b.innerHTML =
+        `<span class="idx">${i + 1}</span><span class="name">${t}</span>` +
+        `<svg class="seen-mark" viewBox="0 0 24 24" role="img" aria-label="Seen"><path d="M5 12l5 5 9-10" /></svg>`;
       b.addEventListener("click", () => {
         this.cb.onJump(i);
         this.setPopover(this.chapters, this.chaptersToggle, false);
@@ -324,13 +407,29 @@ export class Hud {
 
   // ------------------------------------------------------------------ caption
 
+  /**
+   * The current line of narration. Earlier lines of the same stage stay above it, faded,
+   * so the reader can glance back at what was just said; an empty string starts the stage
+   * afresh.
+   */
   setCaption(text: string): void {
     if (text === this.currentCaption) return;
     this.currentCaption = text;
     if (!text) {
+      this.captions = [];
+      this.captionHistory.replaceChildren();
       this.captionText.classList.remove("visible");
+      this.captionText.innerHTML = "";
       return;
     }
+    this.captions.push(text);
+    this.captionHistory.replaceChildren(
+      ...this.captions.slice(-1 - HISTORY_LINES, -1).map((line) => {
+        const p = document.createElement("p");
+        p.innerHTML = line;
+        return p;
+      }),
+    );
     this.captionText.classList.remove("visible");
     // Let the fade-out land before swapping the text.
     window.setTimeout(() => {
@@ -350,8 +449,13 @@ export class Hud {
       this.verdict.classList.remove("visible");
       return;
     }
+    // "Rejected — not upright": the outcome as a label, the reason beside it.
+    const [label, detail] = text.includes(" — ") ? text.split(" — ") : ["", text];
     this.verdict.className = tone;
-    this.verdict.textContent = text;
+    this.verdict.innerHTML =
+      `<span class="icon">${VERDICT_ICON[tone]}</span>` +
+      (label ? `<span class="label">${label}</span>` : "") +
+      `<span class="detail">${capitalise(detail)}</span>`;
     // Force a reflow so re-showing the same text replays the transition.
     void this.verdict.offsetWidth;
     this.verdict.classList.add("visible");
@@ -368,16 +472,51 @@ export class Hud {
       return;
     }
     this.legend.hidden = false;
-    this.legend.replaceChildren();
+    const rows = this.legend.querySelector(".rows")!;
+    rows.replaceChildren();
     for (const item of items) {
       const row = document.createElement("div");
       row.className = "row";
-      const css = toCss(item.color);
-      // The note is its own element so a phone can drop it and keep the strip to one line.
+      // The note is its own element so a phone can drop it and keep the key to one line.
+      // It is always there, empty or not, so every row fills the same three columns.
       row.innerHTML =
-        `<span class="swatch" style="background:${css};color:${css}"></span>` +
-        `<strong>${item.label}</strong>${item.note ? `<i>— ${item.note}</i>` : ""}`;
-      this.legend.appendChild(row);
+        `<span class="swatch" style="background:${toCss(item.color)}"></span>` +
+        `<strong>${capitalise(item.label)}</strong>` +
+        `<i>${item.note ?? ""}</i>`;
+      rows.appendChild(row);
+    }
+  }
+
+  /** A stage's tests and how each has come out so far; null hides the list. */
+  setChecks(title: string, rows: CheckRow[]): void;
+  setChecks(title: null): void;
+  setChecks(title: string | null, rows: CheckRow[] = []): void {
+    this.checks.hidden = title === null;
+    if (title === null) return;
+    this.checksTitle.textContent = title;
+    const list = this.checks.querySelector("ol")!;
+    list.replaceChildren();
+    rows.forEach((r, i) => {
+      const li = document.createElement("li");
+      li.className = r.state;
+      li.innerHTML =
+        `<span class="idx">${i + 1}</span><span class="name">${r.label}</span>` +
+        `<span class="state">${CHECK_LABEL[r.state]}</span>`;
+      list.appendChild(li);
+    });
+  }
+
+  /** The parameters this stage turns on, as the code names them; null hides the list. */
+  setParams(rows: ParamRow[] | null): void {
+    this.params.hidden = !rows?.length;
+    const list = this.params.querySelector("dl")!;
+    list.replaceChildren();
+    for (const r of rows ?? []) {
+      const dt = document.createElement("dt");
+      dt.innerHTML = `${r.label} <code>${r.key}</code>`;
+      const dd = document.createElement("dd");
+      dd.textContent = r.value;
+      list.append(dt, dd);
     }
   }
 
@@ -414,7 +553,7 @@ export class Hud {
         : state === "pause"
           ? "Pause"
           : state === "next"
-            ? "Next"
+            ? "Continue"
             : "Explore";
   }
 
@@ -432,9 +571,9 @@ export class Hud {
   // ------------------------------------------------------------------ explore
 
   /**
-   * The tour is done. Every band fades out — title, rail, legend, caption, transport — and
-   * only the Restart pill remains, so the finished scene is the whole screen and dragging it
-   * is the only thing left to do.
+   * The tour is done. Every band steps aside — header, rail, stage panel, transport — and
+   * only the Restart button remains, so the finished scene is the whole screen and dragging
+   * it is the only thing left to do.
    */
   setExploring(exploring: boolean): void {
     this.exploring = exploring;
@@ -464,6 +603,10 @@ function writeFlag(key: string): void {
 function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function toCss(color: string | Color): string {

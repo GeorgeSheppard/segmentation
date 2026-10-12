@@ -15,6 +15,16 @@ export const stageAgle: Stage = {
   id: "agle",
   steps: ["agle"],
   title: "A-GLE — it tunes itself",
+  fullName: "Adaptive Ground Likelihood Estimation",
+  params: (p) => [
+    { label: "Elevation margin per ring", key: "a_m", value: `${p.elevationGain.join(" · ")} σ` },
+    { label: "Flatness margin per ring", key: "b_m", value: `${p.flatnessGain.join(" · ")} σ` },
+    {
+      label: "Readings remembered",
+      key: "max_elevation_storage",
+      value: String(p.maxElevationStorage),
+    },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame, params, czm } = ctx;

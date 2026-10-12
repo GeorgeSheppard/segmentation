@@ -113,8 +113,9 @@ class App {
    */
   private showStageChrome(index: number): void {
     const stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
-    this.hud.setStage(index, STAGES.length, stage.title);
+    this.hud.setStage(index, STAGES.length, stage);
     this.hud.setRailSteps(stage.steps);
+    this.hud.setParams(stage.params?.(DEFAULT_PARAMS) ?? null);
     this.hud.setDuration(0);
     this.hud.setProgress(0);
     this.hud.setCheckpoints([]);
@@ -153,7 +154,7 @@ class App {
   private buildStage(index: number): void {
     this.index = Math.max(0, Math.min(STAGES.length - 1, index));
     this.rebuildTimeline();
-    this.hud.setStage(this.index, STAGES.length, STAGES[this.index].title);
+    this.hud.setStage(this.index, STAGES.length, STAGES[this.index]);
     this.hud.setRailSteps(STAGES[this.index].steps);
     this.syncHash(STAGES[this.index].id);
   }
@@ -173,6 +174,8 @@ class App {
     this.ctx?.dispose();
     this.hud.setCaption("");
     this.hud.setLegend(null);
+    this.hud.setChecks(null);
+    this.hud.setParams(stage.params?.(this.frame.params) ?? null);
     this.hud.showVerdict(null);
     this.cloud.sizeBoost = 1;
 

@@ -29,6 +29,10 @@ const ORIGIN = new Vector3(0, 0, 0);
 export const stageSensor: Stage = {
   id: "sensor",
   title: "How the scan is made",
+  params: (p) => [
+    { label: "Sensor height", key: "sensor_height", value: `${p.sensorHeight} m` },
+    { label: "Usable range", key: "min_range / max_range", value: `${p.minRange}–${p.maxRange} m` },
+  ],
 
   build(ctx: StageContext) {
     const { cloud, frame } = ctx;
