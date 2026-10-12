@@ -125,14 +125,6 @@ export const stageSeeds: Stage = {
       3.4,
     );
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        prism.opacity = 0.8 * (1 - v);
-        lprPlane.opacity = 0.3 * (1 - v);
-        cutPlane.opacity = 0.24 * (1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();
@@ -291,14 +283,6 @@ export const stageRgpf: Stage = {
       3.6,
     );
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        planeSurf.opacity = 0.32 * (1 - v);
-        normalLine.opacity = 1 - v;
-        prism.opacity = 0.55 * (1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();
@@ -461,14 +445,6 @@ export const stageRvpf: Stage = {
 
     t.say("It also makes the cell genuinely flat, which matters for the next test.", 2.8);
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        planeSurf.opacity = 0.3 * (1 - v);
-        normalLine.opacity = 1 - v;
-        prism.opacity = 0.55 * (1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();

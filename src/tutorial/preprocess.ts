@@ -139,12 +139,6 @@ export const stageRnr: Stage = {
     });
     t.say("Removed. The rest of the pipeline never sees them.", 2.2);
 
-    t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        cloud.setAlpha(noise, 0); // the removed points stay removed
-      },
-    });
     t.wait(0.3);
 
     return t.build();
@@ -289,13 +283,6 @@ export const stageCzm: Stage = {
       3.4,
     );
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        cloud.sizeTo(focus.indices, 1, v);
-        grid.setOpacity(0.19 + 0.06 * v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();

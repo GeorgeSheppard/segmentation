@@ -227,8 +227,7 @@ class App {
     // While a stage is still mid-flight, "where the tour had it" can be one of the close
     // beats — a single cell, the sensor head a few metres away — and handing that straight
     // back strands the reader exactly where they were trying to escape from. Once the stage
-    // has finished, `lastPose` is already the overview (every stage's last clip flies
-    // there), so this only changes behaviour for a still-running one.
+    // has finished, its final shot is the one it chose to end on, so that is where to go.
     const target =
       this.timeline && !this.timeline.finished
         ? { position: OVERVIEW.position.clone(), target: OVERVIEW.target.clone() }
