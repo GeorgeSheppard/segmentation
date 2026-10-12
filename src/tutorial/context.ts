@@ -133,8 +133,8 @@ export class StageContext {
     return o;
   }
 
-  segment(color: Color | string, opacity = 1, additive = false): Segment {
-    const s = this.own(new Segment(color, opacity, additive));
+  segment(color: Color | string, opacity = 1): Segment {
+    const s = this.own(new Segment(color, opacity));
     this.scratch.add(s.line);
     return s;
   }

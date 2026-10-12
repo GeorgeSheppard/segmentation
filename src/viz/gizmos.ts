@@ -1,11 +1,11 @@
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
   CylinderGeometry,
   DoubleSide,
   Group,
+  type InterleavedBufferAttribute,
   Line,
   LineBasicMaterial,
   LineSegments,
@@ -13,8 +13,36 @@ import {
   MeshBasicMaterial,
   Vector3,
 } from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { Vec3 } from "../core/linalg.ts";
 import { type CzmGeometry, type Params, ringRadii, sectorAngles } from "../patchwork/index.ts";
+
+/**
+ * Gizmo strokes are screen-space "fat" lines, not GL lines: a GL line is one device pixel
+ * wide on every platform, which on a retina screen is a hairline that aliases as it moves.
+ */
+const STROKE_PX = 1.5;
+
+function strokeMaterial(color: Color | string, opacity = 1): LineMaterial {
+  return new LineMaterial({
+    color: new Color(color).getHex(),
+    linewidth: STROKE_PX,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  });
+}
+
+/** A closed polyline as the vertex pairs of its segments. */
+function loopToSegments(points: Float32Array): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 5 < points.length; i += 3) {
+    out.push(points[i], points[i + 1], points[i + 2], points[i + 3], points[i + 4], points[i + 5]);
+  }
+  return out;
+}
 
 /** Points along an annular-sector outline, counter-clockwise and closed. */
 function wedgeOutline(
@@ -181,8 +209,8 @@ export class WedgeSurface {
 /** The outline of one CZM cell, optionally extruded into a prism. */
 export class CellOutline {
   readonly group = new Group();
-  private readonly material: LineBasicMaterial;
-  private readonly lines: Line[] = [];
+  private readonly material: LineMaterial;
+  private readonly geometry = new LineSegmentsGeometry();
 
   constructor(
     r0: number,
@@ -193,36 +221,26 @@ export class CellOutline {
     zTop: number | null,
     color: Color | string,
   ) {
-    this.material = new LineBasicMaterial({ color: new Color(color), transparent: true });
+    this.material = strokeMaterial(color);
 
-    this.addLoop(wedgeOutline(r0, r1, a0, a1, zBottom));
+    const verts = loopToSegments(wedgeOutline(r0, r1, a0, a1, zBottom));
     if (zTop !== null) {
-      this.addLoop(wedgeOutline(r0, r1, a0, a1, zTop));
+      verts.push(...loopToSegments(wedgeOutline(r0, r1, a0, a1, zTop)));
       const corners: Array<[number, number]> = [
         [r0, a0],
         [r1, a0],
         [r0, a1],
         [r1, a1],
       ];
-      const verts: number[] = [];
       for (const [r, a] of corners) {
         verts.push(Math.cos(a) * r, Math.sin(a) * r, zBottom);
         verts.push(Math.cos(a) * r, Math.sin(a) * r, zTop);
       }
-      const g = new BufferGeometry();
-      g.setAttribute("position", new BufferAttribute(new Float32Array(verts), 3));
-      const seg = new LineSegments(g, this.material);
-      this.group.add(seg);
     }
-    this.group.renderOrder = 3;
-  }
-
-  private addLoop(points: Float32Array): void {
-    const g = new BufferGeometry();
-    g.setAttribute("position", new BufferAttribute(points, 3));
-    const line = new Line(g, this.material);
-    this.lines.push(line);
-    this.group.add(line);
+    this.geometry.setPositions(verts);
+    const lines = new LineSegments2(this.geometry, this.material);
+    lines.renderOrder = 3;
+    this.group.add(lines);
   }
 
   set opacity(v: number) {
@@ -235,9 +253,7 @@ export class CellOutline {
   }
 
   dispose(): void {
-    this.group.traverse((o) => {
-      if (o instanceof Line || o instanceof LineSegments) o.geometry.dispose();
-    });
+    this.geometry.dispose();
     this.material.dispose();
   }
 }
@@ -356,22 +372,17 @@ export class CzmGrid {
 
 /** A straight line between two points — LiDAR rays, normals, drop lines. */
 export class Segment {
-  readonly line: Line;
-  private readonly geometry: BufferGeometry;
-  private readonly material: LineBasicMaterial;
+  readonly line: LineSegments2;
+  private readonly geometry = new LineSegmentsGeometry();
+  private readonly material: LineMaterial;
   private readonly verts = new Float32Array(6);
 
-  constructor(color: Color | string, opacity = 1, additive = false) {
-    this.geometry = new BufferGeometry();
-    this.geometry.setAttribute("position", new BufferAttribute(this.verts, 3));
-    this.material = new LineBasicMaterial({
-      color: new Color(color),
-      transparent: true,
-      opacity,
-      blending: additive ? AdditiveBlending : undefined,
-      depthWrite: false,
-    });
-    this.line = new Line(this.geometry, this.material);
+  constructor(color: Color | string, opacity = 1) {
+    this.geometry.setPositions(this.verts);
+    this.material = strokeMaterial(color, opacity);
+    this.line = new LineSegments2(this.geometry, this.material);
+    // Endpoints move every frame while a ray sweeps; the bounds would always be stale.
+    this.line.frustumCulled = false;
     this.line.renderOrder = 4;
   }
 
@@ -379,7 +390,10 @@ export class Segment {
     const av = a instanceof Vector3 ? [a.x, a.y, a.z] : a;
     const bv = b instanceof Vector3 ? [b.x, b.y, b.z] : b;
     this.verts.set([...av, ...bv]);
-    this.geometry.getAttribute("position").needsUpdate = true;
+    // Rewrite the one segment in place rather than reallocating the instanced buffers.
+    const start = this.geometry.getAttribute("instanceStart") as InterleavedBufferAttribute;
+    start.data.array.set(this.verts);
+    start.data.needsUpdate = true;
   }
 
   set opacity(v: number) {

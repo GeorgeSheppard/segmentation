@@ -207,7 +207,7 @@ export const stageResult: Stage = {
       `Every point placed: <em>${g.length.toLocaleString()} ground</em>, <em>${n.length.toLocaleString()} not</em>.`,
       2.4,
     )
-      .with(2.0, ctx.rig.flyTo(pose([-46, -38, 20], [6, 0, -1.6])), Ease.cinematic)
+      .with(2.0, ctx.rig.flyTo(pose([-34.6, -29.6, 15.2], [6, 0, -1.6])), Ease.cinematic)
       .with(1.6, {
         onUpdate: (v) => {
           cloud.paint(g, ctx.color.ground, v);

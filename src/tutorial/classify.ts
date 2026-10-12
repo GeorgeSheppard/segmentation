@@ -261,7 +261,7 @@ export const stageSweep: Stage = {
     t.say("Seed, peel, fit, judge. Now in every cell, ring by ring, outward.", 2.6).with(
       2.1,
       ctx.rig.flyTo({
-        position: new Vector3(-14, -24, 86),
+        position: new Vector3(-12.5, -21.5, 77),
         target: new Vector3(0, 0, -1.7),
       }),
       Ease.cinematic,

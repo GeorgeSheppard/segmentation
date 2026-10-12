@@ -23,8 +23,9 @@ import { Viewer, type CameraPose } from "./viz/viewer.ts";
  */
 const HERO_FRAME = "scene360-02-010880";
 
+// Framed for the scene beside the stage panel, which is narrower than the whole window.
 const OVERVIEW: CameraPose = {
-  position: new Vector3(-62, -58, 58),
+  position: new Vector3(-44.5, -44, 43),
   target: new Vector3(8, -2, -1.7),
 };
 
@@ -99,6 +100,7 @@ class App {
     this.frame = segmentGround(cloud, 0, DEFAULT_PARAMS, initialState(DEFAULT_PARAMS));
 
     this.cloud = new CloudView(cloud);
+    this.cloud.fogColor = THEME.surface;
     this.viewer.add(this.cloud.points);
 
     this.hud.setBusy(false);
@@ -124,7 +126,11 @@ class App {
   private tick(dt: number): void {
     // The render loop runs from first paint, before the scan has landed.
     if (!this.cloud) return;
-    this.cloud.syncProjection(this.viewer.renderer, this.viewer.camera);
+    this.cloud.syncProjection(
+      this.viewer.renderer,
+      this.viewer.camera,
+      this.viewer.controls.target,
+    );
     if (this.timeline) {
       if (this.playing) {
         this.timeline.advance(dt);

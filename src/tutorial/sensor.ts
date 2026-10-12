@@ -187,7 +187,7 @@ export const stageSensor: Stage = {
         },
       },
       Ease.inOut,
-    ).with(7.0, ctx.rig.flyTo(pose([-48, -42, 36], [6, -1, -1.6])), Ease.cinematic);
+    ).with(7.0, ctx.rig.flyTo(pose([-36, -33, 27.7], [6, -1, -1.6])), Ease.cinematic);
 
     t.say(
       "Near the car the rings are packed tight. Farther out, the same 64 lasers are spread over a much bigger circle.",
