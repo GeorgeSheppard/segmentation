@@ -1,4 +1,8 @@
 import { Vector3 } from "three";
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
 import "./style.css";
 import type { Timeline } from "./anim/timeline.ts";
 import { loadKittiFrame } from "./core/loadFrame.ts";
@@ -111,6 +115,7 @@ class App {
     const stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
     this.hud.setStage(index, STAGES.length, stage.title);
     this.hud.setRailSteps(stage.steps);
+    this.hud.setDuration(0);
     this.hud.setProgress(0);
     this.hud.setCheckpoints([]);
   }
@@ -185,9 +190,10 @@ class App {
     // Play/Pause only starts mattering once the reader actually wants to stop it.
     this.playing = true;
     this.transportState = null;
+    this.hud.setDuration(this.timeline.duration);
     this.hud.setProgress(0);
-    // Non-uniform, like YouTube chapter marks: each `say()` in the stage leaves a tick where
-    // a new line lands, so the scrubber has somewhere sensible to snap to.
+    // Each `say()` in the stage marks where a new line lands, so the scrubber has somewhere
+    // sensible to snap to.
     this.hud.setCheckpoints(this.timeline.checkpointFractions);
     this.updateTransport();
   }

@@ -99,13 +99,15 @@ export const THEME: Theme = {
   contextAlpha: 0.22,
   // ordinal, light on #eef1f6: ΔL gaps clear, light end 2.62:1, hue spread 4°
   zoneRamp: ["#8397b8", "#5c7ba6", "#3a5a8c", "#1d3a66"],
+  // Monochrome chrome: the interface is ink on white, so colour on screen always means data.
+  // The accent is ink rather than a hue — a blue one would read as the fitted plane.
   ui: {
-    panel: "rgba(252, 252, 251, 0.88)",
-    border: "rgba(15, 23, 42, 0.14)",
+    panel: "rgba(255, 255, 255, 0.96)",
+    border: "#dde2ea",
     text: "#0b1220",
     textDim: "#44506a",
     textFaint: "#6b7793",
-    accent: "#2a78d6",
+    accent: "#0b1220",
     accentInk: "#ffffff",
   },
 };

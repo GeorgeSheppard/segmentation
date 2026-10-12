@@ -132,33 +132,32 @@ test.describe("tutorial", () => {
     await expect.poll(thumbLeft, { timeout: 10_000 }).toBeGreaterThan(50);
   });
 
-  test("hovering near a checkpoint previews the snap, hovering away clears it", async ({
+  test("hovering the bar previews where a click would land, leaving clears it", async ({
     page,
   }) => {
     await open(page, "gle");
-    const tick = page.locator("#progress .checkpoint").first();
-    const tickBox = await tick.boundingBox();
-    if (!tickBox) throw new Error("no checkpoint tick rendered");
-
-    await page.mouse.move(tickBox.x + tickBox.width / 2, tickBox.y + tickBox.height / 2);
-    await expect(tick).toHaveClass(/near/);
-    await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
-
-    // Far from any checkpoint: no snap highlight, but the preview ring still tracks the pointer.
     const bar = await page.locator("#progress").boundingBox();
     if (!bar) throw new Error("#progress has no box");
+
     await page.mouse.move(bar.x + bar.width * 0.5, bar.y + bar.height / 2);
-    await expect(tick).not.toHaveClass(/near/);
     await expect(page.locator("#progress-preview")).toHaveClass(/visible/);
 
     await page.mouse.move(bar.x, bar.y - 40);
     await expect(page.locator("#progress-preview")).not.toHaveClass(/visible/);
   });
 
-  test("checkpoint ticks mark where each line lands on the bar", async ({ page }) => {
+  test("the bar has no tick marks, and the read-outs show elapsed and total time", async ({
+    page,
+  }) => {
     await open(page);
-    const count = await page.locator("#progress .checkpoint").count();
-    expect(count).toBeGreaterThan(0);
+    await expect(page.locator("#progress .checkpoint")).toHaveCount(0);
+    await expect(page.locator("#time-total")).toHaveText(/^\d+:\d{2}$/);
+    await expect(page.locator("#time-total")).not.toHaveText("0:00");
+
+    await finishStage(page);
+    await expect(page.locator("#time-elapsed")).toHaveText(
+      (await page.locator("#time-total").textContent())!,
+    );
   });
 
   test("Replay restarts the current stage", async ({ page }) => {

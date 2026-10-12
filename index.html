@@ -26,16 +26,12 @@
       <!-- Top band: which step of the algorithm we are in, and what it is doing. -->
       <header id="top">
         <div id="titles">
-          <div class="step-badge">
-            <span id="step-num">1</span><span class="sep">/</span><span id="step-total">1</span>
-          </div>
-          <div class="title-text">
-            <h1 id="stage-title"></h1>
-          </div>
+          <p class="kicker">Stage <span id="step-num">1</span> of <span id="step-total">1</span></p>
+          <h1 id="stage-title"></h1>
         </div>
 
         <div id="top-actions">
-          <button id="chapters-toggle" title="Chapters" aria-expanded="false">
+          <button id="chapters-toggle" title="Chapters" aria-label="Chapters" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -62,42 +58,47 @@
         <div id="caption"><p id="caption-text"></p></div>
 
         <footer id="controls">
-          <div id="progress">
-            <div id="progress-bar"></div>
-            <i id="progress-preview"></i>
-            <i id="progress-thumb"></i>
+          <button
+            id="btn-prev"
+            class="ghost"
+            title="Previous stage (←)"
+            aria-label="Previous stage"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+          </button>
+          <button id="btn-replay" class="ghost" title="Replay this stage (R)" aria-label="Replay">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
+            </svg>
+          </button>
+          <div id="scrubber">
+            <span id="time-elapsed" class="time">0:00</span>
+            <div id="progress">
+              <div id="progress-bar"></div>
+              <i id="progress-preview"></i>
+              <i id="progress-thumb"></i>
+            </div>
+            <span id="time-total" class="time">0:00</span>
           </div>
-          <div class="control-row">
-            <button id="btn-prev" class="ghost" title="Previous step (←)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-              <span>Back</span>
-            </button>
-            <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-              </svg>
-              <span>Recentre</span>
-            </button>
-            <button id="btn-replay" class="ghost" title="Replay this step (R)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
-              </svg>
-              <span>Replay</span>
-            </button>
-            <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
-              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-              </svg>
-              <span>Play</span>
-              <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+          <button id="btn-recentre" class="ghost" title="Put the camera back on the tour" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+            </svg>
+            <span>Recentre</span>
+          </button>
+          <button id="btn-play" class="primary" title="Play / Pause (space)" data-state="play">
+            <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 5v14M15 5v14" />
+            </svg>
+            <span>Play</span>
+            <svg class="icon-next" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
         </footer>
       </div>
 

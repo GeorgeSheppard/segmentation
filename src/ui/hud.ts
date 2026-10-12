@@ -38,6 +38,8 @@ export class Hud {
   private readonly progressBar = byId("progress-bar");
   private readonly progressThumb = byId("progress-thumb");
   private readonly progressPreview = byId("progress-preview");
+  private readonly timeElapsed = byId("time-elapsed");
+  private readonly timeTotal = byId("time-total");
   private readonly rail = byId("rail");
   private readonly chapters = byId("chapters");
   private readonly chaptersToggle = byId("chapters-toggle") as HTMLButtonElement;
@@ -58,10 +60,9 @@ export class Hud {
   private busy = false;
   private exploring = false;
   private stageIndex = 0;
-  /** Each checkpoint's fraction and its rendered tick — `el` is null for one too close to
-   * either end of the bar to get its own mark, but it's still a valid place to snap to. */
-  private checkpoints: { frac: number; el: HTMLElement | null }[] = [];
-  private nearEl: HTMLElement | null = null;
+  /** Where each line of narration lands, as fractions of the stage — snap targets, not drawn. */
+  private checkpoints: number[] = [];
+  private duration = 0;
   private scrubbing = false;
 
   constructor(private readonly cb: HudCallbacks) {
@@ -78,10 +79,10 @@ export class Hud {
     this.btnRecentre.addEventListener("click", () => cb.onRecentre());
     this.btnRestart.addEventListener("click", () => cb.onRestart());
 
-    // Click (or drag) anywhere on the bar to jump straight there, snapping to a checkpoint
-    // tick when the pointer lands close enough to one — the way a video scrubber snaps to
-    // its chapter marks. Hovering first (mouse only; touch has no hover) previews exactly
-    // where that click would land, before it happens.
+    // Click (or drag) anywhere on the bar to jump straight there, snapping to the start of a
+    // line of narration when the pointer lands close enough to one, so a seek never lands
+    // mid-sentence. Hovering first (mouse only; touch has no hover) previews exactly where
+    // that click would land, before it happens.
     this.progress.addEventListener("pointerdown", (e) => this.beginScrub(e));
     this.progress.addEventListener("pointermove", (e) => {
       if (this.scrubbing) return;
@@ -141,7 +142,7 @@ export class Hud {
     let raf = 0;
 
     const report = (e: PointerEvent) => {
-      pending = this.snapTarget(e.clientX).fraction;
+      pending = this.snapTarget(e.clientX);
       this.showPreview(e.clientX);
       if (raf) return;
       raf = requestAnimationFrame(() => {
@@ -165,51 +166,36 @@ export class Hud {
   }
 
   /**
-   * The bar position under `clientX`, snapped to the nearest checkpoint tick (or either end)
-   * if the pointer is within `SNAP_PX` of it. A fixed pixel radius, not a fraction of the
-   * bar's width, so a snap point is exactly as easy to hit on a short bar as a long one —
-   * and generous enough that landing on it doesn't take a steady hand.
+   * The bar position under `clientX`, snapped to the nearest checkpoint (or either end) if
+   * the pointer is within `SNAP_PX` of it. A fixed pixel radius, not a fraction of the bar's
+   * width, so a snap point is exactly as easy to hit on a short bar as a long one.
    */
-  private snapTarget(clientX: number): { fraction: number; el: HTMLElement | null } {
+  private snapTarget(clientX: number): number {
     const SNAP_PX = 16;
     const rect = this.progress.getBoundingClientRect();
     const raw = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
     const clamped = Math.max(0, Math.min(1, raw));
 
     let best = clamped;
-    let bestEl: HTMLElement | null = null;
     let bestPx = SNAP_PX;
-    const consider = (f: number, el: HTMLElement | null) => {
+    for (const f of [0, 1, ...this.checkpoints]) {
       const px = Math.abs(f - clamped) * rect.width;
       if (px < bestPx) {
         bestPx = px;
         best = f;
-        bestEl = el;
       }
-    };
-    consider(0, null);
-    consider(1, null);
-    for (const { frac, el } of this.checkpoints) consider(frac, el);
-
-    return { fraction: best, el: bestEl };
+    }
+    return best;
   }
 
   /** Show, at `clientX`, exactly where releasing the pointer now would land. */
   private showPreview(clientX: number): void {
-    const { fraction, el } = this.snapTarget(clientX);
-    this.progressPreview.style.left = `${fraction * 100}%`;
+    this.progressPreview.style.left = `${this.snapTarget(clientX) * 100}%`;
     this.progressPreview.classList.add("visible");
-    if (this.nearEl !== el) {
-      this.nearEl?.classList.remove("near");
-      el?.classList.add("near");
-      this.nearEl = el;
-    }
   }
 
   private hidePreview(): void {
     this.progressPreview.classList.remove("visible");
-    this.nearEl?.classList.remove("near");
-    this.nearEl = null;
   }
 
   // ------------------------------------------------------------------ loading
@@ -278,11 +264,13 @@ export class Hud {
   /** The pipeline, always on screen, so "where are we" never needs to be inferred. */
   private buildRail(): void {
     this.rail.replaceChildren();
-    for (const step of PIPELINE_STEPS) {
+    for (const [i, step] of PIPELINE_STEPS.entries()) {
       const li = document.createElement("li");
       li.dataset.step = step.id;
       li.title = `${step.name} — ${step.summary}`;
-      li.innerHTML = `<span class="bar"></span><span class="name">${step.name}</span>`;
+      li.innerHTML =
+        `<span class="bar"></span>` +
+        `<span class="name"><span class="num">${i + 1}</span>${step.name}</span>`;
       this.rail.appendChild(li);
     }
   }
@@ -312,6 +300,7 @@ export class Hud {
     this.btnPrev.disabled = this.busy || index === 0;
     for (const [i, el] of [...this.chapters.children].entries()) {
       el.classList.toggle("active", i === index);
+      el.toggleAttribute("aria-current", i === index);
     }
   }
 
@@ -319,7 +308,7 @@ export class Hud {
     this.chapters.replaceChildren();
     titles.forEach((t, i) => {
       const b = document.createElement("button");
-      b.innerHTML = `<span class="idx">${String(i + 1).padStart(2, "0")}</span><span>${t}</span>`;
+      b.innerHTML = `<span class="idx">${i + 1}</span><span>${t}</span>`;
       b.addEventListener("click", () => {
         this.cb.onJump(i);
         this.setPopover(this.chapters, this.chaptersToggle, false);
@@ -397,25 +386,18 @@ export class Hud {
   setProgress(p: number): void {
     this.progressBar.style.width = `${Math.round(p * 100)}%`;
     this.progressThumb.style.left = `${p * 100}%`;
+    this.timeElapsed.textContent = formatTime(p * this.duration);
   }
 
-  /**
-   * Mark where each line of narration lands, the way YouTube marks chapter points on a
-   * scrubber — not evenly spaced, just wherever the stage's `say()` lines actually land.
-   */
+  /** The current stage's length in seconds, for the time read-outs either side of the bar. */
+  setDuration(seconds: number): void {
+    this.duration = seconds;
+    this.timeTotal.textContent = formatTime(seconds);
+  }
+
+  /** Where each line of narration lands — never drawn, but the scrubber snaps to them. */
   setCheckpoints(fractions: number[]): void {
-    this.progress.querySelectorAll(".checkpoint").forEach((el) => el.remove());
-    this.nearEl = null;
-    this.checkpoints = fractions.map((f) => {
-      // A mark right at the very end doesn't tell the reader anything they can't already
-      // see, but it's still a fraction a click can land on and snap to.
-      if (f <= 0 || f >= 0.995) return { frac: f, el: null };
-      const tick = document.createElement("i");
-      tick.className = "checkpoint";
-      tick.style.left = `${f * 100}%`;
-      this.progress.appendChild(tick);
-      return { frac: f, el: tick };
-    });
+    this.checkpoints = fractions;
   }
 
   /**
@@ -476,6 +458,12 @@ function writeFlag(key: string): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Seconds as m:ss, floored so the read-out ticks over the way a media player's does. */
+function formatTime(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 function toCss(color: string | Color): string {
