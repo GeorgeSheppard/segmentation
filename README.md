@@ -30,8 +30,8 @@ pnpm dev
 | 10  | A-GLE                | The thresholds — and the sensor height — being measured rather than set       |
 | 11  | The result           | Ground vs not-ground, against the one-plane strawman it replaces              |
 
-Each stage zooms into a real cell, narrates what happens there, and pulls back to the whole
-scene. A **step rail** across the top stays on screen the whole time with the live pipeline
+Each stage zooms into a real cell and narrates what happens there. It ends on that shot rather
+than pulling back, so the camera only moves when there is something new to show. A **step rail** across the top stays on screen the whole time with the live pipeline
 step lit, so "where are we" never has to be inferred.
 
 The raw scan is one neutral colour, never a height ramp: a ramp bands the cloud into road,

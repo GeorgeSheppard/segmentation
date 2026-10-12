@@ -190,12 +190,6 @@ export const stageGle: Stage = {
       4,
     );
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        for (const c of Object.values(cells)) reveal(c, 1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();
@@ -327,7 +321,7 @@ export const stageSweep: Stage = {
       3,
     );
 
-    t.add(2.4, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.4, {
+    t.add(1.4, {
       onUpdate: (v) => {
         grid.setOpacity(0.25 * (1 - v));
         sweepRing.opacity = 0;
@@ -460,14 +454,6 @@ export const stageTgr: Stage = {
       3,
     );
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        heroOutline.opacity = 0.9 * (1 - v);
-        heroCell.opacity = 0.3 * (1 - v);
-        for (const c of peerCells) c.opacity = 0.3 * (1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();

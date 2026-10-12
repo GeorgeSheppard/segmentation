@@ -138,13 +138,6 @@ export const stageAgle: Stage = {
 
     t.say("The noise filter follows the car downhill instead of cutting into the road.", 3);
 
-    t.add(2.6, ctx.rig.flyTo(ctx.overview), Ease.cinematic).with(1.8, {
-      onUpdate: (v) => {
-        cloud.fadeAllTo(1, v);
-        for (const r of roi) r.disc.opacity = 0.24 * (1 - v);
-        for (const c of cellSurfaces) c.opacity = 0.35 * (1 - v);
-      },
-    });
     t.wait(0.3);
 
     return t.build();
